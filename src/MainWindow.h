@@ -11,6 +11,8 @@ class QSlider;
 class QAction;
 class QTreeWidget;
 class QSplitter;
+class QTabWidget;
+class QTextEdit;
 class QTimer;
 
 // ── Toolbar master VU widget ──────────────────────────────────────────────────
@@ -50,7 +52,8 @@ private:
     void setupToolbar();
     void startPlayback(const QString& path);
     void populateTree();
-    void clearTree();
+    void populateTabs();
+    void clearAll();
     void updateToolbarInfo();
 
     ModuleState                  m_state;
@@ -59,7 +62,25 @@ private:
     // Central layout
     QSplitter*   m_splitter     {nullptr};
     QTreeWidget* m_tree         {nullptr};
+    QTabWidget*  m_tabs         {nullptr};
     TrackerView* m_trackerView  {nullptr};
+
+    // Tab content
+    QWidget*     m_tabGeneral   {nullptr};
+    QWidget*     m_tabSamples   {nullptr};
+    QWidget*     m_tabInstrs    {nullptr};
+    QTextEdit*   m_tabComments  {nullptr};
+
+    // General tab labels
+    QLabel* m_genTitle    {nullptr};
+    QLabel* m_genArtist   {nullptr};
+    QLabel* m_genType     {nullptr};
+    QLabel* m_genDuration {nullptr};
+    QLabel* m_genCounts   {nullptr};
+
+    // Sample / instrument lists
+    QTreeWidget* m_sampleList {nullptr};
+    QTreeWidget* m_instrList  {nullptr};
 
     // Toolbar widgets
     QAction*   m_actPlayPause   {nullptr};

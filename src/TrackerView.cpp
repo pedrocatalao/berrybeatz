@@ -24,7 +24,7 @@ static const ImVec4 kColGlobal   {255/255.f,  64/255.f,  64/255.f, 1.f}; // #FF4
 static const ImVec4 kDim         { 80/255.f,  80/255.f,  80/255.f, 1.f};
 static const ImVec4 kChHeader    { 30/255.f,  30/255.f,  60/255.f, 1.f};
 static const ImVec4 kChBorder    { 46/255.f,  46/255.f,  92/255.f, 1.f}; // #2E2E5C sep
-static const ImVec4 kOrderBg     { 20/255.f,  20/255.f,  45/255.f, 1.f};
+static const ImVec4 kOrderBg     {  0/255.f,   0/255.f,   0/255.f, 0.f}; // transparent
 static const ImVec4 kOrderCur    { 64/255.f,  64/255.f, 160/255.f, 1.f}; // #4040A0
 
 // VU LED colours (exact from ColorSchemes.h)

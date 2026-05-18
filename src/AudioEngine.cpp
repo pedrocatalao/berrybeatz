@@ -77,6 +77,12 @@ void AudioEngine::rewind() {
     if (m_mod) m_mod->set_position_seconds(0.0);
     m_stop.store(false);
     m_paused.store(false);
+    m_state.master_vu_left .store(0.f);
+    m_state.master_vu_right.store(0.f);
+    {
+        std::lock_guard<std::mutex> lk(m_state.vu_mutex);
+        m_state.vu.fill({});
+    }
 }
 void AudioEngine::setPaused(bool p)         { m_paused.store(p); }
 void AudioEngine::seekSeconds(double s)     { m_seek.store(s); }
@@ -96,6 +102,19 @@ int AudioEngine::paCallback(const void*, void* output,
 
     if (d->stop->load() || d->paused->load()) {
         std::memset(out, 0, frameCount * 2 * sizeof(float));
+        if (d->paused->load()) {
+            // Decay VU toward silence while paused
+            d->state->master_vu_left .store(d->state->master_vu_left .load() * 0.88f);
+            d->state->master_vu_right.store(d->state->master_vu_right.load() * 0.88f);
+            int32_t nch = d->state->num_channels.load();
+            if (nch > 0) {
+                std::lock_guard<std::mutex> lk(d->state->vu_mutex);
+                for (int32_t ch = 0; ch < nch && ch < MAX_CHANNELS; ++ch) {
+                    d->state->vu[ch].left  *= 0.88f;
+                    d->state->vu[ch].right *= 0.88f;
+                }
+            }
+        }
         return d->stop->load() ? paAbort : paContinue;
     }
 

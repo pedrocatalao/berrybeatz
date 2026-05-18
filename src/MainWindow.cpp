@@ -337,8 +337,8 @@ MainWindow::~MainWindow() {
 void MainWindow::setupMenu() {
     QMenu* file = menuBar()->addMenu("&File");
     m_actNew = new QAction("&New",   this); m_actNew->setShortcut(QKeySequence::New);
-    m_actSave= new QAction("&Save…", this); m_actSave->setShortcut(QKeySequence::Save);
-    auto* open = new QAction("&Open…", this); open->setShortcut(QKeySequence::Open);
+    m_actSave= new QAction("&Save", this); m_actSave->setShortcut(QKeySequence::Save);
+    auto* open = new QAction("&Open", this); open->setShortcut(QKeySequence::Open);
     connect(m_actNew,  &QAction::triggered, this, &MainWindow::onNew);
     connect(open,      &QAction::triggered, this, &MainWindow::onOpenFile);
     connect(m_actSave, &QAction::triggered, this, &MainWindow::onSave);

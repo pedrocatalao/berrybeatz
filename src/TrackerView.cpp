@@ -80,10 +80,11 @@ static const ImU32 kVuHiLit    = IM_COL32(225,   0,   0, 255); // #E10000
 static const ImU32 kVuHiUnlit  = IM_COL32( 35,   0,   0, 255);
 
 // ── Layout constants (match OpenMPT Draw_pat.cpp) ─────────────────────────────
-static constexpr float ORDER_H   = 26.0f; // order list strip height
-static constexpr float CHANNAME_H= 18.0f; // channel name row
-static constexpr float VU_H      = 13.0f; // LED VU row  (VUMETERS_HEIGHT)
-static constexpr float CHAN_H    = CHANNAME_H + VU_H;
+static constexpr float ORDER_H   = 26.0f;
+static constexpr float CHANNAME_H= 18.0f;
+static constexpr float VU_H      = 13.0f;
+static constexpr float PLUGIN_H  = 14.0f;
+static constexpr float CHAN_H    = CHANNAME_H + VU_H + PLUGIN_H;
 
 // ── TrackerView ───────────────────────────────────────────────────────────────
 
@@ -313,55 +314,96 @@ void TrackerView::drawChannelStrip() {
     ImVec2      wPos = ImGui::GetWindowPos();
     float       wW   = ImGui::GetWindowWidth();
 
-    // "Row" label in the row-number column
-    dl->AddText({wPos.x + 6, wPos.y + 2},
-                ImGui::ColorConvertFloat4ToU32(kDim), "Row");
+    // "Row" label — vertically centred in the full header height
+    {
+        float textH = ImGui::GetTextLineHeight();
+        float rowLabelY = wPos.y + (CHAN_H - textH) * 0.5f;
+        dl->AddText({wPos.x + 6, rowLabelY},
+                    ImGui::ColorConvertFloat4ToU32(kDim), "Row");
+    }
+
+    int32_t plugClickCh = -1; // deferred outside PushID scope
 
     for (int ch = 0; ch < nch && ch < MAX_CHANNELS; ch++) {
-        float chX = wPos.x + m_rowNumW + float(ch) * m_cellW - m_hscroll;
+        float chX    = wPos.x + m_rowNumW + float(ch) * m_cellW - m_hscroll;
+        float cellW2 = m_cellW - 2.0f;
         if (chX + m_cellW < wPos.x || chX > wPos.x + wW) continue;
 
         bool muted = (m_muteState >> ch) & 1;
 
-        // Channel background (slightly lighter than window bg)
-        ImU32 hdrCol = muted
-            ? IM_COL32(25, 15, 15, 255)
-            : ImGui::ColorConvertFloat4ToU32(kChHeader);
-        dl->AddRectFilled({chX,             wPos.y},
-                          {chX + m_cellW-2, wPos.y + CHAN_H},
-                          hdrCol);
+        // Background covers full header height
+        ImU32 hdrCol = muted ? IM_COL32(25, 15, 15, 255)
+                             : ImGui::ColorConvertFloat4ToU32(kChHeader);
+        dl->AddRectFilled({chX, wPos.y}, {chX + cellW2, wPos.y + CHAN_H}, hdrCol);
 
-        // Separator line
-        dl->AddLine({chX + m_cellW - 2, wPos.y},
-                    {chX + m_cellW - 2, wPos.y + CHAN_H},
+        // Vertical separator
+        dl->AddLine({chX + cellW2, wPos.y}, {chX + cellW2, wPos.y + CHAN_H},
                     ImGui::ColorConvertFloat4ToU32(kChBorder));
 
-        // Channel name (truncated)
-        std::string name = chNames[ch].size() > 9 ? chNames[ch].substr(0,9) : chNames[ch];
-        ImU32 nameCol = muted
-            ? ImGui::ColorConvertFloat4ToU32(kDim)
-            : ImGui::ColorConvertFloat4ToU32(kTextNormal);
-        dl->AddText({chX + 4, wPos.y + 2}, nameCol, name.c_str());
-
-        // Mute button ("M") — top-right of channel header
-        float mBtnX = chX + m_cellW - 14;
-        float mBtnY = wPos.y + 2;
-        ImU32 mBgCol = muted ? IM_COL32(160, 40, 40, 255) : IM_COL32(50, 50, 80, 255);
-        dl->AddRectFilled({mBtnX, mBtnY}, {mBtnX+11, mBtnY+13}, mBgCol);
-        dl->AddRect      ({mBtnX, mBtnY}, {mBtnX+11, mBtnY+13},
-                          IM_COL32(120, 120, 160, 255));
-        dl->AddText({mBtnX+2, mBtnY+1}, IM_COL32(220,220,220,255), "M");
-
-        // Invisible hit area for mute button
-        ImGui::SetCursorScreenPos({mBtnX, mBtnY});
-        ImGui::PushID(ch);
-        if (ImGui::InvisibleButton("##m", {11, 13}))
-            m_muteState ^= (1ULL << ch);
-        ImGui::PopID();
+        // Channel name — horizontally centred, vertically top-aligned in name row
+        std::string name = chNames[ch];
+        if (name.size() > 12) name = name.substr(0, 12);
+        ImU32 nameCol = muted ? ImGui::ColorConvertFloat4ToU32(kDim)
+                              : ImGui::ColorConvertFloat4ToU32(kTextNormal);
+        float nameW = ImGui::CalcTextSize(name.c_str()).x;
+        float nameX = chX + (cellW2 - nameW) * 0.5f;
+        dl->AddText({nameX, wPos.y + 2}, nameCol, name.c_str());
 
         // Stereo VU
-        drawStereoVU(dl, chX + 2, wPos.y + CHANNAME_H + 1, m_cellW - 4, VU_H - 2,
+        drawStereoVU(dl, chX + 2, wPos.y + CHANNAME_H + 1, cellW2 - 2, VU_H - 2,
                      vu[ch].left, vu[ch].right);
+
+        // Plugin row — same background as header (already covered by full-height rect)
+        float plugY = wPos.y + CHANNAME_H + VU_H;
+        dl->AddLine({chX, plugY}, {chX + cellW2, plugY},
+                    IM_COL32(46, 46, 92, 255)); // subtle divider above plugin row
+
+        // Plugin label — centred; stub is always "-" (no plugin)
+        bool        hasPlugin = false;
+        const char* plugLabel = "-";
+        float       lblW      = ImGui::CalcTextSize(plugLabel).x;
+        float       lblX      = chX + (cellW2 - lblW) * 0.5f;
+        dl->AddText({lblX, plugY + 2}, ImGui::ColorConvertFloat4ToU32(kDim), plugLabel);
+
+        // Hit areas (inside PushID for unique widget IDs)
+        ImGui::PushID(ch);
+
+        // Mute: entire name + VU area
+        ImGui::SetCursorScreenPos({chX, wPos.y});
+        if (ImGui::InvisibleButton("##mute", {cellW2, CHANNAME_H + VU_H})) {
+            m_muteState ^= (1ULL << ch);
+            m_state.channel_mute_mask.store(m_muteState);
+        }
+
+        // Plugin row — only clickable when a plugin is assigned
+        if (hasPlugin) {
+            ImGui::SetCursorScreenPos({chX, plugY});
+            if (ImGui::InvisibleButton("##plug", {cellW2, PLUGIN_H}))
+                plugClickCh = ch;
+        }
+
+        ImGui::PopID();
+    }
+
+    // Open popup outside per-channel PushID so the ID is stable
+    if (plugClickCh >= 0) {
+        m_pluginPopupCh = plugClickCh;
+        ImGui::OpenPopup("##plugsettings");
+    }
+
+    ImGui::SetNextWindowSize({300, 0}, ImGuiCond_Always);
+    if (ImGui::BeginPopupModal("##plugsettings", nullptr,
+                               ImGuiWindowFlags_AlwaysAutoResize |
+                               ImGuiWindowFlags_NoTitleBar)) {
+        ImGui::TextColored(kTextNormal, "Channel %d — Plugin Settings",
+                           m_pluginPopupCh + 1);
+        ImGui::Separator();
+        ImGui::Spacing();
+        ImGui::TextColored(kDim, "No plugin assigned.");
+        ImGui::Spacing();
+        ImGui::Separator();
+        if (ImGui::Button("Close", {80, 0})) ImGui::CloseCurrentPopup();
+        ImGui::EndPopup();
     }
 }
 
@@ -479,16 +521,6 @@ void TrackerView::drawPatternPanel() {
             ImGui::TableNextColumn();
 
             bool isEditCell = m_editMode && (r == m_cur.row) && (ch == m_cur.channel);
-
-            if ((m_muteState >> ch) & 1) {
-                ImGui::TextColored(kDim, "--- -- ... ...");
-                if (isEditCell) {
-                    ImVec2 p = ImGui::GetItemRectMin();
-                    ImVec2 q = ImGui::GetItemRectMax();
-                    ImGui::GetWindowDrawList()->AddRect({p.x-1,p.y}, {q.x+1,q.y}, IM_COL32(255,255,255,200));
-                }
-                continue;
-            }
 
             // Sub-column widths (chars): note=3, instr=2, vol=3, fxcmd=1, fxparam=2
             // We record screen-x of each sub-col start to draw the cursor highlight.

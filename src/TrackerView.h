@@ -75,7 +75,8 @@ private:
 
     // Edit cursor
     EditCursor m_cur;
-    int32_t    m_baseOctave {4};
-    int32_t    m_editStep   {1};   // rows to advance after note entry
-    bool       m_editMode   {false};
+    int32_t    m_baseOctave    {4};
+    int32_t    m_editStep      {1};
+    bool       m_editMode      {false};
+    int32_t    m_pluginPopupCh {-1};
 };

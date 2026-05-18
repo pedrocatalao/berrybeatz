@@ -244,25 +244,26 @@ void MainWindow::onOpenFile() {
 
 void MainWindow::onPlayPause() {
     if (!m_engine) return;
-    bool nowPaused = !m_engine->isPaused();
-    m_engine->setPaused(nowPaused);
-    m_actPlayPause->setText(nowPaused ? "▶ Play" : "⏸ Pause");
+    if (m_engine->isRunning()) {
+        bool nowPaused = !m_engine->isPaused();
+        m_engine->setPaused(nowPaused);
+        m_actPlayPause->setText(nowPaused ? "▶ Play" : "⏸ Pause");
+    } else {
+        // Thread finished (song ended or was stopped) — restart from current position
+        m_engine->start();
+        m_actPlayPause->setText("⏸ Pause");
+    }
 }
 
 void MainWindow::onStop() {
     if (!m_engine) return;
-    m_engine->stop(); m_engine->wait(); m_engine.reset();
-    m_trackerView->clearModule();
-    m_state.reset();
-    clearTree();
+    m_engine->rewind(); // stops audio thread, rewinds to 0, keeps module loaded
     m_actPlayPause->setText("▶ Play");
-    m_actStop->setEnabled(false);
-    setWindowTitle("OpenMPT");
-    statusBar()->showMessage("Drag & drop a module file, or use File > Open");
 }
 
 void MainWindow::onSongFinished() {
     m_actPlayPause->setText("▶ Play");
+    // Thread has exited but module stays loaded; Play will restart it
 }
 
 // ── Toolbar info update ───────────────────────────────────────────────────────

@@ -70,6 +70,14 @@ void AudioEngine::fillState() {
 }
 
 void AudioEngine::stop()                    { m_stop.store(true); }
+
+void AudioEngine::rewind() {
+    m_stop.store(true);
+    wait(); // blocks until audio thread exits (≤50ms)
+    if (m_mod) m_mod->set_position_seconds(0.0);
+    m_stop.store(false);
+    m_paused.store(false);
+}
 void AudioEngine::setPaused(bool p)         { m_paused.store(p); }
 void AudioEngine::seekSeconds(double s)     { m_seek.store(s); }
 void AudioEngine::seekToOrder(int32_t o)    { m_seek_order.store(o); }

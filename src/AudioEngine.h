@@ -18,6 +18,7 @@ public:
 
     bool loadFile(const QString& path);
     void stop();
+    void rewind(); // stop audio thread, rewind to start, keep module loaded
     void setPaused(bool paused);
     bool isPaused() const { return m_paused.load(); }
     void seekSeconds(double seconds);

@@ -55,6 +55,7 @@ private:
     // Smooth vertical scroll for pattern panel
     float    m_scrollY      {0.0f};
     int32_t  m_lastPattern  {-1};
+    int32_t  m_lastRow      {-1};
     // Per-channel mute state (bit N = channel N muted, visual only for now)
     uint64_t m_muteState {0};
 };

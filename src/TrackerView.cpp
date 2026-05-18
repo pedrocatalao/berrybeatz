@@ -325,8 +325,11 @@ void TrackerView::drawPatternPanel() {
         ImGuiTableFlags_ScrollX | ImGuiTableFlags_ScrollY |
         ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_NoPadOuterX;
 
-    if (!ImGui::BeginTable("##pat", totalCols, tFlags,
-                           ImGui::GetContentRegionAvail()))
+    float rowH  = ImGui::GetTextLineHeightWithSpacing();
+    ImVec2 avail = ImGui::GetContentRegionAvail(); // capture before BeginTable
+    float visH  = avail.y;
+
+    if (!ImGui::BeginTable("##pat", totalCols, tFlags, avail))
         return;
 
     ImGui::TableSetupScrollFreeze(1, 0);
@@ -339,19 +342,20 @@ void TrackerView::drawPatternPanel() {
     // Capture horizontal scroll for channel strip sync (1-frame lag, imperceptible)
     m_hscroll = ImGui::GetScrollX();
 
-    float rowH = ImGui::GetTextLineHeightWithSpacing();
-    float visH = ImGui::GetContentRegionAvail().y;
-
-    // Smooth scroll: lerp toward target that centres curRow
+    // Scroll target: row 0 sits at top; start scrolling once curRow passes the midpoint
     float targetY = float(curRow) * rowH - visH * 0.5f + rowH * 0.5f;
     targetY = std::max(0.f, std::min(targetY, float(nrows) * rowH));
-    if (curPat != m_lastPattern) {
-        m_scrollY = targetY; // snap on pattern change, no flash
-        m_lastPattern = curPat;
+
+    // Snap (no animation) on pattern change or when the row rewinds
+    bool snap = (curPat != m_lastPattern) || (curRow < m_lastRow - 2);
+    if (snap) {
+        m_scrollY = targetY;
     } else {
         float dt = ImGui::GetIO().DeltaTime;
         m_scrollY += (targetY - m_scrollY) * std::min(1.0f, 18.0f * dt);
     }
+    m_lastPattern = curPat;
+    m_lastRow     = curRow;
     ImGui::SetScrollY(m_scrollY);
 
     ImGuiListClipper clipper;

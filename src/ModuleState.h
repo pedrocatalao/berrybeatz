@@ -27,8 +27,12 @@ struct ModuleState {
     std::atomic<bool>    is_playing       {false};
 
     // Master output VU (audio thread writes)
-    std::atomic<float>   master_vu_left   {0.0f};
-    std::atomic<float>   master_vu_right  {0.0f};
+    std::atomic<float>    master_vu_left   {0.0f};
+    std::atomic<float>    master_vu_right  {0.0f};
+
+    // Channel mute mask — UI writes atomically, audio thread applies (bit N = ch N muted)
+    std::atomic<uint64_t> channel_mute_mask{0};
+
 
     // Per-channel VU (audio thread writes under vu_mutex)
     std::mutex vu_mutex;

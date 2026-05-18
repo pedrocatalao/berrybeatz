@@ -1,5 +1,5 @@
 #include "AudioEngine.h"
-#include <libopenmpt/libopenmpt.hpp>
+#include <libopenmpt/libopenmpt_ext.hpp>
 #include <portaudio.h>
 #include <fstream>
 #include <vector>
@@ -11,7 +11,7 @@ static constexpr int SAMPLE_RATE  = 48000;
 static constexpr int FRAMES_BLOCK = 480; // 10ms per block
 
 struct PaCallbackData {
-    openmpt::module*      mod;
+    openmpt::module_ext*  mod;
     ModuleState*          state;
     std::atomic<bool>*    stop;
     std::atomic<bool>*    paused;
@@ -20,7 +20,7 @@ struct PaCallbackData {
     std::atomic<int32_t>* subsong;
     std::vector<float>    left;
     std::vector<float>    right;
-
+    uint64_t              appliedMuteMask{0};
     PaCallbackData()
         : mod(nullptr), state(nullptr), stop(nullptr), paused(nullptr),
           seek(nullptr), seek_order(nullptr), subsong(nullptr) {
@@ -41,7 +41,7 @@ bool AudioEngine::loadFile(const QString& path) {
     std::ifstream f(path.toStdString(), std::ios::binary);
     if (!f) { emit loadFailed("Cannot open file: " + path); return false; }
     try {
-        m_mod = std::make_unique<openmpt::module>(f);
+        m_mod = std::make_unique<openmpt::module_ext>(f);
         fillState();
         return true;
     } catch (const std::exception& e) {
@@ -75,7 +75,7 @@ void AudioEngine::seekSeconds(double s)     { m_seek.store(s); }
 void AudioEngine::seekToOrder(int32_t o)    { m_seek_order.store(o); }
 void AudioEngine::selectSubsong(int32_t i)  { m_subsong.store(i); }
 int32_t AudioEngine::subsongCount() const   { return m_mod ? m_mod->get_num_subsongs() : 0; }
-openmpt::module* AudioEngine::getModule() const { return m_mod.get(); }
+openmpt::module_ext* AudioEngine::getModule() const { return m_mod.get(); }
 
 int AudioEngine::paCallback(const void*, void* output,
                              unsigned long frameCount,
@@ -92,6 +92,20 @@ int AudioEngine::paCallback(const void*, void* output,
     }
 
     // Pending seeks / subsong change
+    // Apply pending channel mute changes via the interactive extension (same thread as read())
+    uint64_t newMask = d->state->channel_mute_mask.load();
+    if (newMask != d->appliedMuteMask) {
+        auto* ia = static_cast<openmpt::ext::interactive*>(
+            d->mod->get_interface(openmpt::ext::interactive_id));
+        if (ia) {
+            uint64_t changed = newMask ^ d->appliedMuteMask;
+            for (int ch = 0; ch < MAX_CHANNELS; ++ch)
+                if ((changed >> ch) & 1)
+                    ia->set_channel_mute_status(ch, (newMask >> ch) & 1);
+        }
+        d->appliedMuteMask = newMask;
+    }
+
     int32_t newSub = d->subsong->exchange(-2);
     if (newSub != -2) d->mod->select_subsong(newSub);
 

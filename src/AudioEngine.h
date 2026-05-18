@@ -5,7 +5,7 @@
 #include <memory>
 #include <atomic>
 
-namespace openmpt { class module; }
+namespace openmpt { class module; class module_ext; }
 struct PaStreamCallbackTimeInfo;
 typedef unsigned long PaStreamCallbackFlags;
 typedef void PaStream;
@@ -24,7 +24,7 @@ public:
     void seekToOrder(int32_t order);
     void selectSubsong(int32_t index);
     int32_t subsongCount() const;
-    openmpt::module* getModule() const;
+    openmpt::module_ext* getModule() const;
 
 signals:
     void loadFailed(const QString& reason);
@@ -43,7 +43,7 @@ private:
     void fillState();
 
     ModuleState&                    m_state;
-    std::unique_ptr<openmpt::module> m_mod;
+    std::unique_ptr<openmpt::module_ext> m_mod;
     PaStream*                        m_stream  {nullptr};
     std::atomic<bool>                m_stop    {false};
     std::atomic<bool>                m_paused  {false};

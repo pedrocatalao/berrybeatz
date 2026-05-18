@@ -1,5 +1,5 @@
 #include "TrackerView.h"
-#include <libopenmpt/libopenmpt.hpp>
+#include <libopenmpt/libopenmpt_ext.hpp>
 #include <imgui.h>
 #include <imgui_impl_opengl3.h>
 #include <QMouseEvent>

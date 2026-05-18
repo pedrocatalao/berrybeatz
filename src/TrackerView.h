@@ -5,7 +5,7 @@
 
 struct ImGuiContext;
 struct ImDrawList;
-namespace openmpt { class module; }
+namespace openmpt { class module; class module_ext; }
 
 class TrackerView : public QOpenGLWidget {
     Q_OBJECT
@@ -13,7 +13,7 @@ public:
     explicit TrackerView(ModuleState& state, QWidget* parent = nullptr);
     ~TrackerView() override;
 
-    void setModule(openmpt::module* mod) { m_mod = mod; }
+    void setModule(openmpt::module_ext* mod) { m_mod = mod; }
     void clearModule() { m_mod = nullptr; }
 
 signals:
@@ -40,7 +40,7 @@ private:
     void drawLEDs(ImDrawList* dl, float x, float y, float w, float h, float level);
 
     ModuleState&      m_state;
-    openmpt::module*  m_mod       {nullptr};
+    openmpt::module_ext*  m_mod   {nullptr};
     ImGuiContext*     m_imgui     {nullptr};
     QTimer            m_timer;
     double            m_lastTime  {0.0};

@@ -7,8 +7,9 @@
 class AudioEngine;
 class TrackerView;
 class QLabel;
-class QSlider;
 class QAction;
+class QSpinBox;
+class QSlider;
 class QTreeWidget;
 class QSplitter;
 class QTabWidget;
@@ -43,8 +44,11 @@ protected:
 
 private slots:
     void onOpenFile();
+    void onNew();
+    void onSave();
     void onPlayPause();
     void onStop();
+    void onPlayFromStart();
     void onSongFinished();
 
 private:
@@ -60,16 +64,16 @@ private:
     std::unique_ptr<AudioEngine> m_engine;
 
     // Central layout
-    QSplitter*   m_splitter     {nullptr};
-    QTreeWidget* m_tree         {nullptr};
-    QTabWidget*  m_tabs         {nullptr};
-    TrackerView* m_trackerView  {nullptr};
+    QSplitter*   m_splitter    {nullptr};
+    QTreeWidget* m_tree        {nullptr};
+    QTabWidget*  m_tabs        {nullptr};
+    TrackerView* m_trackerView {nullptr};
 
     // Tab content
-    QWidget*     m_tabGeneral   {nullptr};
-    QWidget*     m_tabSamples   {nullptr};
-    QWidget*     m_tabInstrs    {nullptr};
-    QTextEdit*   m_tabComments  {nullptr};
+    QWidget*   m_tabGeneral  {nullptr};
+    QWidget*   m_tabSamples  {nullptr};
+    QWidget*   m_tabInstrs   {nullptr};
+    QTextEdit* m_tabComments {nullptr};
 
     // General tab labels
     QLabel* m_genTitle    {nullptr};
@@ -82,15 +86,27 @@ private:
     QTreeWidget* m_sampleList {nullptr};
     QTreeWidget* m_instrList  {nullptr};
 
-    // Toolbar widgets
-    QAction*   m_actPlayPause   {nullptr};
-    QAction*   m_actStop        {nullptr};
-    QSlider*   m_seeker         {nullptr};
-    QLabel*    m_lblTempo       {nullptr};
-    QLabel*    m_lblSpeed       {nullptr};
-    QLabel*    m_lblRPB         {nullptr};
-    QLabel*    m_lblVol         {nullptr};
-    ToolbarVU* m_vuMeter        {nullptr};
+    // Toolbar — actions
+    QAction*  m_actNew           {nullptr};
+    QAction*  m_actSave          {nullptr};
+    QAction*  m_actMidi          {nullptr};
+    QAction*  m_actStop          {nullptr};
+    QAction*  m_actPlayPause     {nullptr};
+    QAction*  m_actPlayFromStart {nullptr};
+    QAction*  m_actSetup         {nullptr};
 
-    QTimer*    m_updateTimer    {nullptr};
+    // Toolbar — spin controls
+    QSpinBox* m_spinOctave    {nullptr};
+    QSpinBox* m_spinTempo     {nullptr};
+    QSpinBox* m_spinSpeed     {nullptr};
+    QSpinBox* m_spinRPB       {nullptr};
+    QSpinBox* m_spinGlobalVol {nullptr};
+
+    // Toolbar — seeker
+    QSlider*   m_seeker  {nullptr};
+
+    // Toolbar — VU
+    ToolbarVU* m_vuMeter {nullptr};
+
+    QTimer* m_updateTimer {nullptr};
 };

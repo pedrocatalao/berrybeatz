@@ -162,8 +162,9 @@ int AudioEngine::paCallback(const void*, void* output,
         peakL = std::max(peakL, std::abs(d->left[i]));
         peakR = std::max(peakR, std::abs(d->right[i]));
     }
-    d->state->master_vu_left .store(d->state->master_vu_left .load() * 0.75f + peakL * 0.25f);
-    d->state->master_vu_right.store(d->state->master_vu_right.load() * 0.75f + peakR * 0.25f);
+    // Instant attack, exponential decay (~300ms to silence at 48kHz/480fpb)
+    d->state->master_vu_left .store(std::max(peakL, d->state->master_vu_left .load() * 0.88f));
+    d->state->master_vu_right.store(std::max(peakR, d->state->master_vu_right.load() * 0.88f));
 
     return (count == 0) ? paComplete : paContinue;
 }

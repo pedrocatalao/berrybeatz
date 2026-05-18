@@ -25,6 +25,9 @@ public:
     void setModule(openmpt::module_ext* mod) { m_mod = mod; }
     void clearModule() { m_mod = nullptr; }
 
+    int  baseOctave() const   { return m_baseOctave; }
+    void setBaseOctave(int o) { m_baseOctave = std::clamp(o, 0, 8); }
+
 signals:
     void orderSeekRequested(int32_t order);
 

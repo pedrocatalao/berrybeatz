@@ -12,7 +12,7 @@
 #include <QDropEvent>
 #include <QMimeData>
 #include <QKeyEvent>
-#include <QSlider>
+
 #include <QLabel>
 #include <QTimer>
 #include <QSplitter>
@@ -25,40 +25,43 @@
 #include <QApplication>
 #include <QPainter>
 #include <QPainterPath>
+#include <QSpinBox>
+#include <QSlider>
 
 // ── ToolbarVU ─────────────────────────────────────────────────────────────────
 
 ToolbarVU::ToolbarVU(QWidget* parent) : QWidget(parent) {
-    setFixedSize(80, 20);
+    setFixedSize(140, 22);
     setToolTip("Master L/R output level");
 }
 
 void ToolbarVU::setLevels(float l, float r) {
-    if (qAbs(m_l - l) > 0.005f || qAbs(m_r - r) > 0.005f) {
+    if (qAbs(m_l - l) > 0.002f || qAbs(m_r - r) > 0.002f) {
         m_l = l; m_r = r; update();
     }
 }
 
 void ToolbarVU::paintEvent(QPaintEvent*) {
     QPainter p(this);
-    p.fillRect(rect(), Qt::black);
+    p.setRenderHint(QPainter::Antialiasing, false);
+    p.fillRect(rect(), QColor(0x06, 0x06, 0x0e));
 
-    constexpr int N = 8;
-    int W  = width();
-    int bH = height() / 2 - 1; // bar height
-    float ledW = float(W - (N - 1)) / float(N);
-    if (ledW < 1.0f) ledW = 1.0f;
+    // Thin bar geometry: 2px bar, 1px gap = 3px stride
+    constexpr float barW   = 2.0f;
+    constexpr float stride = 3.0f;
+    const int N = int(float(width()) / stride);
+    const int bH = height() / 2 - 1;
 
     auto drawBar = [&](float v, int y) {
-        float level = qMin(v / 1.2f, 1.0f); // normalise same as channel strip
+        float level = qMin(v / 1.2f, 1.0f);
         for (int i = 0; i < N; i++) {
-            bool lit = level > float(i) / float(N);
+            float frac = float(i) / float(N - 1);
+            bool  lit  = level > frac;
             QColor col;
-            if      (i >= 6) col = lit ? QColor(225,   0,   0) : QColor( 35,  0,  0);
-            else if (i >= 4) col = lit ? QColor(255, 200,   0) : QColor( 40, 30,  0);
-            else             col = lit ? QColor(  0, 200,   0) : QColor(  0, 28,  0);
-            int x = int(float(i) * (ledW + 1.0f));
-            p.fillRect(x, y, int(ledW), bH, col);
+            if      (frac >= 0.80f) col = lit ? QColor(230,  20,  20) : QColor(28,  3,  3);
+            else if (frac >= 0.60f) col = lit ? QColor(240, 180,   0) : QColor(32, 22,  0);
+            else                    col = lit ? QColor( 30, 210,  30) : QColor( 2, 26,  2);
+            p.fillRect(QRectF(float(i) * stride, float(y), barW, float(bH)), col);
         }
     };
 
@@ -317,7 +320,7 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
 
     // Periodic UI update (toolbar info + seek slider + VU)
     m_updateTimer = new QTimer(this);
-    m_updateTimer->setInterval(80);
+    m_updateTimer->setInterval(33);
     connect(m_updateTimer, &QTimer::timeout, this, &MainWindow::updateToolbarInfo);
     m_updateTimer->start();
 
@@ -333,13 +336,15 @@ MainWindow::~MainWindow() {
 
 void MainWindow::setupMenu() {
     QMenu* file = menuBar()->addMenu("&File");
-    auto* open = new QAction("&Open…", this);
-    open->setShortcut(QKeySequence::Open);
-    connect(open, &QAction::triggered, this, &MainWindow::onOpenFile);
-    file->addAction(open);
+    m_actNew = new QAction("&New",   this); m_actNew->setShortcut(QKeySequence::New);
+    m_actSave= new QAction("&Save…", this); m_actSave->setShortcut(QKeySequence::Save);
+    auto* open = new QAction("&Open…", this); open->setShortcut(QKeySequence::Open);
+    connect(m_actNew,  &QAction::triggered, this, &MainWindow::onNew);
+    connect(open,      &QAction::triggered, this, &MainWindow::onOpenFile);
+    connect(m_actSave, &QAction::triggered, this, &MainWindow::onSave);
+    file->addAction(m_actNew); file->addAction(open); file->addAction(m_actSave);
     file->addSeparator();
-    auto* quit = new QAction("&Quit", this);
-    quit->setShortcut(QKeySequence::Quit);
+    auto* quit = new QAction("&Quit", this); quit->setShortcut(QKeySequence::Quit);
     connect(quit, &QAction::triggered, qApp, &QApplication::quit);
     file->addAction(quit);
 
@@ -356,65 +361,103 @@ void MainWindow::setupToolbar() {
     QToolBar* tb = addToolBar("Main");
     tb->setMovable(false);
     tb->setStyleSheet(
-        "QToolBar { background:#0a0a14; border-bottom:1px solid #2e2e5a; spacing:4px; padding:2px; }"
-        "QToolButton { color:#e0e040; background:#141428; border:1px solid #2e2e5a;"
-        "  padding:2px 6px; }"
+        "QToolBar { background:#0a0a14; border-bottom:1px solid #2e2e5a; spacing:2px; padding:2px 4px; }"
+        "QToolButton { color:#e0e040; background:#141428; border:1px solid #2e2e5a; padding:2px 8px; }"
         "QToolButton:hover   { background:#2e2e5a; }"
         "QToolButton:pressed { background:#4040a0; }"
-        "QLabel { color:#e0e040; font-size:12px; padding:0 2px; }"
-    );
+        "QToolButton:disabled { color:#404040; border-color:#1e1e3a; }"
+        "QLabel { color:#606040; font-size:9px; padding:0; background:transparent; }");
 
-    auto* openAct = new QAction("📂 Open", this);
+    const QString spinStyle =
+        "QSpinBox { background:#0d0d1e; color:#f0f050; border:1px solid #2e2e5a;"
+        "           font-family:Menlo,monospace; font-size:12px; padding:0 2px;"
+        "           min-width:42px; max-width:52px; }"
+        "QSpinBox::up-button   { background:#141428; border-left:1px solid #2e2e5a; width:14px; }"
+        "QSpinBox::down-button { background:#141428; border-left:1px solid #2e2e5a; width:14px; }"
+        "QSpinBox::up-button:hover   { background:#2e2e5a; }"
+        "QSpinBox::down-button:hover { background:#2e2e5a; }";
+
+    auto mkSpin = [&](const QString& lbl, int lo, int hi, int val, QSpinBox*& out) -> QWidget* {
+        auto* w   = new QWidget; w->setStyleSheet("background:transparent;");
+        auto* lay = new QHBoxLayout(w); lay->setContentsMargins(4,1,4,1); lay->setSpacing(4);
+        auto* l   = new QLabel(lbl); l->setAlignment(Qt::AlignVCenter | Qt::AlignRight);
+        out = new QSpinBox; out->setRange(lo, hi); out->setValue(val);
+        out->setStyleSheet(spinStyle); out->setAlignment(Qt::AlignCenter);
+        out->setButtonSymbols(QAbstractSpinBox::UpDownArrows);
+        lay->addWidget(l); lay->addWidget(out);
+        return w;
+    };
+
+    // ── File ──────────────────────────────────────────────────────────────────
+    tb->addAction(m_actNew);
+    auto* openAct = new QAction("Open", this);
     connect(openAct, &QAction::triggered, this, &MainWindow::onOpenFile);
     tb->addAction(openAct);
+    tb->addAction(m_actSave);
     tb->addSeparator();
 
-    m_actPlayPause = new QAction("▶ Play", this);
+    // ── MIDI ──────────────────────────────────────────────────────────────────
+    m_actMidi = new QAction("MIDI", this);
+    tb->addAction(m_actMidi);
+    tb->addSeparator();
+
+    // ── Transport ─────────────────────────────────────────────────────────────
+    m_actStop = new QAction("■", this);
+    m_actStop->setToolTip("Stop");
+    connect(m_actStop, &QAction::triggered, this, &MainWindow::onStop);
+    m_actStop->setEnabled(false);
+    tb->addAction(m_actStop);
+
+    m_actPlayPause = new QAction("▶", this);
+    m_actPlayPause->setToolTip("Play / Pause");
     connect(m_actPlayPause, &QAction::triggered, this, &MainWindow::onPlayPause);
     tb->addAction(m_actPlayPause);
 
-    m_actStop = new QAction("■ Stop", this);
-    connect(m_actStop, &QAction::triggered, this, &MainWindow::onStop);
-    tb->addAction(m_actStop);
-
+    m_actPlayFromStart = new QAction("|▶", this);
+    m_actPlayFromStart->setToolTip("Play from beginning");
+    connect(m_actPlayFromStart, &QAction::triggered, this, &MainWindow::onPlayFromStart);
+    tb->addAction(m_actPlayFromStart);
     tb->addSeparator();
 
-    // Seek slider
-    m_seeker = new QSlider(Qt::Horizontal);
+    // ── Position / seek ───────────────────────────────────────────────────────
+    m_seeker = new QSlider(Qt::Horizontal, this);
     m_seeker->setRange(0, 1000);
-    m_seeker->setFixedWidth(220);
+    m_seeker->setValue(0);
+    m_seeker->setEnabled(false);
+    m_seeker->setMinimumWidth(120);
+    m_seeker->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     m_seeker->setStyleSheet(
-        "QSlider::groove:horizontal { background:#141428; height:4px; }"
-        "QSlider::handle:horizontal { background:#4040a0; width:10px; margin:-4px 0; border-radius:2px; }"
-        "QSlider::sub-page:horizontal { background:#4040a0; }");
+        "QSlider::groove:horizontal { background:#1a1a2e; height:4px; border-radius:2px; }"
+        "QSlider::sub-page:horizontal { background:#5050c0; border-radius:2px; }"
+        "QSlider::handle:horizontal { background:#a0a060; border:none;"
+        "                             width:8px; margin:-4px 0; border-radius:4px; }"
+        "QSlider::handle:horizontal:disabled { background:#303050; }");
     connect(m_seeker, &QSlider::sliderReleased, this, [this]{
-        if (m_engine && m_state.duration_seconds > 0.0)
-            m_engine->seekSeconds(m_seeker->value() / 1000.0 * m_state.duration_seconds.load());
+        if (m_engine) {
+            double d = m_state.duration_seconds.load();
+            m_engine->seekSeconds(m_seeker->value() / 1000.0 * d);
+        }
     });
     tb->addWidget(m_seeker);
-
     tb->addSeparator();
 
-    // Info labels — match OpenMPT toolbar: Tempo / Spd / RPB
-    auto mkLabel = [&](const char* prefix) -> QLabel* {
-        tb->addWidget(new QLabel(prefix));
-        auto* lbl = new QLabel("---");
-        lbl->setFixedWidth(46);
-        lbl->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
-        lbl->setStyleSheet("color:#f0f050; font-family:Menlo,monospace; font-size:12px;");
-        tb->addWidget(lbl);
-        tb->addWidget(new QLabel(" "));
-        return lbl;
-    };
+    // ── Numeric controls ──────────────────────────────────────────────────────
+    tb->addWidget(mkSpin("Octave",   0,   8,   4, m_spinOctave));
+    tb->addWidget(mkSpin("Tempo",   32, 512, 125, m_spinTempo));
+    tb->addWidget(mkSpin("Ticks/Row",  1,  31,   6, m_spinSpeed));
+    tb->addWidget(mkSpin("Row/Beat", 1,  32,   4, m_spinRPB));
+    tb->addWidget(mkSpin("Global Vol",  0, 128, 128, m_spinGlobalVol));
 
-    m_lblTempo = mkLabel("Tempo:");
-    m_lblSpeed = mkLabel("Spd:");
-    m_lblRPB   = mkLabel("RPB:");
-
+    connect(m_spinOctave, QOverload<int>::of(&QSpinBox::valueChanged),
+            this, [this](int v){ m_trackerView->setBaseOctave(v); });
     tb->addSeparator();
 
-    // Master VU
-    tb->addWidget(new QLabel("VU:"));
+    // ── Setup ─────────────────────────────────────────────────────────────────
+    m_actSetup = new QAction("⚙ Setup", this);
+    tb->addAction(m_actSetup);
+    tb->addSeparator();
+
+    // ── VU ────────────────────────────────────────────────────────────────────
     m_vuMeter = new ToolbarVU(this);
     tb->addWidget(m_vuMeter);
 }
@@ -452,8 +495,10 @@ void MainWindow::startPlayback(const QString& path) {
     setWindowTitle(QString("OpenMPT — %1").arg(fi.fileName()));
     statusBar()->showMessage(QString("%1  ·  %2").arg(fi.fileName(),
                               QString::fromStdString(typeStr)));
-    m_actPlayPause->setText("⏸ Pause");
+    m_actPlayPause->setText("⏸");
     m_actStop->setEnabled(true);
+    m_seeker->setValue(0);
+    m_seeker->setEnabled(true);
 }
 
 void MainWindow::onOpenFile() {
@@ -470,44 +515,64 @@ void MainWindow::onPlayPause() {
     if (m_engine->isRunning()) {
         bool nowPaused = !m_engine->isPaused();
         m_engine->setPaused(nowPaused);
-        m_actPlayPause->setText(nowPaused ? "▶ Play" : "⏸ Pause");
+        m_actPlayPause->setText(nowPaused ? "▶" : "⏸");
     } else {
         // Thread finished (song ended or was stopped) — restart from current position
         m_engine->start();
-        m_actPlayPause->setText("⏸ Pause");
+        m_actPlayPause->setText("⏸");
     }
 }
 
 void MainWindow::onStop() {
     if (!m_engine) return;
     m_engine->rewind(); // stops audio thread, rewinds to 0, keeps module loaded
-    m_actPlayPause->setText("▶ Play");
+    m_actPlayPause->setText("▶");
+    m_seeker->setValue(0);
 }
 
 void MainWindow::onSongFinished() {
-    m_actPlayPause->setText("▶ Play");
+    m_actPlayPause->setText("▶");
     // Thread has exited but module stays loaded; Play will restart it
+}
+
+void MainWindow::onNew() {
+    // TODO: create new empty module
+}
+
+void MainWindow::onSave() {
+    // TODO: export / save module
+}
+
+void MainWindow::onPlayFromStart() {
+    if (!m_engine) return;
+    m_engine->rewind();
+    m_engine->start();
+    m_actPlayPause->setText("⏸");
 }
 
 // ── Toolbar info update ───────────────────────────────────────────────────────
 
 void MainWindow::updateToolbarInfo() {
-    if (!m_seeker->isSliderDown() && m_state.duration_seconds > 0.0) {
-        double t = m_state.position_seconds.load();
+    // Seek bar (don't update while user is dragging)
+    if (!m_seeker->isSliderDown()) {
         double d = m_state.duration_seconds.load();
-        m_seeker->setValue(int(t / d * 1000.0));
+        if (d > 0.0)
+            m_seeker->setValue(int(m_state.position_seconds.load() / d * 1000.0));
     }
 
     if (m_state.is_playing.load()) {
-        m_lblTempo->setText(QString::number(m_state.bpm.load(), 'f', 1));
-        m_lblSpeed->setText(QString::number(m_state.current_speed.load()));
-        m_lblRPB  ->setText(QString::number(m_state.rows_per_beat.load()));
+        m_spinTempo->blockSignals(true);
+        m_spinSpeed->blockSignals(true);
+        m_spinRPB  ->blockSignals(true);
+        m_spinTempo->setValue(int(m_state.bpm.load() + 0.5));
+        m_spinSpeed->setValue(m_state.current_speed.load());
+        m_spinRPB  ->setValue(m_state.rows_per_beat.load());
+        m_spinTempo->blockSignals(false);
+        m_spinSpeed->blockSignals(false);
+        m_spinRPB  ->blockSignals(false);
         m_vuMeter->setLevels(m_state.master_vu_left.load(),
                              m_state.master_vu_right.load());
     } else {
-        m_lblTempo->setText("---");
-        m_lblSpeed->setText("---");
-        m_lblRPB  ->setText("---");
         m_vuMeter->setLevels(0.f, 0.f);
     }
 }

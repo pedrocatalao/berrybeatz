@@ -345,8 +345,13 @@ void TrackerView::drawPatternPanel() {
     // Smooth scroll: lerp toward target that centres curRow
     float targetY = float(curRow) * rowH - visH * 0.5f + rowH * 0.5f;
     targetY = std::max(0.f, std::min(targetY, float(nrows) * rowH));
-    float dt = ImGui::GetIO().DeltaTime;
-    m_scrollY += (targetY - m_scrollY) * std::min(1.0f, 18.0f * dt);
+    if (curPat != m_lastPattern) {
+        m_scrollY = targetY; // snap on pattern change, no flash
+        m_lastPattern = curPat;
+    } else {
+        float dt = ImGui::GetIO().DeltaTime;
+        m_scrollY += (targetY - m_scrollY) * std::min(1.0f, 18.0f * dt);
+    }
     ImGui::SetScrollY(m_scrollY);
 
     ImGuiListClipper clipper;

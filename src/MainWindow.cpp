@@ -136,8 +136,8 @@ static QIcon iconSamples() {
 
 static QIcon iconInstruments() {
     return makeTabIcon([](QPainter& p, int s) {
-        // 5 white keys + 4 black keys — 2+2 pattern (C# D# · F# G#)
-        const int   nW  = 5;
+        // 4 white keys + 3 black keys
+        const int   nW  = 4;
         const float kw  = float(s) / nW;
         const float kh  = float(s);
         const float bw  = kw * 0.58f;
@@ -154,8 +154,8 @@ static QIcon iconInstruments() {
             p.drawRect(QRectF(i * kw + 0.3f, 0.3f, kw - 0.3f, kh - 0.6f));
         }
 
-        // Black keys: 2 then gap then 2
-        const float cx[] = { kw, 2*kw, 4*kw, 5*kw };
+        // Black keys: 2 then gap then 1  (C# D# · F#)
+        const float cx[] = { kw, 2*kw, 3*kw };
         p.setPen(Qt::NoPen);
         p.setBrush(bCol);
         for (float x : cx)

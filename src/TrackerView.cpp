@@ -249,21 +249,38 @@ void TrackerView::drawOrderList() {
     ImGui::PopStyleVar(3);
 }
 
-// ── LED VU bar ────────────────────────────────────────────────────────────────
-// 8 LEDs per channel: 0-3 green, 4-5 yellow, 6-7 red (matches OpenMPT)
+// ── Stereo VU (thin bars, center-out) ────────────────────────────────────────
 
-void TrackerView::drawLEDs(ImDrawList* dl, float x, float y, float w, float h, float level) {
-    constexpr int N = 8;
-    float ledW = (w - float(N - 1)) / float(N);
-    if (ledW < 1.0f) ledW = 1.0f;
+void TrackerView::drawStereoVU(ImDrawList* dl, float x, float y, float w, float h,
+                                float lvlL, float lvlR)
+{
+    constexpr float barW   = 2.0f;
+    constexpr float stride = 3.0f;  // barW + 1px gap
+
+    float cx  = x + w * 0.5f;
+    int   N   = std::max(1, int((w * 0.5f - 1.0f) / stride));
+    float bH  = h - 1.0f;
+
+    float normL = std::min(lvlL / 1.2f, 1.0f);
+    float normR = std::min(lvlR / 1.2f, 1.0f);
+
     for (int i = 0; i < N; i++) {
-        bool lit = level > float(i) / float(N);
-        ImU32 col;
-        if      (i >= 6) col = lit ? kVuHiLit  : kVuHiUnlit;
-        else if (i >= 4) col = lit ? kVuMedLit : kVuMedUnlit;
-        else             col = lit ? kVuLoLit  : kVuLoUnlit;
-        float px = x + float(i) * (ledW + 1.0f);
-        dl->AddRectFilled({px, y}, {px + ledW, y + h - 1.0f}, col);
+        float frac = float(i) / float(N);
+
+        ImU32 litCol, unlitCol;
+        if      (frac >= 0.80f) { litCol = kVuHiLit;  unlitCol = kVuHiUnlit;  }
+        else if (frac >= 0.60f) { litCol = kVuMedLit; unlitCol = kVuMedUnlit; }
+        else                    { litCol = kVuLoLit;  unlitCol = kVuLoUnlit;  }
+
+        // Right channel — bars spread rightward from centre
+        float rx = cx + 1.0f + float(i) * stride;
+        dl->AddRectFilled({rx, y}, {rx + barW, y + bH},
+                          normR > frac ? litCol : unlitCol);
+
+        // Left channel — bars spread leftward from centre (mirrored)
+        float lx = cx - 1.0f - float(i) * stride - barW;
+        dl->AddRectFilled({lx, y}, {lx + barW, y + bH},
+                          normL > frac ? litCol : unlitCol);
     }
 }
 
@@ -340,9 +357,9 @@ void TrackerView::drawChannelStrip() {
             m_muteState ^= (1ULL << ch);
         ImGui::PopID();
 
-        // LED VU bar
-        float level = std::min(std::max(vu[ch].left, vu[ch].right), 1.2f) / 1.2f;
-        drawLEDs(dl, chX + 2, wPos.y + CHANNAME_H + 1, m_cellW - 4, VU_H - 2, level);
+        // Stereo VU
+        drawStereoVU(dl, chX + 2, wPos.y + CHANNAME_H + 1, m_cellW - 4, VU_H - 2,
+                     vu[ch].left, vu[ch].right);
     }
 }
 

@@ -48,7 +48,7 @@ private:
     void drawOrderList();
     void drawChannelStrip();
     void drawPatternPanel();
-    void drawLEDs(ImDrawList* dl, float x, float y, float w, float h, float level);
+    void drawStereoVU(ImDrawList* dl, float x, float y, float w, float h, float lvlL, float lvlR);
 
     // Pattern editing
     void handleEditKey(int qtKey, Qt::KeyboardModifiers mods, const QString& text);

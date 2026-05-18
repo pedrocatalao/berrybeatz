@@ -238,8 +238,9 @@ void TrackerView::drawOrderList() {
         ImGui::PushStyleColor(ImGuiCol_ButtonActive,  ImVec4{btnBg.x+.2f, btnBg.y+.2f, btnBg.z+.3f, 1.f});
         ImGui::PushStyleColor(ImGuiCol_Text,          isCur ? kTextCurRow : kTextNormal);
 
+        int32_t pat = m_mod ? m_mod->get_order_pattern(i) : i;
         char label[12];
-        snprintf(label, sizeof(label), "%02d##o%d", i, i);
+        snprintf(label, sizeof(label), "%02d##o%d", pat, i);
         if (ImGui::Button(label, {boxW, boxH}))
             emit orderSeekRequested(i);
 

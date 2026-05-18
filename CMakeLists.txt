@@ -61,6 +61,7 @@ set(SOURCES
     src/MainWindow.cpp
     src/AudioEngine.cpp
     src/TrackerView.cpp
+    src/PatternEditor.cpp
 )
 
 set(HEADERS
@@ -80,6 +81,7 @@ add_executable(OpenMPTMac MACOSX_BUNDLE
 target_include_directories(OpenMPTMac PRIVATE
     src
     ${PORTAUDIO_INCLUDE_DIRS}
+    ${OPENMPT_ROOT}
 )
 
 target_link_libraries(OpenMPTMac PRIVATE

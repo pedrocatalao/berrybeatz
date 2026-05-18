@@ -1,4 +1,5 @@
 #include "TrackerView.h"
+#include "PatternEditor.h"
 #include <libopenmpt/libopenmpt_ext.hpp>
 #include <imgui.h>
 #include <imgui_impl_opengl3.h>
@@ -6,6 +7,49 @@
 #include <QWheelEvent>
 #include <QKeyEvent>
 #include <QDateTime>
+
+// ── Note / key helpers ────────────────────────────────────────────────────────
+
+// FT2-style piano layout → semitone offset (0-11 = base octave, 12-23 = base+1).
+// Returns -1 if the key is not a note key.
+static int noteFromQtKey(int k) {
+    switch (k) {
+    // Lower row → base octave
+    case Qt::Key_Z: return  0; // C
+    case Qt::Key_S: return  1; // C#
+    case Qt::Key_X: return  2; // D
+    case Qt::Key_D: return  3; // D#
+    case Qt::Key_C: return  4; // E
+    case Qt::Key_V: return  5; // F
+    case Qt::Key_G: return  6; // F#
+    case Qt::Key_B: return  7; // G
+    case Qt::Key_H: return  8; // G#
+    case Qt::Key_N: return  9; // A
+    case Qt::Key_J: return 10; // A#
+    case Qt::Key_M: return 11; // B
+    // Upper row → base+1 octave
+    case Qt::Key_Q: return 12; // C
+    case Qt::Key_2: return 13; // C#
+    case Qt::Key_W: return 14; // D
+    case Qt::Key_3: return 15; // D#
+    case Qt::Key_E: return 16; // E
+    case Qt::Key_R: return 17; // F
+    case Qt::Key_5: return 18; // F#
+    case Qt::Key_T: return 19; // G
+    case Qt::Key_6: return 20; // G#
+    case Qt::Key_Y: return 21; // A
+    case Qt::Key_7: return 22; // A#
+    case Qt::Key_U: return 23; // B
+    default: return -1;
+    }
+}
+
+// Returns 0-15 for hex digit characters, -1 otherwise.
+static int hexDigitFromKey(int k) {
+    if (k >= Qt::Key_0 && k <= Qt::Key_9) return k - Qt::Key_0;
+    if (k >= Qt::Key_A && k <= Qt::Key_F) return k - Qt::Key_A + 10;
+    return -1;
+}
 
 // ── OpenMPT "Blue (FT2)" colour scheme ────────────────────────────────────────
 // Exact values from mptrack/ColorSchemes.h
@@ -305,7 +349,7 @@ void TrackerView::drawChannelStrip() {
 // ── Pattern panel ─────────────────────────────────────────────────────────────
 
 void TrackerView::drawPatternPanel() {
-    if (!m_mod || !m_state.is_playing.load()) {
+    if (!m_mod || m_state.num_channels.load() <= 0) {
         ImGui::TextColored(kDim, " No module loaded.");
         return;
     }
@@ -326,6 +370,7 @@ void TrackerView::drawPatternPanel() {
         ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_NoPadOuterX;
 
     float rowH  = ImGui::GetTextLineHeightWithSpacing();
+    m_rowH = rowH;
     ImVec2 avail = ImGui::GetContentRegionAvail(); // capture before BeginTable
     float visH  = avail.y;
 
@@ -342,21 +387,48 @@ void TrackerView::drawPatternPanel() {
     // Capture horizontal scroll for channel strip sync (1-frame lag, imperceptible)
     m_hscroll = ImGui::GetScrollX();
 
-    // Scroll target: row 0 sits at top; start scrolling once curRow passes the midpoint
-    float targetY = float(curRow) * rowH - visH * 0.5f + rowH * 0.5f;
-    targetY = std::max(0.f, std::min(targetY, float(nrows) * rowH));
+    float currentScrollY = ImGui::GetScrollY();
+    bool  playing     = m_state.is_playing.load();
+    bool  patChanged  = (curPat != m_lastPattern);
+    bool  rowRewound  = (playing && !m_editMode && curRow < m_lastRow - 2);
 
-    // Snap (no animation) on pattern change or when the row rewinds
-    bool snap = (curPat != m_lastPattern) || (curRow < m_lastRow - 2);
-    if (snap) {
-        m_scrollY = targetY;
-    } else {
+    bool  forceScroll = false;
+    float newScrollY  = currentScrollY;
+
+    if (patChanged || rowRewound) {
+        // Snap on pattern change or loop rewind
+        int32_t snapRow = m_editMode ? m_cur.row : curRow;
+        newScrollY  = float(snapRow) * rowH - visH * 0.5f + rowH * 0.5f;
+        forceScroll = true;
+    } else if (playing && !m_editMode) {
+        // Smooth-follow playback cursor
+        float targetY = float(curRow) * rowH - visH * 0.5f + rowH * 0.5f;
         float dt = ImGui::GetIO().DeltaTime;
-        m_scrollY += (targetY - m_scrollY) * std::min(1.0f, 18.0f * dt);
+        newScrollY  = currentScrollY + (targetY - currentScrollY) * std::min(1.0f, 8.0f * dt);
+        forceScroll = true;
+    } else if (m_editMode) {
+        // Scroll only when edit cursor leaves the visible area; mouse wheel is free otherwise
+        float curTop = float(m_cur.row) * rowH;
+        float curBot = curTop + rowH;
+        if (curTop < currentScrollY + rowH * 2) {
+            newScrollY = curTop - rowH * 2;
+            forceScroll = true;
+        } else if (curBot > currentScrollY + visH - rowH * 2) {
+            newScrollY = curBot - visH + rowH * 2;
+            forceScroll = true;
+        }
     }
+
+    if (forceScroll) {
+        newScrollY = std::max(0.f, std::min(newScrollY, float(nrows) * rowH));
+        ImGui::SetScrollY(newScrollY);
+        m_scrollY = newScrollY;
+    } else {
+        m_scrollY = currentScrollY; // track actual scroll for click hit-testing
+    }
+
     m_lastPattern = curPat;
     m_lastRow     = curRow;
-    ImGui::SetScrollY(m_scrollY);
 
     ImGuiListClipper clipper;
     clipper.Begin(nrows);
@@ -386,10 +458,28 @@ void TrackerView::drawPatternPanel() {
         // Channel cells
         for (int ch = 0; ch < nch; ch++) {
             ImGui::TableNextColumn();
+
+            bool isEditCell = m_editMode && (r == m_cur.row) && (ch == m_cur.channel);
+
             if ((m_muteState >> ch) & 1) {
                 ImGui::TextColored(kDim, "--- -- ... ...");
+                if (isEditCell) {
+                    ImVec2 p = ImGui::GetItemRectMin();
+                    ImVec2 q = ImGui::GetItemRectMax();
+                    ImGui::GetWindowDrawList()->AddRect({p.x-1,p.y}, {q.x+1,q.y}, IM_COL32(255,255,255,200));
+                }
                 continue;
             }
+
+            // Sub-column widths (chars): note=3, instr=2, vol=3, fxcmd=1, fxparam=2
+            // We record screen-x of each sub-col start to draw the cursor highlight.
+            float subX[5]; // screen X of each sub-column text start
+            float subW[5]; // approximate pixel width
+            bool  colFirst = true;
+
+            auto recordPos = [&](int col) {
+                subX[col] = ImGui::GetCursorScreenPos().x;
+            };
 
             std::string note = m_mod->format_pattern_row_channel_command(curPat, r, ch, openmpt::module::command_note);
             std::string inst = m_mod->format_pattern_row_channel_command(curPat, r, ch, openmpt::module::command_instrument);
@@ -402,18 +492,44 @@ void TrackerView::drawPatternPanel() {
             bool hasVol  = !vol.empty()  && vol.find_first_not_of("v.") != std::string::npos;
             bool hasFx   = !fx.empty()   && fx  != ".";
 
+            recordPos(0);
             ImGui::TextColored(hasNote ? kColNote : kDim,
                                "%-3s", note.empty() ? "..." : note.c_str());
+            subW[0] = ImGui::GetItemRectSize().x + 3;
             ImGui::SameLine(0, 3);
+            recordPos(1);
             ImGui::TextColored(hasInst ? kColInstr : kDim,
                                "%2s", inst.empty() ? ".." : inst.c_str());
+            subW[1] = ImGui::GetItemRectSize().x + 3;
             ImGui::SameLine(0, 3);
+            recordPos(2);
             ImGui::TextColored(hasVol ? kColVolume : kDim,
                                "%-3s", vol.empty() ? "..." : vol.c_str());
+            subW[2] = ImGui::GetItemRectSize().x + 2;
             ImGui::SameLine(0, 2);
+            recordPos(3);
             ImGui::TextColored(hasFx ? kColGlobal : kDim,
-                               "%s%-2s", fx.empty()?"."  : fx.c_str(),
-                                         fxp.empty()? ".." : fxp.c_str());
+                               "%s", fx.empty() ? "." : fx.c_str());
+            subW[3] = ImGui::GetItemRectSize().x;
+            ImGui::SameLine(0, 0);
+            recordPos(4);
+            ImGui::TextColored(hasFx ? kColGlobal : kDim,
+                               "%-2s", fxp.empty() ? ".." : fxp.c_str());
+            subW[4] = ImGui::GetItemRectSize().x;
+
+            if (isEditCell) {
+                int col = int(m_cur.col);
+                float y0 = ImGui::GetItemRectMin().y;
+                float y1 = ImGui::GetItemRectMax().y;
+                ImU32 hilite = m_editMode ? IM_COL32(255,220,80,80) : IM_COL32(255,255,255,40);
+                ImGui::GetWindowDrawList()->AddRectFilled(
+                    {subX[col]-1, y0}, {subX[col]+subW[col], y1+1}, hilite);
+                // bright border around whole cell
+                float x0cell = subX[0] - 1;
+                float x1cell = subX[4] + subW[4] + 1;
+                ImGui::GetWindowDrawList()->AddRect(
+                    {x0cell, y0-1}, {x1cell, y1+1}, IM_COL32(255,255,255,220));
+            }
         }
     }
     } // clipper.Step()
@@ -445,10 +561,31 @@ static ImGuiKey qtKeyToImGui(int k) {
 }
 
 void TrackerView::mousePressEvent(QMouseEvent* e) {
+    setFocus();
     ImGui::SetCurrentContext(m_imgui);
     ImGui::GetIO().AddMousePosEvent(float(e->pos().x()), float(e->pos().y()));
     if (e->button() == Qt::LeftButton)  ImGui::GetIO().AddMouseButtonEvent(0, true);
     if (e->button() == Qt::RightButton) ImGui::GetIO().AddMouseButtonEvent(1, true);
+
+    // Click inside pattern panel → move edit cursor
+    if (m_mod && e->button() == Qt::LeftButton && m_rowH > 0.f) {
+        constexpr float patY = ORDER_H + CHAN_H;
+        float qx = float(e->pos().x());
+        float qy = float(e->pos().y());
+        if (qy >= patY) {
+            float relY = qy - patY + m_scrollY;
+            float relX = qx - m_rowNumW + m_hscroll;
+            int row = int(relY / m_rowH);
+            int ch  = int(relX / m_cellW);
+            int32_t nch   = m_state.num_channels.load();
+            int32_t nrows = pe_num_rows(m_mod, m_state.current_pattern.load());
+            if (row >= 0 && row < nrows && ch >= 0 && ch < nch) {
+                m_cur.row     = row;
+                m_cur.channel = ch;
+                m_cur.col     = EditCol::Note;
+            }
+        }
+    }
 }
 void TrackerView::mouseReleaseEvent(QMouseEvent* e) {
     ImGui::SetCurrentContext(m_imgui);
@@ -465,6 +602,17 @@ void TrackerView::wheelEvent(QWheelEvent* e) {
 }
 void TrackerView::keyPressEvent(QKeyEvent* e) {
     ImGui::SetCurrentContext(m_imgui);
+
+    // Intercept tracker edit / navigation keys before ImGui sees them
+    if (m_mod) {
+        handleEditKey(e->key(), e->modifiers(), e->text());
+        // Still pass non-text keys to ImGui for scrolling etc., but swallow text
+        // so ImGui text input widgets don't capture note keys.
+        ImGuiKey k = qtKeyToImGui(e->key());
+        if (k != ImGuiKey_None) ImGui::GetIO().AddKeyEvent(k, true);
+        return;
+    }
+
     ImGuiKey k = qtKeyToImGui(e->key());
     if (k != ImGuiKey_None) ImGui::GetIO().AddKeyEvent(k, true);
     if (!e->text().isEmpty())
@@ -474,4 +622,171 @@ void TrackerView::keyReleaseEvent(QKeyEvent* e) {
     ImGui::SetCurrentContext(m_imgui);
     ImGuiKey k = qtKeyToImGui(e->key());
     if (k != ImGuiKey_None) ImGui::GetIO().AddKeyEvent(k, false);
+}
+
+// ── Pattern editor ─────────────────────────────────────────────────────────────
+
+void TrackerView::clampCursor() {
+    if (!m_mod) return;
+    int32_t pat   = m_state.current_pattern.load();
+    int32_t nrows = pe_num_rows(m_mod, pat);
+    int32_t nch   = m_state.num_channels.load();
+    m_cur.row     = std::clamp(m_cur.row,     0, std::max(0, nrows-1));
+    m_cur.channel = std::clamp(m_cur.channel, 0, std::max(0, nch-1));
+}
+
+void TrackerView::advanceCursor() {
+    if (!m_mod || m_editStep == 0) return;
+    int32_t pat   = m_state.current_pattern.load();
+    int32_t nrows = pe_num_rows(m_mod, pat);
+    m_cur.row = std::min(m_cur.row + m_editStep, nrows - 1);
+}
+
+void TrackerView::handleEditKey(int qtKey, Qt::KeyboardModifiers mods, const QString& text) {
+    int32_t pat   = m_state.current_pattern.load();
+    int32_t nrows = pe_num_rows(m_mod, pat);
+    int32_t nch   = m_state.num_channels.load();
+
+    // ── Navigation (always active) ───────────────────────────────────────────
+    switch (qtKey) {
+    case Qt::Key_Up:
+        m_cur.row = std::max(0, m_cur.row - 1); return;
+    case Qt::Key_Down:
+        m_cur.row = std::min(nrows-1, m_cur.row + 1); return;
+    case Qt::Key_Left:
+        if (m_cur.col == EditCol::Note) {
+            if (m_cur.channel > 0) { m_cur.channel--; m_cur.col = EditCol::FxParam; }
+        } else {
+            m_cur.col = EditCol(int(m_cur.col) - 1);
+        }
+        return;
+    case Qt::Key_Right:
+        if (m_cur.col == EditCol::FxParam) {
+            if (m_cur.channel < nch-1) { m_cur.channel++; m_cur.col = EditCol::Note; }
+        } else {
+            m_cur.col = EditCol(int(m_cur.col) + 1);
+        }
+        return;
+    case Qt::Key_Tab:
+        if (mods & Qt::ShiftModifier)
+            m_cur.channel = (m_cur.channel + nch - 1) % nch;
+        else
+            m_cur.channel = (m_cur.channel + 1) % nch;
+        m_cur.col = EditCol::Note;
+        return;
+    case Qt::Key_PageUp:
+        m_cur.row = std::max(0, m_cur.row - 16); return;
+    case Qt::Key_PageDown:
+        m_cur.row = std::min(nrows-1, m_cur.row + 16); return;
+    case Qt::Key_Home:
+        m_cur.row = 0; return;
+    case Qt::Key_End:
+        m_cur.row = nrows - 1; return;
+    case Qt::Key_F1: m_baseOctave = std::max(0, m_baseOctave - 1); return;
+    case Qt::Key_F2: m_baseOctave = std::min(8, m_baseOctave + 1); return;
+    case Qt::Key_Minus:
+        m_editStep = std::max(0, m_editStep - 1); return;
+    case Qt::Key_Plus: case Qt::Key_Equal:
+        m_editStep = std::min(16, m_editStep + 1); return;
+    case Qt::Key_Return: case Qt::Key_Enter:
+        m_editMode = !m_editMode; return;
+    default: break;
+    }
+
+    if (!m_editMode) return;
+
+    PatternCell cell;
+    pe_get_cell(m_mod, pat, m_cur.row, m_cur.channel, cell);
+
+    // ── Note column ──────────────────────────────────────────────────────────
+    if (m_cur.col == EditCol::Note) {
+        if (qtKey == Qt::Key_1) {
+            cell.note = NOTE_NOTECUT; pe_set_cell(m_mod, pat, m_cur.row, m_cur.channel, cell);
+            advanceCursor(); return;
+        }
+        if (qtKey == Qt::Key_QuoteLeft) {
+            cell.note = NOTE_KEYOFF; pe_set_cell(m_mod, pat, m_cur.row, m_cur.channel, cell);
+            advanceCursor(); return;
+        }
+        if (qtKey == Qt::Key_Delete) {
+            pe_clear_cell(m_mod, pat, m_cur.row, m_cur.channel);
+            advanceCursor(); return;
+        }
+        int semi = noteFromQtKey(qtKey);
+        if (semi >= 0) {
+            int note = (m_baseOctave + semi/12) * 12 + (semi % 12) + 1;
+            if (note >= NOTE_MIN && note <= NOTE_MAX) {
+                cell.note = (uint8_t)note;
+                pe_set_cell(m_mod, pat, m_cur.row, m_cur.channel, cell);
+                advanceCursor();
+            }
+            return;
+        }
+        return;
+    }
+
+    // ── Instrument column ────────────────────────────────────────────────────
+    if (m_cur.col == EditCol::Instr) {
+        if (qtKey == Qt::Key_Delete) {
+            cell.instr = 0; pe_set_cell(m_mod, pat, m_cur.row, m_cur.channel, cell);
+            advanceCursor(); return;
+        }
+        int d = hexDigitFromKey(qtKey);
+        if (d >= 0) {
+            cell.instr = (uint8_t)(((cell.instr % 10) * 10 + d) % 100);
+            pe_set_cell(m_mod, pat, m_cur.row, m_cur.channel, cell);
+            advanceCursor(); return;
+        }
+        return;
+    }
+
+    // ── Volume column ─────────────────────────────────────────────────────────
+    if (m_cur.col == EditCol::Vol) {
+        if (qtKey == Qt::Key_Delete) {
+            cell.volcmd = VOLCMD_NONE; cell.vol = 0;
+            pe_set_cell(m_mod, pat, m_cur.row, m_cur.channel, cell);
+            advanceCursor(); return;
+        }
+        int d = hexDigitFromKey(qtKey);
+        if (d >= 0 && d <= 9) {
+            if (cell.volcmd == VOLCMD_NONE) cell.volcmd = VOLCMD_VOLUME;
+            cell.vol = (uint8_t)std::min((int)(cell.vol % 10) * 10 + d, 64);
+            pe_set_cell(m_mod, pat, m_cur.row, m_cur.channel, cell);
+            advanceCursor(); return;
+        }
+        return;
+    }
+
+    // ── Effect command column ─────────────────────────────────────────────────
+    if (m_cur.col == EditCol::FxCmd) {
+        if (qtKey == Qt::Key_Delete) {
+            cell.command = CMD_NONE; cell.param = 0;
+            pe_set_cell(m_mod, pat, m_cur.row, m_cur.channel, cell);
+            advanceCursor(); return;
+        }
+        if (!text.isEmpty()) {
+            QChar c = text[0].toUpper();
+            if (c >= 'A' && c <= 'Z') {
+                cell.command = (uint8_t)(c.toLatin1() - 'A' + 1);
+                pe_set_cell(m_mod, pat, m_cur.row, m_cur.channel, cell);
+                advanceCursor(); return;
+            }
+        }
+        return;
+    }
+
+    // ── Effect parameter column ───────────────────────────────────────────────
+    if (m_cur.col == EditCol::FxParam) {
+        if (qtKey == Qt::Key_Delete) {
+            cell.param = 0; pe_set_cell(m_mod, pat, m_cur.row, m_cur.channel, cell);
+            advanceCursor(); return;
+        }
+        int d = hexDigitFromKey(qtKey);
+        if (d >= 0) {
+            cell.param = (uint8_t)(((cell.param & 0x0F) << 4) | d);
+            pe_set_cell(m_mod, pat, m_cur.row, m_cur.channel, cell);
+            advanceCursor(); return;
+        }
+        return;
+    }
 }

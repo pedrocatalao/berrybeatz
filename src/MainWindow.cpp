@@ -218,6 +218,7 @@ void MainWindow::startPlayback(const QString& path) {
     if (!m_engine->loadFile(path)) return;
 
     m_trackerView->setModule(m_engine->getModule());
+    m_trackerView->setFocus();
     m_engine->start();
 
     populateTree();

@@ -7,6 +7,15 @@ struct ImGuiContext;
 struct ImDrawList;
 namespace openmpt { class module; class module_ext; }
 
+// Sub-column positions within one channel cell
+enum class EditCol : uint8_t { Note=0, Instr=1, Vol=2, FxCmd=3, FxParam=4, _Count=5 };
+
+struct EditCursor {
+    int32_t row     {0};
+    int32_t channel {0};
+    EditCol  col    {EditCol::Note};
+};
+
 class TrackerView : public QOpenGLWidget {
     Q_OBJECT
 public:
@@ -36,26 +45,34 @@ private:
     void drawOrderList();
     void drawChannelStrip();
     void drawPatternPanel();
-
     void drawLEDs(ImDrawList* dl, float x, float y, float w, float h, float level);
 
-    ModuleState&      m_state;
-    openmpt::module_ext*  m_mod   {nullptr};
-    ImGuiContext*     m_imgui     {nullptr};
-    QTimer            m_timer;
-    double            m_lastTime  {0.0};
+    // Pattern editing
+    void handleEditKey(int qtKey, Qt::KeyboardModifiers mods, const QString& text);
+    void enterNote(uint8_t note); // note = 1..120, 0=nothing, 0xFE=cut, 0xFF=off
+    void advanceCursor();
+    void clampCursor();
 
-    // Layout cache (computed each frame from font metrics)
-    float m_charW    {8.0f};
-    float m_rowNumW  {40.0f};
-    float m_cellW    {130.0f};
+    ModuleState&          m_state;
+    openmpt::module_ext*  m_mod        {nullptr};
+    ImGuiContext*         m_imgui      {nullptr};
+    QTimer                m_timer;
+    double                m_lastTime   {0.0};
 
-    // Horizontal scroll shared between channel strip and pattern table
-    float    m_hscroll   {0.0f};
-    // Smooth vertical scroll for pattern panel
-    float    m_scrollY      {0.0f};
-    int32_t  m_lastPattern  {-1};
-    int32_t  m_lastRow      {-1};
-    // Per-channel mute state (bit N = channel N muted, visual only for now)
-    uint64_t m_muteState {0};
+    // Layout cache
+    float    m_charW       {8.0f};
+    float    m_rowNumW     {40.0f};
+    float    m_cellW       {130.0f};
+    float    m_rowH        {16.0f};
+    float    m_hscroll     {0.0f};
+    float    m_scrollY     {0.0f};
+    int32_t  m_lastPattern {-1};
+    int32_t  m_lastRow     {-1};
+    uint64_t m_muteState   {0};
+
+    // Edit cursor
+    EditCursor m_cur;
+    int32_t    m_baseOctave {4};
+    int32_t    m_editStep   {1};   // rows to advance after note entry
+    bool       m_editMode   {false};
 };

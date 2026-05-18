@@ -90,6 +90,7 @@ static constexpr float CHAN_H    = CHANNAME_H + VU_H;
 TrackerView::TrackerView(ModuleState& state, QWidget* parent)
     : QOpenGLWidget(parent), m_state(state) {
     setFocusPolicy(Qt::StrongFocus);
+    setMouseTracking(true); // needed so ImGui knows hover position before first click
     connect(&m_timer, &QTimer::timeout, this, [this]{ update(); });
     m_timer.start(16);
 }
@@ -615,7 +616,18 @@ void TrackerView::mouseMoveEvent(QMouseEvent* e) {
 }
 void TrackerView::wheelEvent(QWheelEvent* e) {
     ImGui::SetCurrentContext(m_imgui);
-    ImGui::GetIO().AddMouseWheelEvent(0.f, e->angleDelta().y() / 120.0f);
+    float dx = e->angleDelta().x() / 120.0f;
+    float dy = e->angleDelta().y() / 120.0f;
+    // Shift+scroll → horizontal (for mice without h-wheel)
+    if ((e->modifiers() & Qt::ShiftModifier) && dx == 0.f) {
+        ImGui::GetIO().AddMouseWheelEvent(dy, 0.f);
+        return;
+    }
+    // Use dominant axis only — trackpad always leaks a small x during vertical swipes
+    if (std::abs(dx) > std::abs(dy))
+        ImGui::GetIO().AddMouseWheelEvent(dx, 0.f);
+    else
+        ImGui::GetIO().AddMouseWheelEvent(0.f, dy);
 }
 void TrackerView::keyPressEvent(QKeyEvent* e) {
     ImGui::SetCurrentContext(m_imgui);

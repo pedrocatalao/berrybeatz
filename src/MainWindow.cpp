@@ -22,7 +22,7 @@
 // ── ToolbarVU ─────────────────────────────────────────────────────────────────
 
 ToolbarVU::ToolbarVU(QWidget* parent) : QWidget(parent) {
-    setFixedSize(54, 20);
+    setFixedSize(80, 20);
     setToolTip("Master L/R output level");
 }
 
@@ -36,18 +36,27 @@ void ToolbarVU::paintEvent(QPaintEvent*) {
     QPainter p(this);
     p.fillRect(rect(), Qt::black);
 
-    int W = width();
-    int H = height() / 2 - 1;
+    constexpr int N = 8;
+    int W  = width();
+    int bH = height() / 2 - 1; // bar height
+    float ledW = float(W - (N - 1)) / float(N);
+    if (ledW < 1.0f) ledW = 1.0f;
 
     auto drawBar = [&](float v, int y) {
-        int fill = int(qMin(v, 1.0f) * W);
-        QColor col = v > 0.85f ? QColor(225,0,0) :
-                     v > 0.60f ? QColor(255,200,0) : QColor(0,200,0);
-        p.fillRect(0, y, fill, H, col);
+        float level = qMin(v / 1.2f, 1.0f); // normalise same as channel strip
+        for (int i = 0; i < N; i++) {
+            bool lit = level > float(i) / float(N);
+            QColor col;
+            if      (i >= 6) col = lit ? QColor(225,   0,   0) : QColor( 35,  0,  0);
+            else if (i >= 4) col = lit ? QColor(255, 200,   0) : QColor( 40, 30,  0);
+            else             col = lit ? QColor(  0, 200,   0) : QColor(  0, 28,  0);
+            int x = int(float(i) * (ledW + 1.0f));
+            p.fillRect(x, y, int(ledW), bH, col);
+        }
     };
 
     drawBar(m_l, 0);
-    drawBar(m_r, H + 2);
+    drawBar(m_r, bH + 2);
 }
 
 // ── MainWindow ────────────────────────────────────────────────────────────────

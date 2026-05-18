@@ -136,19 +136,30 @@ static QIcon iconSamples() {
 
 static QIcon iconInstruments() {
     return makeTabIcon([](QPainter& p, int s) {
-        QColor white(0xa0, 0xa0, 0x60), black(0x50, 0x50, 0x30);
-        float kw = s / 5.0f, kh = s - 2.0f, bw = kw * 0.6f, bh = kh * 0.58f;
-        p.setPen(QPen(QColor(0x40,0x40,0x40), 0.5f));
-        for (int i = 0; i < 5; i++) {
-            p.setBrush(white);
-            p.drawRect(QRectF(i * kw + 0.5f, 1, kw - 1, kh - 1));
+        // 5 white keys + 4 black keys — 2+2 pattern (C# D# · F# G#)
+        const int   nW  = 5;
+        const float kw  = float(s) / nW;
+        const float kh  = float(s);
+        const float bw  = kw * 0.58f;
+        const float bh  = kh * 0.62f;
+
+        const QColor wCol(0xa0, 0xa0, 0x60);
+        const QColor sep (0x1a, 0x1a, 0x28);
+        const QColor bCol(0x18, 0x18, 0x28);
+
+        // White keys
+        for (int i = 0; i < nW; i++) {
+            p.setPen(QPen(sep, 0.8f));
+            p.setBrush(wCol);
+            p.drawRect(QRectF(i * kw + 0.3f, 0.3f, kw - 0.3f, kh - 0.6f));
         }
-        static const int blacks[] = {0, 1, 3, 4};
-        for (int pos : blacks) {
-            p.setBrush(black);
-            p.setPen(Qt::NoPen);
-            p.drawRect(QRectF((pos + 1) * kw - bw/2, 1, bw, bh));
-        }
+
+        // Black keys: 2 then gap then 2
+        const float cx[] = { kw, 2*kw, 4*kw, 5*kw };
+        p.setPen(Qt::NoPen);
+        p.setBrush(bCol);
+        for (float x : cx)
+            p.drawRect(QRectF(x - bw*0.5f, 0.3f, bw, bh));
     });
 }
 

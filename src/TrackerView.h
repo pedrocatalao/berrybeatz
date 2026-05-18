@@ -4,6 +4,7 @@
 #include "ModuleState.h"
 
 struct ImGuiContext;
+struct ImDrawList;
 namespace openmpt { class module; }
 
 class TrackerView : public QOpenGLWidget {
@@ -12,9 +13,11 @@ public:
     explicit TrackerView(ModuleState& state, QWidget* parent = nullptr);
     ~TrackerView() override;
 
-    // Called by MainWindow so TrackerView can query pattern data
     void setModule(openmpt::module* mod) { m_mod = mod; }
     void clearModule() { m_mod = nullptr; }
+
+signals:
+    void orderSeekRequested(int32_t order);
 
 protected:
     void initializeGL() override;
@@ -30,13 +33,27 @@ protected:
 
 private:
     void renderUI();
+    void drawOrderList();
+    void drawChannelStrip();
     void drawPatternPanel();
-    void drawVUMeters();
-    void drawInfoBar();
+
+    void drawLEDs(ImDrawList* dl, float x, float y, float w, float h, float level);
 
     ModuleState&      m_state;
-    openmpt::module*  m_mod     {nullptr};
-    ImGuiContext*     m_imgui   {nullptr};
+    openmpt::module*  m_mod       {nullptr};
+    ImGuiContext*     m_imgui     {nullptr};
     QTimer            m_timer;
-    double            m_lastTime{0.0};
+    double            m_lastTime  {0.0};
+
+    // Layout cache (computed each frame from font metrics)
+    float m_charW    {8.0f};
+    float m_rowNumW  {40.0f};
+    float m_cellW    {130.0f};
+
+    // Horizontal scroll shared between channel strip and pattern table
+    float    m_hscroll   {0.0f};
+    // Smooth vertical scroll for pattern panel
+    float    m_scrollY   {0.0f};
+    // Per-channel mute state (bit N = channel N muted, visual only for now)
+    uint64_t m_muteState {0};
 };

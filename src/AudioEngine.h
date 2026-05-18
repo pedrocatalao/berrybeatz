@@ -21,6 +21,7 @@ public:
     void setPaused(bool paused);
     bool isPaused() const { return m_paused.load(); }
     void seekSeconds(double seconds);
+    void seekToOrder(int32_t order);
     void selectSubsong(int32_t index);
     int32_t subsongCount() const;
     openmpt::module* getModule() const;
@@ -46,7 +47,8 @@ private:
     PaStream*                        m_stream  {nullptr};
     std::atomic<bool>                m_stop    {false};
     std::atomic<bool>                m_paused  {false};
-    std::atomic<double>              m_seek    {-1.0};
-    std::atomic<int32_t>             m_subsong {-2}; // -2 = no change
+    std::atomic<double>              m_seek       {-1.0};
+    std::atomic<int32_t>             m_seek_order {-1};
+    std::atomic<int32_t>             m_subsong    {-2}; // -2 = no change
     int32_t                          m_samplerate{48000};
 };

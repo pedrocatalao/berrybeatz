@@ -302,9 +302,9 @@ void TrackerView::drawChannelStrip() {
         std::lock_guard<std::mutex> lk(m_state.meta_mutex);
         for (int ch = 0; ch < nch; ch++) {
             if (ch < (int)m_state.channel_names.size() && !m_state.channel_names[ch].empty())
-                chNames[ch] = m_state.channel_names[ch];
+                chNames[ch] = std::to_string(ch + 1) + ": " + m_state.channel_names[ch];
             else
-                chNames[ch] = std::to_string(ch + 1);
+                chNames[ch] = "Channel " + std::to_string(ch + 1);
         }
     }
 

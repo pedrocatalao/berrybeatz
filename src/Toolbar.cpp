@@ -237,12 +237,13 @@ float DrawToolbar(ToolbarState& state, KnobEditRequest& knobEdit,
         const float lw  = lh * (state.logoW / state.logoH);
         ImVec2 winPos   = ImGui::GetWindowPos();
         float  winW     = ImGui::GetWindowSize().x;
-        ImVec2 p0       = {winPos.x + winW - lw - 6.f, winPos.y + 2.f};
+        ImVec2 p0       = {winPos.x + winW - lw - 6.f, winPos.y + 6.f};
         ImVec2 p1       = {p0.x + lw, p0.y + lh};
         // Foreground draw list: not clipped to the toolbar window,
         // so the bottom portion renders over the tab bar below.
         ImGui::GetForegroundDrawList()->AddImage(
-            (ImTextureID)(intptr_t)state.logoTex, p0, p1);
+            (ImTextureID)(intptr_t)state.logoTex, p0, p1,
+            {0.f, 0.f}, {1.f, 1.f}, IM_COL32(255, 255, 255, 180));
     }
 
     ImGui::End();

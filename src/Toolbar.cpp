@@ -29,19 +29,19 @@ static void drawVU(ImDrawList* dl,
                    float lvlL, float lvlR)
 {
     const float gap = 2.f;
-    const float bw  = (w - gap) * 0.5f;
+    const float bh  = (h - gap) * 0.5f;
 
-    auto bar = [&](float bx, float level) {
-        dl->AddRectFilled({bx, y}, {bx + bw, y + h}, IM_COL32(20, 20, 36, 255));
-        float filled = std::min(level, 1.f) * h;
+    auto bar = [&](float by, float level) {
+        dl->AddRectFilled({x, by}, {x + w, by + bh}, IM_COL32(20, 20, 36, 255));
+        float filled = std::min(level, 1.f) * w;
         if (filled > 0.f)
-            dl->AddRectFilled({bx, y + h - filled}, {bx + bw, y + h},
+            dl->AddRectFilled({x, by}, {x + filled, by + bh},
                               IM_COL32(60, 200, 60, 255));
-        dl->AddRect({bx, y}, {bx + bw, y + h}, IM_COL32(64, 64, 90, 255));
+        dl->AddRect({x, by}, {x + w, by + bh}, IM_COL32(64, 64, 90, 255));
     };
 
-    bar(x,           lvlL);
-    bar(x + bw + gap, lvlR);
+    bar(y,            lvlL);
+    bar(y + bh + gap, lvlR);
 }
 
 float DrawToolbar(ToolbarState& state,
@@ -289,11 +289,11 @@ float DrawToolbar(ToolbarState& state,
 
     // ─── VU meters ────────────────────────────────────────────────────────────
     {
-        const float vuW = 20.f;
-        const float vuH = h - 8.f;
+        const float vuW = 120.f;
+        const float vuH = 18.f;
         ImVec2 sp = ImGui::GetCursorScreenPos();
         drawVU(ImGui::GetWindowDrawList(),
-               sp.x, y + 4.f, vuW, vuH,
+               sp.x, y + (h - vuH) * 0.5f, vuW, vuH,
                state.vuLeft, state.vuRight);
         ImGui::Dummy({vuW, vuH});
     }

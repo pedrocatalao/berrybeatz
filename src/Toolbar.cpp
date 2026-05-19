@@ -87,7 +87,7 @@ float DrawToolbar(ToolbarState& state,
     const float frameH   = ImGui::GetFrameHeight();
     const float knobSz   = 36.f;
     const float btnMidY  = 5.f;
-    const float knobMidY = 5.f;
+    const float knobMidY = 26.f;
 
     auto btnY = [&]() { ImGui::SetCursorPosY(btnMidY); };
 
@@ -199,6 +199,19 @@ float DrawToolbar(ToolbarState& state,
 
     ImGui::SameLine(0.f, 12.f);
 
+    // ─── VU meters ────────────────────────────────────────────────────────────
+    {
+        const float vuW = 120.f;
+        const float vuH = 18.f;
+        ImVec2 sp = ImGui::GetCursorScreenPos();
+        drawVU(ImGui::GetWindowDrawList(),
+               sp.x, y + 5.f, vuW, vuH,
+               state.vuLeft, state.vuRight);
+        ImGui::Dummy({vuW, vuH});
+    }
+
+    ImGui::SetCursorPos({0.f, 26.f});
+
     // ─── Knobs ────────────────────────────────────────────────────────────────
     // Each knob is 36×36; draw label text below via the draw list.
     // Clicking without dragging activates an in-place InputInt overlay.
@@ -295,19 +308,6 @@ float DrawToolbar(ToolbarState& state,
     doKnob("RPB",  &state.rpb,       1,   32,  state.onRPBChange);
     ImGui::SameLine(0.f, 6.f);
     doKnob("GVol", &state.globalVol, 0,   256, state.onGlobalVolChange);
-
-    ImGui::SameLine(0.f, 12.f);
-
-    // ─── VU meters ────────────────────────────────────────────────────────────
-    {
-        const float vuW = 120.f;
-        const float vuH = 18.f;
-        ImVec2 sp = ImGui::GetCursorScreenPos();
-        drawVU(ImGui::GetWindowDrawList(),
-               sp.x, y + 5.f, vuW, vuH,
-               state.vuLeft, state.vuRight);
-        ImGui::Dummy({vuW, vuH});
-    }
 
     // ─── Logo (top-right) ─────────────────────────────────────────────────────
     if (state.logoTex && state.logoH > 0.f) {

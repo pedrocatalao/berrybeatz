@@ -1,5 +1,6 @@
 #include "App.h"
 #include "FileDialog.h"
+#include "Logo.h"
 #include "imgui.h"
 #include <GLFW/glfw3.h>
 #include <libopenmpt/libopenmpt_ext.hpp>
@@ -163,9 +164,16 @@ App::~App()
 {
     m_audio.stop();
     m_audio.join();
+    if (m_logoTex) glDeleteTextures(1, &m_logoTex);
 }
 
 // ─── Public API ───────────────────────────────────────────────────────────────
+
+void App::setGLFWWindow(GLFWwindow* w)
+{
+    m_glfwWindow = w;
+    m_logoTex = loadLogoTexture(m_logoW, m_logoH);
+}
 
 void App::setFonts(ImFont* mono, ImFont* ui)
 {
@@ -208,7 +216,7 @@ void App::render(int winW, int winH)
 
     // ── Splitter (drag handle) ────────────────────────────────────────────
     {
-        ImGui::PushStyleColor(ImGuiCol_WindowBg, IM_COL32(35, 35, 58, 255));
+        ImGui::PushStyleColor(ImGuiCol_WindowBg, IM_COL32(0, 0, 0, 0));  // transparent
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.f, 0.f));
         ImGui::SetNextWindowPos({m_sidebarW, contentY}, ImGuiCond_Always);
         ImGui::SetNextWindowSize({kSplitterW, h - contentY}, ImGuiCond_Always);
@@ -220,6 +228,13 @@ void App::render(int winW, int winH)
             ImGuiWindowFlags_NoBringToFrontOnFocus);
         ImGui::PopStyleVar();
         ImGui::PopStyleColor();
+
+        // Draw 1px line at centre of the hit area
+        ImVec2 wp = ImGui::GetWindowPos();
+        float  cx = wp.x + kSplitterW * 0.5f;
+        ImGui::GetWindowDrawList()->AddLine(
+            {cx, wp.y}, {cx, wp.y + h - contentY},
+            IM_COL32(55, 55, 80, 255), 1.f);
 
         ImGui::InvisibleButton("##drag", ImGui::GetContentRegionAvail());
         if (ImGui::IsItemHovered() || ImGui::IsItemActive())
@@ -426,6 +441,9 @@ void App::drawSidebar(float x, float y, float w, float h)
 
 void App::syncToolbarState()
 {
+    m_toolbarState.logoTex = m_logoTex;
+    m_toolbarState.logoW   = m_logoW;
+    m_toolbarState.logoH   = m_logoH;
     m_toolbarState.hasModule = m_hasModule;
     m_toolbarState.isPlaying = m_state.is_playing.load();
     m_toolbarState.isPaused  = m_audio.isPaused();

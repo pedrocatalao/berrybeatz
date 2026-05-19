@@ -1,6 +1,8 @@
 #pragma once
 #include <functional>
 #include <string>
+#define GL_SILENCE_DEPRECATION
+#include <OpenGL/gl3.h>
 
 struct ImFont;
 
@@ -26,6 +28,11 @@ struct ToolbarState {
     std::function<void()>           onWindowMaximize;
     std::function<void()>            onWindowFullscreen;
     // (window drag is handled at GLFW callback level, not through ToolbarState)
+
+    // Logo rendered at top-right (0 = no logo)
+    GLuint logoTex {0};
+    float  logoW   {0.f};
+    float  logoH   {0.f};
 
     // File / transport actions
     std::function<void()>      onNew;

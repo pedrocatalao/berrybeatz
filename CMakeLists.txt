@@ -69,15 +69,22 @@ set(SOURCES
     src/TrackerView.cpp
     src/PatternEditor.cpp
     src/FileDialog.mm
+    src/Logo.mm
+    assets/logo.png
 )
 
 add_executable(OpenMPTMac MACOSX_BUNDLE
     ${SOURCES}
 )
 
-# Mark the Objective-C++ source explicitly
-set_source_files_properties(src/FileDialog.mm PROPERTIES
+# Mark the Objective-C++ sources explicitly
+set_source_files_properties(src/FileDialog.mm src/Logo.mm PROPERTIES
     LANGUAGE OBJCXX
+)
+
+# Bundle the logo into Resources/
+set_source_files_properties(assets/logo.png PROPERTIES
+    MACOSX_PACKAGE_LOCATION Resources
 )
 
 target_include_directories(OpenMPTMac PRIVATE

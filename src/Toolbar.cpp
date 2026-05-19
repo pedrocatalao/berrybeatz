@@ -5,7 +5,7 @@
 
 static void pushToolbarStyle()
 {
-    ImGui::PushStyleColor(ImGuiCol_WindowBg,      IM_COL32( 30,  30,  46, 255));
+    ImGui::PushStyleColor(ImGuiCol_WindowBg,      IM_COL32(  0,   0,   0,   0));  // drawn as gradient below
     ImGui::PushStyleColor(ImGuiCol_Button,        IM_COL32( 45,  45,  68, 255));
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32( 65,  65,  98, 255));
     ImGui::PushStyleColor(ImGuiCol_ButtonActive,  IM_COL32( 80,  80, 120, 255));
@@ -58,6 +58,18 @@ float DrawToolbar(ToolbarState& state, KnobEditRequest& knobEdit,
         ImGuiWindowFlags_NoMove            |
         ImGuiWindowFlags_NoSavedSettings   |
         ImGuiWindowFlags_NoBringToFrontOnFocus);
+
+    // ─── Gradient background (black → dark grey, top to bottom) ──────────────
+    {
+        ImVec2 wp = ImGui::GetWindowPos();
+        ImVec2 ws = ImGui::GetWindowSize();
+        ImGui::GetWindowDrawList()->AddRectFilledMultiColor(
+            wp, {wp.x + ws.x, wp.y + ws.y},
+            IM_COL32(  0,   0,  20, 255),   // top-left
+            IM_COL32(  0,   0,  20, 255),   // top-right
+            IM_COL32( 20,  20,  40, 255),   // bottom-right
+            IM_COL32( 20,  20,  40, 255));  // bottom-left
+    }
 
     const float frameH   = ImGui::GetFrameHeight();
     const float knobSz   = 36.f;
@@ -233,17 +245,21 @@ float DrawToolbar(ToolbarState& state, KnobEditRequest& knobEdit,
 
     // ─── Logo (top-right) ─────────────────────────────────────────────────────
     if (state.logoTex && state.logoH > 0.f) {
-        const float lh  = 90.f;
+        const float lh  = 79.f;
         const float lw  = lh * (state.logoW / state.logoH);
         ImVec2 winPos   = ImGui::GetWindowPos();
         float  winW     = ImGui::GetWindowSize().x;
         ImVec2 p0       = {winPos.x + winW - lw - 6.f, winPos.y + 6.f};
-        ImVec2 p1       = {p0.x + lw, p0.y + lh};
-        // Foreground draw list: not clipped to the toolbar window,
-        // so the bottom portion renders over the tab bar below.
-        ImGui::GetForegroundDrawList()->AddImage(
-            (ImTextureID)(intptr_t)state.logoTex, p0, p1,
-            {0.f, 0.f}, {1.f, 1.f}, IM_COL32(255, 255, 255, 180));
+
+        // Slight tilt: top-right corner lifted 5px
+        ImGui::GetForegroundDrawList()->AddImageQuad(
+            (ImTextureID)(intptr_t)state.logoTex,
+            {p0.x,      p0.y     },   // top-left     (normal)
+            {p0.x + lw, p0.y - 4.f}, // top-right    (5px up)
+            {p0.x + lw, p0.y + lh + 2.f},  // bottom-right (normal)
+            {p0.x,      p0.y + lh},  // bottom-left  (normal)
+            {0.f, 0.f}, {1.f, 0.f}, {1.f, 1.f}, {0.f, 1.f},
+            IM_COL32(255, 255, 255, 180));
     }
 
     ImGui::End();

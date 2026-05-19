@@ -250,7 +250,7 @@ void App::render(int winW, int winH)
     const float cw = w - cx;
 
     // ── Tab bar ───────────────────────────────────────────────────────────
-    ImGui::PushStyleColor(ImGuiCol_WindowBg,  IM_COL32(24, 24, 40, 255));
+    ImGui::PushStyleColor(ImGuiCol_WindowBg,  IM_COL32(20, 20, 40, 255));
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,    ImVec2(4.f, 2.f));
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f);
     ImGui::SetNextWindowPos({cx, contentY}, ImGuiCond_Always);
@@ -318,7 +318,7 @@ void App::render(int winW, int winH)
 
 void App::drawSidebar(float x, float y, float w, float h)
 {
-    ImGui::PushStyleColor(ImGuiCol_WindowBg,             IM_COL32(18, 18, 30, 255));
+    ImGui::PushStyleColor(ImGuiCol_WindowBg,             IM_COL32(20, 20, 40, 255));
     ImGui::PushStyleColor(ImGuiCol_ScrollbarBg,          IM_COL32(18, 18, 30, 255));
     ImGui::PushStyleColor(ImGuiCol_ScrollbarGrab,        IM_COL32(55, 55, 85, 255));
     ImGui::PushStyleColor(ImGuiCol_ScrollbarGrabHovered, IM_COL32(75, 75, 110, 255));

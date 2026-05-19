@@ -71,6 +71,7 @@ set(SOURCES
     src/FileDialog.mm
     src/Logo.mm
     assets/logo.png
+    assets/AppIcon.icns
 )
 
 add_executable(OpenMPTMac MACOSX_BUNDLE
@@ -83,7 +84,7 @@ set_source_files_properties(src/FileDialog.mm src/Logo.mm PROPERTIES
 )
 
 # Bundle the logo into Resources/
-set_source_files_properties(assets/logo.png PROPERTIES
+set_source_files_properties(assets/logo.png assets/AppIcon.icns PROPERTIES
     MACOSX_PACKAGE_LOCATION Resources
 )
 
@@ -119,6 +120,7 @@ target_compile_options(OpenMPTMac PRIVATE ${PORTAUDIO_CFLAGS_OTHER})
 set_target_properties(OpenMPTMac PROPERTIES
     MACOSX_BUNDLE_GUI_IDENTIFIER "org.openmpt.mac"
     MACOSX_BUNDLE_BUNDLE_NAME "OpenMPT"
+    MACOSX_BUNDLE_ICON_FILE "AppIcon"
     MACOSX_BUNDLE_BUNDLE_VERSION "0.1"
     MACOSX_BUNDLE_SHORT_VERSION_STRING "0.1"
 )

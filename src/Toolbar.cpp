@@ -107,7 +107,6 @@ float DrawToolbar(ToolbarState& state,
             bool hov = ImGui::IsItemHovered();
             dl->AddRectFilled(p, {p.x+bsz, p.y+bsz},
                               hov ? hoverBg : IM_COL32(38, 38, 58, 255));
-            dl->AddRect(p, {p.x+bsz, p.y+bsz}, IM_COL32(72, 72, 100, 255));
             float m = 4.f;
             ImU32 sc = IM_COL32(210, 210, 220, 255);
             if (sym == 'x') {

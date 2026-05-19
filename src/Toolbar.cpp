@@ -201,6 +201,17 @@ float DrawToolbar(ToolbarState& state,
                       std::function<void(int)> cb)
     {
         ImGui::SetCursorPosY(knobMidY);
+
+        // Label to the left of the knob, vertically centred
+        const float labelGap = 5.f;
+        ImVec2 labelSp = ImGui::GetCursorScreenPos();
+        ImVec2 textSz  = ImGui::CalcTextSize(label);
+        ImGui::GetWindowDrawList()->AddText(
+            {labelSp.x, labelSp.y + (knobSz - textSz.y) * 0.5f},
+            IM_COL32(160, 160, 180, 255), label);
+
+        // Advance cursor past the label so the knob sits to its right
+        ImGui::SetCursorScreenPos({labelSp.x + textSz.x + labelGap, labelSp.y});
         ImVec2 sp = ImGui::GetCursorScreenPos();
 
         bool editing = (s_editLabel == label);
@@ -213,20 +224,12 @@ float DrawToolbar(ToolbarState& state,
             s_editLabel = label;
             s_editVal   = *val;
             s_doFocus   = true;
-            // Record the exact screen position of the value text so the
-            // InputInt starts at the same pixel as the AddText would.
             char ibuf[16];
             snprintf(ibuf, sizeof(ibuf), "%d", *val);
             ImVec2 vsz = ImGui::CalcTextSize(ibuf);
             s_editX = sp.x + (knobSz - vsz.x) * 0.5f;
             s_editY = sp.y + (knobSz - vsz.y) * 0.5f;
         }
-
-        // Label below the knob
-        ImVec2 textSz = ImGui::CalcTextSize(label);
-        ImGui::GetWindowDrawList()->AddText(
-            {sp.x + (knobSz - textSz.x) * 0.5f, sp.y + knobSz + 2.f},
-            IM_COL32(160, 160, 180, 255), label);
 
         // In-place number edit: transparent, borderless InputInt drawn exactly
         // where the value text lives; a Dummy at the knob footprint resets the

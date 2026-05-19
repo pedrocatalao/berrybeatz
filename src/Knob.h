@@ -8,10 +8,11 @@
 // violations in a header-only translation unit).
 // ---------------------------------------------------------------------------
 struct KnobState {
-    int   startY   {0};
-    int   startVal {0};
-    float totalDY  {0.f};
-    bool  dragged  {false};
+    int   startY    {0};
+    int   startVal  {0};
+    float totalDY   {0.f};
+    bool  dragged   {false};
+    float scrollAcc {0.f};  // fractional scroll accumulator
 };
 
 inline KnobState& knobState(ImGuiID id)
@@ -84,11 +85,22 @@ inline bool KnobWidget(const char* id,
     }
 
     // ---- Mouse wheel --------------------------------------------------
+    // Same sensitivity formula as vertical drag: range/100 per unit,
+    // Ctrl for fine mode. Float accumulator preserves trackpad sub-steps.
     if (hovered && ImGui::GetIO().MouseWheel != 0.f) {
-        int delta = (ImGui::GetIO().MouseWheel > 0.f) ? 1 : -1;
-        int newVal = *value + delta;
-        newVal = newVal < vmin ? vmin : (newVal > vmax ? vmax : newVal);
-        if (newVal != *value) { *value = newVal; changed = true; }
+        bool  fine        = ImGui::GetIO().KeyCtrl;
+        float sensitivity = fine ? 5.f : 1.f;
+        int   range       = vmax - vmin;
+        if (range > 0) {
+            st.scrollAcc += ImGui::GetIO().MouseWheel / sensitivity * (float)range / 100.f;
+            int delta = (int)st.scrollAcc;
+            st.scrollAcc -= (float)delta;
+            if (delta != 0) {
+                int newVal = *value + delta;
+                newVal = newVal < vmin ? vmin : (newVal > vmax ? vmax : newVal);
+                if (newVal != *value) { *value = newVal; changed = true; }
+            }
+        }
     }
 
     // ---- Drawing -------------------------------------------------------

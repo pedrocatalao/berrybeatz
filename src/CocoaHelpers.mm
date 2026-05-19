@@ -2,7 +2,7 @@
 #include <GLFW/glfw3.h>
 #define GLFW_EXPOSE_NATIVE_COCOA
 #include <GLFW/glfw3native.h>
-#include "FileDialog.h"
+#include "CocoaHelpers.h"
 #include <string>
 
 std::string nativeOpenFileDialog(const char* title)

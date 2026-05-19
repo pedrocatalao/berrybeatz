@@ -68,7 +68,7 @@ set(SOURCES
     src/AudioEngine.cpp
     src/TrackerView.cpp
     src/PatternEditor.cpp
-    src/FileDialog.mm
+    src/CocoaHelpers.mm
     src/Logo.mm
     assets/logo.png
     assets/AppIcon.icns
@@ -79,7 +79,7 @@ add_executable(OpenMPTMac MACOSX_BUNDLE
 )
 
 # Mark the Objective-C++ sources explicitly
-set_source_files_properties(src/FileDialog.mm src/Logo.mm PROPERTIES
+set_source_files_properties(src/CocoaHelpers.mm src/Logo.mm PROPERTIES
     LANGUAGE OBJCXX
 )
 

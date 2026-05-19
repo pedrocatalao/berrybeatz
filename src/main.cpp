@@ -8,7 +8,7 @@
 #include "backends/imgui_impl_opengl3.h"
 
 #include "App.h"
-#include "FileDialog.h"
+#include "CocoaHelpers.h"
 #include <cstdio>
 #include <memory>
 

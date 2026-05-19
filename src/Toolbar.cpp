@@ -179,7 +179,7 @@ float DrawToolbar(ToolbarState& state,
     if (ImGui::Button(playLbl)) { if (state.onPlayPause) state.onPlayPause(); }
     ImGui::SameLine();
     btnY();
-    if (ImGui::Button("|<")) { if (state.onPlayFromStart) state.onPlayFromStart(); }
+    if (ImGui::Button("Restart")) { if (state.onPlayFromStart) state.onPlayFromStart(); }
 
     if (!state.hasModule) ImGui::EndDisabled();
 
@@ -210,7 +210,7 @@ float DrawToolbar(ToolbarState& state,
         ImGui::Dummy({vuW, vuH});
     }
 
-    ImGui::SetCursorPos({0.f, 26.f});
+    ImGui::SetCursorPos({10.f, 26.f});
 
     // ─── Knobs ────────────────────────────────────────────────────────────────
     // Each knob is 36×36; draw label text below via the draw list.

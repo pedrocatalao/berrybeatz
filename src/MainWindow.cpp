@@ -25,8 +25,11 @@
 #include <QApplication>
 #include <QPainter>
 #include <QPainterPath>
-#include <QSpinBox>
 #include <QSlider>
+#include <QMouseEvent>
+#include <QWheelEvent>
+#include <QRadialGradient>
+#include <cmath>
 
 // ── ToolbarVU ─────────────────────────────────────────────────────────────────
 
@@ -67,6 +70,100 @@ void ToolbarVU::paintEvent(QPaintEvent*) {
 
     drawBar(m_l, 0);
     drawBar(m_r, bH + 2);
+}
+
+// ── RotaryKnob ────────────────────────────────────────────────────────────────
+
+RotaryKnob::RotaryKnob(QWidget* parent) : QWidget(parent) {
+    setFixedSize(36, 36);
+    setCursor(Qt::SizeVerCursor);
+}
+
+void RotaryKnob::setValue(int v) {
+    int c = qBound(m_min, v, m_max);
+    if (c != m_value) { m_value = c; update(); }
+}
+
+void RotaryKnob::paintEvent(QPaintEvent*) {
+    QPainter p(this);
+    p.setRenderHint(QPainter::Antialiasing);
+
+    const int    W = width(), H = height();
+    const int    d = qMin(W, H) - 2;
+    const QRectF knob((W - d) / 2.0, (H - d) / 2.0, d, d);
+    const QPointF c  = knob.center();
+    const float   r  = d / 2.0f;
+
+    // Body
+    QRadialGradient grad(c, r);
+    grad.setColorAt(0.0, QColor(0x2c, 0x2c, 0x58));
+    grad.setColorAt(1.0, QColor(0x0e, 0x0e, 0x22));
+    p.setPen(QPen(QColor(0x40, 0x40, 0x72), 1.0));
+    p.setBrush(grad);
+    p.drawEllipse(knob);
+
+    // Arc track (270° sweep, 7 o'clock → 5 o'clock)
+    constexpr float inset = 4.5f;
+    const QRectF arc = knob.adjusted(inset, inset, -inset, -inset);
+    p.setBrush(Qt::NoBrush);
+    p.setPen(QPen(QColor(0x2e, 0x2e, 0x5a), 2.5f, Qt::SolidLine, Qt::FlatCap));
+    p.drawArc(arc, 225 * 16, -270 * 16);
+
+    // Active arc
+    const float norm = (m_max > m_min) ? float(m_value - m_min) / float(m_max - m_min) : 0.f;
+    if (norm > 0.001f) {
+        p.setPen(QPen(QColor(0x50, 0x50, 0xc0), 2.5f, Qt::SolidLine, Qt::FlatCap));
+        p.drawArc(arc, 225 * 16, int(-norm * 270.f * 16.f));
+    }
+
+    // Indicator line
+    const float angle = (225.f - norm * 270.f) * float(M_PI) / 180.f;
+    const float ri    = r - inset - 1.5f;
+    p.setPen(QPen(QColor(0xe0, 0xe0, 0x40), 1.8f, Qt::SolidLine, Qt::RoundCap));
+    p.drawLine(
+        QPointF(c.x() + (ri - 5.f) * std::cos(angle), c.y() - (ri - 5.f) * std::sin(angle)),
+        QPointF(c.x() +  ri        * std::cos(angle), c.y() -  ri        * std::sin(angle)));
+
+    // Value text centred in knob body
+    p.setPen(QColor(0xd0, 0xd0, 0x50));
+    QFont f("Menlo", 1);
+    f.setPixelSize(8);
+    p.setFont(f);
+    p.drawText(knob, Qt::AlignCenter, QString::number(m_value));
+}
+
+void RotaryKnob::mousePressEvent(QMouseEvent* e) {
+    if (e->button() == Qt::LeftButton) {
+        m_dragging    = true;
+        m_dragStartY   = e->pos().y();
+        m_dragStartVal = m_value;
+    }
+}
+
+void RotaryKnob::mouseMoveEvent(QMouseEvent* e) {
+    if (!m_dragging) return;
+    const int   dy    = m_dragStartY - e->pos().y();       // up = positive = increase
+    const float scale = qMax(0.15f, float(m_max - m_min) / 100.f)
+                        / (e->modifiers() & Qt::ControlModifier ? 5.f : 1.f);
+    const int newVal = qBound(m_min, m_dragStartVal + int(dy * scale), m_max);
+    if (newVal != m_value) {
+        m_value = newVal;
+        update();
+        if (!signalsBlocked()) emit valueChanged(m_value);
+    }
+}
+
+void RotaryKnob::mouseReleaseEvent(QMouseEvent* e) {
+    if (e->button() == Qt::LeftButton) m_dragging = false;
+}
+
+void RotaryKnob::wheelEvent(QWheelEvent* e) {
+    const int newVal = qBound(m_min, m_value + (e->angleDelta().y() > 0 ? 1 : -1), m_max);
+    if (newVal != m_value) {
+        m_value = newVal;
+        update();
+        if (!signalsBlocked()) emit valueChanged(m_value);
+    }
 }
 
 // ── Tab icons ─────────────────────────────────────────────────────────────────
@@ -390,22 +487,15 @@ void MainWindow::setupToolbar() {
         "QToolButton:disabled { color:#404040; border-color:#1e1e3a; }"
         "QLabel { color:#606040; font-size:9px; padding:0; background:transparent; }");
 
-    const QString spinStyle =
-        "QSpinBox { background:#0d0d1e; color:#f0f050; border:1px solid #2e2e5a;"
-        "           font-family:Menlo,monospace; font-size:12px; padding:0 2px;"
-        "           min-width:42px; max-width:52px; }"
-        "QSpinBox::up-button   { background:#141428; border-left:1px solid #2e2e5a; width:14px; }"
-        "QSpinBox::down-button { background:#141428; border-left:1px solid #2e2e5a; width:14px; }"
-        "QSpinBox::up-button:hover   { background:#2e2e5a; }"
-        "QSpinBox::down-button:hover { background:#2e2e5a; }";
+    const QString knobLblStyle =
+        "color:#606040; font-size:9px; padding:0; background:transparent;";
 
-    auto mkSpin = [&](const QString& lbl, int lo, int hi, int val, QSpinBox*& out) -> QWidget* {
+    auto mkKnob = [&](const QString& lbl, int lo, int hi, int val, RotaryKnob*& out) -> QWidget* {
         auto* w   = new QWidget; w->setStyleSheet("background:transparent;");
-        auto* lay = new QHBoxLayout(w); lay->setContentsMargins(4,1,4,1); lay->setSpacing(4);
-        auto* l   = new QLabel(lbl); l->setAlignment(Qt::AlignVCenter | Qt::AlignRight);
-        out = new QSpinBox; out->setRange(lo, hi); out->setValue(val);
-        out->setStyleSheet(spinStyle); out->setAlignment(Qt::AlignCenter);
-        out->setButtonSymbols(QAbstractSpinBox::UpDownArrows);
+        auto* lay = new QHBoxLayout(w); lay->setContentsMargins(2,0,2,0); lay->setSpacing(3);
+        auto* l   = new QLabel(lbl); l->setStyleSheet(knobLblStyle);
+        l->setAlignment(Qt::AlignVCenter | Qt::AlignRight);
+        out = new RotaryKnob; out->setRange(lo, hi); out->setValue(val);
         lay->addWidget(l); lay->addWidget(out);
         return w;
     };
@@ -463,14 +553,14 @@ void MainWindow::setupToolbar() {
     tb->addWidget(m_seeker);
     tb->addSeparator();
 
-    // ── Numeric controls ──────────────────────────────────────────────────────
-    tb->addWidget(mkSpin("Octave",   0,   8,   4, m_spinOctave));
-    tb->addWidget(mkSpin("Tempo",   32, 512, 125, m_spinTempo));
-    tb->addWidget(mkSpin("Ticks/Row",  1,  31,   6, m_spinSpeed));
-    tb->addWidget(mkSpin("Row/Beat", 1,  32,   4, m_spinRPB));
-    tb->addWidget(mkSpin("Global Vol",  0, 128, 128, m_spinGlobalVol));
+    // ── Knob controls ─────────────────────────────────────────────────────────
+    tb->addWidget(mkKnob("Octave",     0,   8,   4, m_knobOctave));
+    tb->addWidget(mkKnob("Tempo",     32, 512, 125, m_knobTempo));
+    tb->addWidget(mkKnob("Ticks/Row",  1,  31,   6, m_knobSpeed));
+    tb->addWidget(mkKnob("Row/Beat",   1,  32,   4, m_knobRPB));
+    tb->addWidget(mkKnob("Global Vol", 0, 128, 128, m_knobGlobalVol));
 
-    connect(m_spinOctave, QOverload<int>::of(&QSpinBox::valueChanged),
+    connect(m_knobOctave, &RotaryKnob::valueChanged,
             this, [this](int v){ m_trackerView->setBaseOctave(v); });
     tb->addSeparator();
 
@@ -583,15 +673,15 @@ void MainWindow::updateToolbarInfo() {
     }
 
     if (m_state.is_playing.load()) {
-        m_spinTempo->blockSignals(true);
-        m_spinSpeed->blockSignals(true);
-        m_spinRPB  ->blockSignals(true);
-        m_spinTempo->setValue(int(m_state.bpm.load() + 0.5));
-        m_spinSpeed->setValue(m_state.current_speed.load());
-        m_spinRPB  ->setValue(m_state.rows_per_beat.load());
-        m_spinTempo->blockSignals(false);
-        m_spinSpeed->blockSignals(false);
-        m_spinRPB  ->blockSignals(false);
+        m_knobTempo->blockSignals(true);
+        m_knobSpeed->blockSignals(true);
+        m_knobRPB  ->blockSignals(true);
+        m_knobTempo->setValue(int(m_state.bpm.load() + 0.5));
+        m_knobSpeed->setValue(m_state.current_speed.load());
+        m_knobRPB  ->setValue(m_state.rows_per_beat.load());
+        m_knobTempo->blockSignals(false);
+        m_knobSpeed->blockSignals(false);
+        m_knobRPB  ->blockSignals(false);
         m_vuMeter->setLevels(m_state.master_vu_left.load(),
                              m_state.master_vu_right.load());
     } else {

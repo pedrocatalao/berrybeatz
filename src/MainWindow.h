@@ -8,13 +8,14 @@ class AudioEngine;
 class TrackerView;
 class QLabel;
 class QAction;
-class QSpinBox;
 class QSlider;
 class QTreeWidget;
 class QSplitter;
 class QTabWidget;
 class QTextEdit;
 class QTimer;
+class QMouseEvent;
+class QWheelEvent;
 
 // ── Toolbar master VU widget ──────────────────────────────────────────────────
 class ToolbarVU : public QWidget {
@@ -26,6 +27,33 @@ protected:
     void paintEvent(QPaintEvent*) override;
 private:
     float m_l{0.f}, m_r{0.f};
+};
+
+// ── Rotary knob ───────────────────────────────────────────────────────────────
+class RotaryKnob : public QWidget {
+    Q_OBJECT
+public:
+    explicit RotaryKnob(QWidget* parent = nullptr);
+    void setRange(int lo, int hi) { m_min = lo; m_max = hi; update(); }
+    void setValue(int v);
+    int  value() const { return m_value; }
+    QSize sizeHint()        const override { return {36, 36}; }
+    QSize minimumSizeHint() const override { return {36, 36}; }
+
+signals:
+    void valueChanged(int);
+
+protected:
+    void paintEvent(QPaintEvent*) override;
+    void mousePressEvent(QMouseEvent*) override;
+    void mouseMoveEvent(QMouseEvent*) override;
+    void mouseReleaseEvent(QMouseEvent*) override;
+    void wheelEvent(QWheelEvent*) override;
+
+private:
+    int  m_min{0}, m_max{100}, m_value{0};
+    bool m_dragging{false};
+    int  m_dragStartY{0}, m_dragStartVal{0};
 };
 
 // ── Main window ───────────────────────────────────────────────────────────────
@@ -95,12 +123,12 @@ private:
     QAction*  m_actPlayFromStart {nullptr};
     QAction*  m_actSetup         {nullptr};
 
-    // Toolbar — spin controls
-    QSpinBox* m_spinOctave    {nullptr};
-    QSpinBox* m_spinTempo     {nullptr};
-    QSpinBox* m_spinSpeed     {nullptr};
-    QSpinBox* m_spinRPB       {nullptr};
-    QSpinBox* m_spinGlobalVol {nullptr};
+    // Toolbar — knobs
+    RotaryKnob* m_knobOctave    {nullptr};
+    RotaryKnob* m_knobTempo     {nullptr};
+    RotaryKnob* m_knobSpeed     {nullptr};
+    RotaryKnob* m_knobRPB       {nullptr};
+    RotaryKnob* m_knobGlobalVol {nullptr};
 
     // Toolbar — seeker
     QSlider*   m_seeker  {nullptr};

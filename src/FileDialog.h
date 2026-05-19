@@ -13,3 +13,6 @@ void setupWindowEventMonitor(GLFWwindow* win);
 // performWindowDragWithEvent:.  Smooth, blink-free, no manual pos math.
 // Call this when ImGui detects a mouseDown in the drag zone.
 void beginWindowDrag(GLFWwindow* win);
+
+// Round the window's content view corners (macOS layer mask).
+void setWindowCornerRadius(GLFWwindow* win, float radius);

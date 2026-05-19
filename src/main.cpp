@@ -106,6 +106,7 @@ int main(int argc, char* argv[])
 
     app->setGLFWWindow(window);
     setupWindowEventMonitor(window);
+    setWindowCornerRadius(window, 10.f);
     glfwSetDropCallback(window, dropCallback);
 
     // ── GLFW callbacks ────────────────────────────────────────────────────

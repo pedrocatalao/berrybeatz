@@ -83,6 +83,18 @@ void beginWindowDrag(GLFWwindow* glfwWin)
     }
 }
 
+// ─── Rounded window corners ───────────────────────────────────────────────────
+
+void setWindowCornerRadius(GLFWwindow* glfwWin, float radius)
+{
+    @autoreleasepool {
+        NSWindow* win = glfwGetCocoaWindow(glfwWin);
+        win.contentView.wantsLayer = YES;
+        win.contentView.layer.cornerRadius = radius;
+        win.contentView.layer.masksToBounds = YES;
+    }
+}
+
 // ─── (unused legacy) transparent title bar ────────────────────────────────────
 
 void setupTransparentTitleBar(GLFWwindow* glfwWin, float& titleBarH, float& trafficW)

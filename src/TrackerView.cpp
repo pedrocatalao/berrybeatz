@@ -328,12 +328,13 @@ void TrackerView::drawPatternToolbar1() {
     tip("Play current row and advance cursor");
     ImGui::SameLine();
     // Record button — red when active
-    if (m_editMode) {
+    bool wasRec = m_editMode;
+    if (wasRec) {
         ImGui::PushStyleColor(ImGuiCol_Button,        IM_COL32(160, 30, 30, 255));
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(190, 50, 50, 255));
     }
     if (actBtn("●##rec", has)) m_editMode = !m_editMode;
-    if (m_editMode) ImGui::PopStyleColor(2);
+    if (wasRec) ImGui::PopStyleColor(2);
     tip("Toggle record mode (Enter)");
 
     tbSep();

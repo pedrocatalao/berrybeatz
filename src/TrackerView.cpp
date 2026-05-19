@@ -119,6 +119,9 @@ void TrackerView::initializeGL() {
     cfg.OversampleH = 2; cfg.OversampleV = 2;
     if (!io.Fonts->AddFontFromFileTTF("/System/Library/Fonts/Menlo.ttc", fontSize * dpr, &cfg))
         io.Fonts->AddFontDefault();
+    // Proportional font for toolbar buttons — matches macOS system UI font feel
+    m_fontUI = io.Fonts->AddFontFromFileTTF(
+        "/System/Library/Fonts/Helvetica.ttc", fontSize * dpr, &cfg);
     io.FontGlobalScale = 1.0f / dpr;
 
     ImGui::StyleColorsDark();
@@ -240,6 +243,41 @@ void TrackerView::renderUI() {
     ImGui::PopStyleColor();
     drawPatternPanel();
     ImGui::End();
+
+    // ── Knob edit modal ──────────────────────────────────────────────────────
+    // A zero-size invisible host window anchors the popup in the ImGui stack.
+    ImGui::SetNextWindowPos({0, 0}, ImGuiCond_Always);
+    ImGui::SetNextWindowSize({1, 1}, ImGuiCond_Always);
+    ImGui::SetNextWindowBgAlpha(0.f);
+    ImGui::Begin("##knobedithost", nullptr, noDecoFlags | ImGuiWindowFlags_NoNav);
+
+    if (m_knobEdit.pendingOpen) {
+        ImGui::OpenPopup("##knobedit");
+        m_knobEdit.pendingOpen = false;
+    }
+    ImGui::SetNextWindowSize({200, 0}, ImGuiCond_Always);
+    if (ImGui::BeginPopupModal("##knobedit", nullptr,
+                               ImGuiWindowFlags_AlwaysAutoResize |
+                               ImGuiWindowFlags_NoTitleBar)) {
+        ImGui::TextColored(kTextNormal, "%s", m_knobEdit.title.toUtf8().constData());
+        ImGui::Separator();
+        ImGui::Spacing();
+        ImGui::SetNextItemWidth(-1);
+        ImGui::InputInt("##kval", &m_knobEdit.value, 1, 10);
+        m_knobEdit.value = std::clamp(m_knobEdit.value, m_knobEdit.vmin, m_knobEdit.vmax);
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Spacing();
+        if (ImGui::Button("OK", {80, 0})) {
+            if (m_knobEdit.onConfirm) m_knobEdit.onConfirm(m_knobEdit.value);
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Cancel", {80, 0})) ImGui::CloseCurrentPopup();
+        ImGui::EndPopup();
+    }
+
+    ImGui::End();
 }
 
 // ── Pattern toolbar helpers ───────────────────────────────────────────────────
@@ -261,6 +299,17 @@ static void togBtn(const char* lbl, bool& state, bool enabled = true) {
     if (!enabled) ImGui::EndDisabled();
 }
 
+void TrackerView::requestKnobEdit(const QString& title, int value, int vmin, int vmax,
+                                  std::function<void(int)> onConfirm) {
+    m_knobEdit.title       = title;
+    m_knobEdit.value       = value;
+    m_knobEdit.vmin        = vmin;
+    m_knobEdit.vmax        = vmax;
+    m_knobEdit.onConfirm   = std::move(onConfirm);
+    m_knobEdit.pendingOpen = true;
+    update();
+}
+
 static void tbSep() {
     ImGui::SameLine(0, 5);
     ImVec2 p = ImGui::GetCursorScreenPos();
@@ -276,6 +325,7 @@ static void tbSep() {
 
 void TrackerView::drawPatternToolbar1() {
     bool has = m_mod != nullptr;
+    if (m_fontUI) ImGui::PushFont(m_fontUI);
 
     // Qt toolbar color scheme
     ImGui::PushStyleColor(ImGuiCol_Button,         IM_COL32( 20,  20,  40, 255)); // #141428
@@ -289,9 +339,9 @@ void TrackerView::drawPatternToolbar1() {
     ImGui::PushStyleColor(ImGuiCol_FrameBgActive,  IM_COL32( 46,  46,  90, 255));
     ImGui::PushStyleColor(ImGuiCol_CheckMark,      IM_COL32(224, 224,  64, 255));
 
-    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,   {5.0f, 4.0f});
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,   {9.0f, 4.0f});
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,    {3.0f, 0.0f});
-    ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding,  2.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding,  0.0f);
     ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
     ImGui::SetCursorPosY(5.0f);
 
@@ -373,12 +423,14 @@ void TrackerView::drawPatternToolbar1() {
 
     ImGui::PopStyleVar(4);
     ImGui::PopStyleColor(10);
+    if (m_fontUI) ImGui::PopFont();
 }
 
 // ── Pattern toolbar row 2 ─────────────────────────────────────────────────────
 
 void TrackerView::drawPatternToolbar2() {
     bool has = m_mod != nullptr;
+    if (m_fontUI) ImGui::PushFont(m_fontUI);
 
     // Qt toolbar color scheme
     ImGui::PushStyleColor(ImGuiCol_Button,         IM_COL32( 20,  20,  40, 255));
@@ -392,7 +444,7 @@ void TrackerView::drawPatternToolbar2() {
     ImGui::PushStyleColor(ImGuiCol_FrameBgActive,  IM_COL32( 46,  46,  90, 255));
     ImGui::PushStyleColor(ImGuiCol_CheckMark,      IM_COL32(224, 224,  64, 255));
 
-    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,    {4.0f, 3.0f});
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,    {9.0f, 3.0f});
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,     {4.0f, 0.0f});
     ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding,   2.0f);
     ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
@@ -457,6 +509,7 @@ void TrackerView::drawPatternToolbar2() {
 
     ImGui::PopStyleVar(4);
     ImGui::PopStyleColor(10);
+    if (m_fontUI) ImGui::PopFont();
 }
 
 // ── Order list ────────────────────────────────────────────────────────────────

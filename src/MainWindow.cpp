@@ -116,14 +116,6 @@ void RotaryKnob::paintEvent(QPaintEvent*) {
         p.drawArc(arc, 225 * 16, int(-norm * 270.f * 16.f));
     }
 
-    // Indicator line
-    const float angle = (225.f - norm * 270.f) * float(M_PI) / 180.f;
-    const float ri    = r - inset - 1.5f;
-    p.setPen(QPen(QColor(0xe0, 0xe0, 0x40), 1.8f, Qt::SolidLine, Qt::RoundCap));
-    p.drawLine(
-        QPointF(c.x() + (ri - 5.f) * std::cos(angle), c.y() - (ri - 5.f) * std::sin(angle)),
-        QPointF(c.x() +  ri        * std::cos(angle), c.y() -  ri        * std::sin(angle)));
-
     // Value text centred in knob body
     p.setPen(QColor(0xd0, 0xd0, 0x50));
     QFont f("Menlo", 1);
@@ -154,7 +146,11 @@ void RotaryKnob::mouseMoveEvent(QMouseEvent* e) {
 }
 
 void RotaryKnob::mouseReleaseEvent(QMouseEvent* e) {
-    if (e->button() == Qt::LeftButton) m_dragging = false;
+    if (e->button() != Qt::LeftButton) return;
+    bool wasDrag = std::abs(e->pos().y() - m_dragStartY) > 3;
+    m_dragging = false;
+    if (!wasDrag)
+        emit editRequested(m_label, m_value, m_min, m_max);
 }
 
 void RotaryKnob::wheelEvent(QWheelEvent* e) {
@@ -495,7 +491,7 @@ void MainWindow::setupToolbar() {
         auto* lay = new QHBoxLayout(w); lay->setContentsMargins(2,0,2,0); lay->setSpacing(3);
         auto* l   = new QLabel(lbl); l->setStyleSheet(knobLblStyle);
         l->setAlignment(Qt::AlignVCenter | Qt::AlignRight);
-        out = new RotaryKnob; out->setRange(lo, hi); out->setValue(val);
+        out = new RotaryKnob; out->setRange(lo, hi); out->setValue(val); out->setLabel(lbl);
         lay->addWidget(l); lay->addWidget(out);
         return w;
     };
@@ -562,6 +558,20 @@ void MainWindow::setupToolbar() {
 
     connect(m_knobOctave, &RotaryKnob::valueChanged,
             this, [this](int v){ m_trackerView->setBaseOctave(v); });
+
+    auto wireKnobEdit = [&](RotaryKnob* k) {
+        connect(k, &RotaryKnob::editRequested,
+                this, [this, k](const QString& lbl, int val, int lo, int hi) {
+                    m_trackerView->requestKnobEdit(lbl, val, lo, hi,
+                        [k](int v){ k->applyEdit(v); });
+                });
+    };
+    wireKnobEdit(m_knobOctave);
+    wireKnobEdit(m_knobTempo);
+    wireKnobEdit(m_knobSpeed);
+    wireKnobEdit(m_knobRPB);
+    wireKnobEdit(m_knobGlobalVol);
+
     tb->addSeparator();
 
     // ── Setup ─────────────────────────────────────────────────────────────────

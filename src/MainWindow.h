@@ -37,11 +37,16 @@ public:
     void setRange(int lo, int hi) { m_min = lo; m_max = hi; update(); }
     void setValue(int v);
     int  value() const { return m_value; }
+    void setLabel(const QString& l) { m_label = l; }
     QSize sizeHint()        const override { return {36, 36}; }
     QSize minimumSizeHint() const override { return {36, 36}; }
 
 signals:
     void valueChanged(int);
+    void editRequested(const QString& label, int value, int min, int max);
+
+public:
+    void applyEdit(int v) { setValue(qBound(m_min, v, m_max)); if (!signalsBlocked()) emit valueChanged(m_value); }
 
 protected:
     void paintEvent(QPaintEvent*) override;
@@ -51,9 +56,10 @@ protected:
     void wheelEvent(QWheelEvent*) override;
 
 private:
-    int  m_min{0}, m_max{100}, m_value{0};
-    bool m_dragging{false};
-    int  m_dragStartY{0}, m_dragStartVal{0};
+    int     m_min{0}, m_max{100}, m_value{0};
+    bool    m_dragging{false};
+    int     m_dragStartY{0}, m_dragStartVal{0};
+    QString m_label;
 };
 
 // ── Main window ───────────────────────────────────────────────────────────────

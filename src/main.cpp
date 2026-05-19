@@ -57,7 +57,7 @@ int main(int argc, char* argv[])
     style.WindowRounding    = 0.f;
     style.FrameRounding     = 0.f;
     style.ScrollbarRounding = 2.f;
-    style.TabRounding       = 0.f;
+    style.TabRounding       = 3.f;
     style.WindowBorderSize  = 0.f;
     style.FrameBorderSize   = 0.f;
     style.Colors[ImGuiCol_WindowBg]  = ImVec4(0.08f, 0.08f, 0.13f, 1.f);

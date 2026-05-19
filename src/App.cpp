@@ -264,6 +264,10 @@ void App::render(int winW, int winH)
     ImGui::PopStyleVar(2);
     ImGui::PopStyleColor();
 
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,   ImVec2(5.f, 2.f));
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemInnerSpacing, ImVec2(1.f, 0.f));
+    ImGui::PushStyleColor(ImGuiCol_Tab,        IM_COL32(10, 10, 22, 255));
+    ImGui::PushStyleColor(ImGuiCol_TabHovered, IM_COL32(35, 35, 60, 255));
     if (ImGui::BeginTabBar("##tabs")) {
         const char* tabs[] = {"General", "Patterns", "Samples", "Instruments", "Comments"};
         for (int i = 0; i < 5; ++i) {
@@ -277,6 +281,8 @@ void App::render(int winW, int winH)
         m_tabsInited = true;
         ImGui::EndTabBar();
     }
+    ImGui::PopStyleColor(2);
+    ImGui::PopStyleVar(2);
     ImGui::End();
 
     // ── Content area ──────────────────────────────────────────────────────

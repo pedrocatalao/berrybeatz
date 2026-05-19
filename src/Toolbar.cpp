@@ -298,7 +298,7 @@ float DrawToolbar(ToolbarState& state,
 
     // ─── VU meters (knob row) ─────────────────────────────────────────────────
     {
-        const float vuW = 185.f;
+        const float vuW = 202.f;
         const float vuH = 25.f;
         float vuX = ImGui::GetItemRectMax().x + 12.f;
         float vuY = ImGui::GetWindowPos().y + knobMidY + (knobSz - vuH) * 0.5f;

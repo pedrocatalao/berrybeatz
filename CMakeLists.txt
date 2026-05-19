@@ -1,16 +1,16 @@
 cmake_minimum_required(VERSION 3.22)
-project(OpenMPTMac VERSION 0.1 LANGUAGES CXX)
+project(OpenMPTMac VERSION 0.1 LANGUAGES CXX OBJCXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_AUTOMOC ON)
-set(CMAKE_AUTORCC ON)
-
-# Qt
-find_package(Qt6 REQUIRED COMPONENTS Core Widgets OpenGL OpenGLWidgets)
 
 # OpenGL
 find_package(OpenGL REQUIRED)
+
+# GLFW (Homebrew arm64 prefix)
+set(GLFW_ROOT "/opt/homebrew/opt/glfw")
+find_library(GLFW_LIBRARY glfw HINTS "${GLFW_ROOT}/lib" REQUIRED)
+set(GLFW_INCLUDE_DIR "${GLFW_ROOT}/include")
 
 # PortAudio + libopenmpt runtime deps
 find_package(PkgConfig REQUIRED)
@@ -44,7 +44,7 @@ set_target_properties(libopenmpt PROPERTIES
     INTERFACE_INCLUDE_DIRECTORIES "${OPENMPT_ROOT}"
 )
 
-# Dear ImGui
+# Dear ImGui (with GLFW backend)
 set(IMGUI_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/imgui")
 add_library(imgui STATIC
     ${IMGUI_DIR}/imgui.cpp
@@ -52,44 +52,45 @@ add_library(imgui STATIC
     ${IMGUI_DIR}/imgui_widgets.cpp
     ${IMGUI_DIR}/imgui_tables.cpp
     ${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp
+    ${IMGUI_DIR}/backends/imgui_impl_glfw.cpp
 )
-target_include_directories(imgui PUBLIC ${IMGUI_DIR} ${IMGUI_DIR}/backends)
+target_include_directories(imgui PUBLIC
+    ${IMGUI_DIR}
+    ${IMGUI_DIR}/backends
+    ${GLFW_INCLUDE_DIR}
+)
 
-# Main app
+# Main app sources
 set(SOURCES
     src/main.cpp
-    src/MainWindow.cpp
+    src/App.cpp
+    src/Toolbar.cpp
     src/AudioEngine.cpp
     src/TrackerView.cpp
     src/PatternEditor.cpp
-)
-
-set(HEADERS
-    src/MainWindow.h
-    src/AudioEngine.h
-    src/ModuleState.h
-    src/TrackerView.h
+    src/FileDialog.mm
 )
 
 add_executable(OpenMPTMac MACOSX_BUNDLE
     ${SOURCES}
-    src/MainWindow.h
-    src/AudioEngine.h
-    src/TrackerView.h
+)
+
+# Mark the Objective-C++ source explicitly
+set_source_files_properties(src/FileDialog.mm PROPERTIES
+    LANGUAGE OBJCXX
 )
 
 target_include_directories(OpenMPTMac PRIVATE
     src
+    ${GLFW_INCLUDE_DIR}
     ${PORTAUDIO_INCLUDE_DIRS}
     ${OPENMPT_ROOT}
+    ${MPG123_INCLUDE_DIRS}
 )
 
 target_link_libraries(OpenMPTMac PRIVATE
-    Qt6::Core
-    Qt6::Widgets
-    Qt6::OpenGL
-    Qt6::OpenGLWidgets
     OpenGL::GL
+    ${GLFW_LIBRARY}
     imgui
     libopenmpt
     ${PORTAUDIO_LINK_LIBRARIES}
@@ -98,6 +99,8 @@ target_link_libraries(OpenMPTMac PRIVATE
     ${OGG_LINK_LIBRARIES}
     ${MPG123_LIBRARIES}
     "-lz"
+    "-framework Cocoa"
+    "-framework IOKit"
     "-framework CoreAudio"
     "-framework AudioUnit"
     "-framework CoreFoundation"

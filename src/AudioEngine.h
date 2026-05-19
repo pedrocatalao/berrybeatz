@@ -1,7 +1,8 @@
 #pragma once
 #include "ModuleState.h"
-#include <QThread>
-#include <QString>
+#include <thread>
+#include <string>
+#include <functional>
 #include <memory>
 #include <atomic>
 
@@ -10,33 +11,37 @@ struct PaStreamCallbackTimeInfo;
 typedef unsigned long PaStreamCallbackFlags;
 typedef void PaStream;
 
-class AudioEngine : public QThread {
-    Q_OBJECT
+class AudioEngine {
 public:
-    explicit AudioEngine(ModuleState& state, QObject* parent = nullptr);
-    ~AudioEngine() override;
+    explicit AudioEngine(ModuleState& state);
+    ~AudioEngine();
 
-    bool loadFile(const QString& path);
-    void stop();
-    void rewind(); // stop audio thread, rewind to start, keep module loaded
-    void setPaused(bool paused);
-    bool isPaused() const { return m_paused.load(); }
-    void seekSeconds(double seconds);
-    void seekToOrder(int32_t order);
-    void selectSubsong(int32_t index);
+    bool    loadFile(const std::string& path);
+
+    void    start();            // launch audio thread
+    void    stop();             // signal thread to stop (non-blocking)
+    void    join();             // wait for thread to exit
+    bool    isRunning() const;
+
+    void    rewind();           // stop + join, rewind to start, keep module loaded
+
+    void    setPaused(bool paused);
+    bool    isPaused() const { return m_paused.load(); }
+
+    void    seekSeconds(double seconds);
+    void    seekToOrder(int32_t order);
+    void    selectSubsong(int32_t index);
     int32_t subsongCount() const;
+
     openmpt::module_ext* getModule() const;
 
     // Pattern-specific playback
-    void playPatternFrom(int32_t order, int32_t startRow, bool loop);
-    void playRow(int32_t order, int32_t row);
+    void    playPatternFrom(int32_t order, int32_t startRow, bool loop);
+    void    playRow(int32_t order, int32_t row);
 
-signals:
-    void loadFailed(const QString& reason);
-    void songFinished();
-
-protected:
-    void run() override;
+    // Callbacks (set before start(); called from audio thread)
+    std::function<void(const std::string&)> onLoadFailed;
+    std::function<void()>                   onSongFinished;
 
 private:
     static int paCallback(const void* input, void* output,
@@ -45,21 +50,25 @@ private:
                           PaStreamCallbackFlags statusFlags,
                           void* userData);
 
+    void run();
     void fillState();
 
-    ModuleState&                    m_state;
+    ModuleState&                         m_state;
     std::unique_ptr<openmpt::module_ext> m_mod;
-    PaStream*                        m_stream  {nullptr};
-    std::atomic<bool>                m_stop    {false};
-    std::atomic<bool>                m_paused  {false};
-    std::atomic<double>              m_seek       {-1.0};
-    std::atomic<int32_t>             m_seek_order {-1};
-    std::atomic<int32_t>             m_subsong    {-2}; // -2 = no change
-    int32_t                          m_samplerate{48000};
+    PaStream*                            m_stream  {nullptr};
+
+    std::thread              m_thread;
+    std::atomic<bool>        m_running {false};
+    std::atomic<bool>        m_stop    {false};
+    std::atomic<bool>        m_paused  {false};
+    std::atomic<double>      m_seek       {-1.0};
+    std::atomic<int32_t>     m_seek_order {-1};
+    std::atomic<int32_t>     m_subsong    {-2};   // -2 = no change
+    int32_t                  m_samplerate {48000};
 
     // Pattern play — written by UI thread, read+consumed by callback
-    std::atomic<int32_t>             m_patPlayOrder   {-1}; // -1=idle, >=0=trigger
-    std::atomic<int32_t>             m_patPlayStartRow{0};
-    std::atomic<bool>                m_patPlayLoop    {false};
-    std::atomic<bool>                m_patPlaySingle  {false};
+    std::atomic<int32_t>     m_patPlayOrder    {-1}; // -1 = idle, >=0 = trigger
+    std::atomic<int32_t>     m_patPlayStartRow {0};
+    std::atomic<bool>        m_patPlayLoop     {false};
+    std::atomic<bool>        m_patPlaySingle   {false};
 };

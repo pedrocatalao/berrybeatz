@@ -27,6 +27,10 @@ public:
     int32_t subsongCount() const;
     openmpt::module_ext* getModule() const;
 
+    // Pattern-specific playback
+    void playPatternFrom(int32_t order, int32_t startRow, bool loop);
+    void playRow(int32_t order, int32_t row);
+
 signals:
     void loadFailed(const QString& reason);
     void songFinished();
@@ -52,4 +56,10 @@ private:
     std::atomic<int32_t>             m_seek_order {-1};
     std::atomic<int32_t>             m_subsong    {-2}; // -2 = no change
     int32_t                          m_samplerate{48000};
+
+    // Pattern play — written by UI thread, read+consumed by callback
+    std::atomic<int32_t>             m_patPlayOrder   {-1}; // -1=idle, >=0=trigger
+    std::atomic<int32_t>             m_patPlayStartRow{0};
+    std::atomic<bool>                m_patPlayLoop    {false};
+    std::atomic<bool>                m_patPlaySingle  {false};
 };

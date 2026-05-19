@@ -30,6 +30,10 @@ public:
 
 signals:
     void orderSeekRequested(int32_t order);
+    void patternPlayFromCursor(int32_t order, int32_t row, bool loop);
+    void patternPlayFromStart(int32_t order, bool loop);
+    void patternPlayRow(int32_t order, int32_t row);
+    void stopRequested();
 
 protected:
     void initializeGL() override;
@@ -45,6 +49,8 @@ protected:
 
 private:
     void renderUI();
+    void drawPatternToolbar1();
+    void drawPatternToolbar2();
     void drawOrderList();
     void drawChannelStrip();
     void drawPatternPanel();
@@ -52,7 +58,7 @@ private:
 
     // Pattern editing
     void handleEditKey(int qtKey, Qt::KeyboardModifiers mods, const QString& text);
-    void enterNote(uint8_t note); // note = 1..120, 0=nothing, 0xFE=cut, 0xFF=off
+    void enterNote(uint8_t note);
     void advanceCursor();
     void clampCursor();
 
@@ -79,4 +85,17 @@ private:
     int32_t    m_editStep      {1};
     bool       m_editMode      {false};
     int32_t    m_pluginPopupCh {-1};
+
+    // Dynamic layout (recomputed each frame from toggle state)
+    float   m_chanH  {45.0f}; // CHANNAME_H+VU_H+PLUGIN_H, updated each frame
+    float   m_patTop {0.0f};
+
+    // Pattern toolbar state
+    bool    m_showVU        {true};
+    bool    m_showPluginRow {true};
+    bool    m_loopPattern   {false};
+    bool    m_followSong    {true};
+    int32_t m_curInstrument {1};
+    bool    m_overflowPaste {false};
+    bool    m_detailView    {false};
 };

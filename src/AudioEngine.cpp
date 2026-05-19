@@ -21,6 +21,21 @@ struct PaCallbackData {
     std::vector<float>    left;
     std::vector<float>    right;
     uint64_t              appliedMuteMask{0};
+
+    // Pattern play trigger pointers (owned by AudioEngine)
+    std::atomic<int32_t>* pat_play_order    {nullptr};
+    std::atomic<int32_t>* pat_play_startrow {nullptr};
+    std::atomic<bool>*    pat_play_loop     {nullptr};
+    std::atomic<bool>*    pat_play_single   {nullptr};
+
+    // Pattern play in-progress state (callback-thread only)
+    bool    inPatternPlay   {false};
+    int32_t patPlayOrder    {-1};
+    int32_t patPlayStartRow {0};
+    bool    patPlayLoop     {false};
+    bool    patPlaySingle   {false};
+    int32_t patPrevRow      {-1};
+
     PaCallbackData()
         : mod(nullptr), state(nullptr), stop(nullptr), paused(nullptr),
           seek(nullptr), seek_order(nullptr), subsong(nullptr) {
@@ -91,6 +106,26 @@ void AudioEngine::selectSubsong(int32_t i)  { m_subsong.store(i); }
 int32_t AudioEngine::subsongCount() const   { return m_mod ? m_mod->get_num_subsongs() : 0; }
 openmpt::module_ext* AudioEngine::getModule() const { return m_mod.get(); }
 
+void AudioEngine::playPatternFrom(int32_t order, int32_t startRow, bool loop) {
+    if (!m_mod) return;
+    m_patPlayLoop  .store(loop);
+    m_patPlaySingle.store(false);
+    m_patPlayStartRow.store(startRow);
+    m_patPlayOrder .store(order); // must be last — triggers callback
+    if (!isRunning()) { m_stop.store(false); m_paused.store(false); start(); }
+    else              { m_paused.store(false); }
+}
+
+void AudioEngine::playRow(int32_t order, int32_t row) {
+    if (!m_mod) return;
+    m_patPlayLoop  .store(false);
+    m_patPlaySingle.store(true);
+    m_patPlayStartRow.store(row);
+    m_patPlayOrder .store(order); // must be last — triggers callback
+    if (!isRunning()) { m_stop.store(false); m_paused.store(false); start(); }
+    else              { m_paused.store(false); }
+}
+
 int AudioEngine::paCallback(const void*, void* output,
                              unsigned long frameCount,
                              const PaStreamCallbackTimeInfo*,
@@ -137,10 +172,22 @@ int AudioEngine::paCallback(const void*, void* output,
     if (newSub != -2) d->mod->select_subsong(newSub);
 
     double seekSec = d->seek->exchange(-1.0);
-    if (seekSec >= 0.0) d->mod->set_position_seconds(seekSec);
+    if (seekSec >= 0.0) { d->mod->set_position_seconds(seekSec); d->inPatternPlay = false; }
 
     int32_t seekOrd = d->seek_order->exchange(-1);
-    if (seekOrd >= 0) d->mod->set_position_order_row(seekOrd, 0);
+    if (seekOrd >= 0) { d->mod->set_position_order_row(seekOrd, 0); d->inPatternPlay = false; }
+
+    // Pattern play: trigger comes from UI thread via pat_play_order atomic
+    int32_t ppTrigger = d->pat_play_order->exchange(-1);
+    if (ppTrigger >= 0) {
+        d->inPatternPlay    = true;
+        d->patPlayOrder     = ppTrigger;
+        d->patPlayStartRow  = d->pat_play_startrow->load();
+        d->patPlayLoop      = d->pat_play_loop->load();
+        d->patPlaySingle    = d->pat_play_single->load();
+        d->mod->set_position_order_row(ppTrigger, d->patPlayStartRow);
+        d->patPrevRow       = d->patPlayStartRow;
+    }
 
     if (d->left.size()  < frameCount) d->left.resize(frameCount);
     if (d->right.size() < frameCount) d->right.resize(frameCount);
@@ -155,6 +202,31 @@ int AudioEngine::paCallback(const void*, void* output,
     }
     if (count < frameCount)
         std::memset(out + count * 2, 0, (frameCount - count) * 2 * sizeof(float));
+
+    // Pattern play: end-of-pattern detection
+    if (d->inPatternPlay && count > 0) {
+        int32_t curOrder = d->mod->get_current_order();
+        int32_t curRow   = d->mod->get_current_row();
+
+        if (d->patPlaySingle) {
+            // Stop when the row advances (row or order changed)
+            if (curRow != d->patPrevRow || curOrder != d->patPlayOrder) {
+                d->mod->set_position_order_row(d->patPlayOrder, d->patPrevRow);
+                d->paused->store(true);
+                d->inPatternPlay = false;
+            }
+        } else {
+            // Stop or loop when the pattern boundary is crossed (order changed)
+            if (curOrder != d->patPlayOrder) {
+                d->mod->set_position_order_row(d->patPlayOrder, d->patPlayStartRow);
+                if (!d->patPlayLoop) {
+                    d->paused->store(true);
+                    d->inPatternPlay = false;
+                }
+            }
+        }
+        d->patPrevRow = d->mod->get_current_row();
+    }
 
     // Playback state
     d->state->current_row    .store(d->mod->get_current_row());
@@ -194,13 +266,17 @@ void AudioEngine::run() {
     m_state.is_playing.store(true);
 
     PaCallbackData cbData;
-    cbData.mod        = m_mod.get();
-    cbData.state      = &m_state;
-    cbData.stop       = &m_stop;
-    cbData.paused     = &m_paused;
-    cbData.seek       = &m_seek;
-    cbData.seek_order = &m_seek_order;
-    cbData.subsong    = &m_subsong;
+    cbData.mod              = m_mod.get();
+    cbData.state            = &m_state;
+    cbData.stop             = &m_stop;
+    cbData.paused           = &m_paused;
+    cbData.seek             = &m_seek;
+    cbData.seek_order       = &m_seek_order;
+    cbData.subsong          = &m_subsong;
+    cbData.pat_play_order   = &m_patPlayOrder;
+    cbData.pat_play_startrow= &m_patPlayStartRow;
+    cbData.pat_play_loop    = &m_patPlayLoop;
+    cbData.pat_play_single  = &m_patPlaySingle;
 
     Pa_Initialize();
 

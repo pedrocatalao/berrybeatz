@@ -80,11 +80,14 @@ static const ImU32 kVuHiLit    = IM_COL32(225,   0,   0, 255); // #E10000
 static const ImU32 kVuHiUnlit  = IM_COL32( 35,   0,   0, 255);
 
 // ── Layout constants (match OpenMPT Draw_pat.cpp) ─────────────────────────────
+static constexpr float PTBAR1_H  = 32.0f;
+static constexpr float PTBAR2_H  = 30.0f;
 static constexpr float ORDER_H   = 26.0f;
 static constexpr float CHANNAME_H= 18.0f;
 static constexpr float VU_H      = 13.0f;
 static constexpr float PLUGIN_H  = 14.0f;
 static constexpr float CHAN_H    = CHANNAME_H + VU_H + PLUGIN_H;
+static constexpr float PAT_TOP   = PTBAR1_H + PTBAR2_H + ORDER_H + CHAN_H;
 
 // ── TrackerView ───────────────────────────────────────────────────────────────
 
@@ -120,6 +123,7 @@ void TrackerView::initializeGL() {
 
     ImGui::StyleColorsDark();
     ImGuiStyle& s = ImGui::GetStyle();
+    s.HoverDelayNormal = 3.0f;
     s.WindowRounding = s.FrameRounding = s.ScrollbarRounding = 0.0f;
     s.WindowBorderSize = s.ChildBorderSize = 0.0f;
     s.WindowPadding = {4, 2};
@@ -171,16 +175,45 @@ void TrackerView::renderUI() {
 
     // Cache font metrics for column alignment
     m_charW   = ImGui::CalcTextSize("A").x;
-    m_rowNumW = m_charW * 5.0f;          // "  001 "
-    m_cellW   = m_charW * 16.0f;         // note+inst+vol+fx
+    m_rowNumW = m_charW * 5.0f;
+    m_cellW   = m_charW * 16.0f;
+
+    // Dynamic channel-strip height based on visibility toggles
+    m_chanH  = CHANNAME_H
+             + (m_showVU        ? VU_H     : 0.f)
+             + (m_showPluginRow ? PLUGIN_H : 0.f);
+    m_patTop = PTBAR1_H + PTBAR2_H + ORDER_H + m_chanH;
 
     ImGuiWindowFlags noDecoFlags =
         ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
         ImGuiWindowFlags_NoMove     | ImGuiWindowFlags_NoBringToFrontOnFocus |
         ImGuiWindowFlags_NoSavedSettings;
 
-    // ── Order list ──────────────────────────────────────────────────────────
+    const ImVec4 kBar1Bg{10/255.f, 10/255.f, 20/255.f, 1.f};  // #0a0a14 — matches Qt toolbar
+    const ImVec4 kBar2Bg{10/255.f, 10/255.f, 20/255.f, 1.f};
+
+    // ── Pattern toolbar row 1 ────────────────────────────────────────────────
     ImGui::SetNextWindowPos ({0, 0});
+    ImGui::SetNextWindowSize({W, PTBAR1_H});
+    ImGui::PushStyleColor(ImGuiCol_WindowBg, kBar1Bg);
+    ImGui::Begin("##ptbar1", nullptr, noDecoFlags |
+                 ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+    ImGui::PopStyleColor();
+    drawPatternToolbar1();
+    ImGui::End();
+
+    // ── Pattern toolbar row 2 ────────────────────────────────────────────────
+    ImGui::SetNextWindowPos ({0, PTBAR1_H});
+    ImGui::SetNextWindowSize({W, PTBAR2_H});
+    ImGui::PushStyleColor(ImGuiCol_WindowBg, kBar2Bg);
+    ImGui::Begin("##ptbar2", nullptr, noDecoFlags |
+                 ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+    ImGui::PopStyleColor();
+    drawPatternToolbar2();
+    ImGui::End();
+
+    // ── Order list ──────────────────────────────────────────────────────────
+    ImGui::SetNextWindowPos ({0, PTBAR1_H + PTBAR2_H});
     ImGui::SetNextWindowSize({W, ORDER_H});
     ImGui::PushStyleColor(ImGuiCol_WindowBg, kOrderBg);
     ImGui::Begin("##orders", nullptr, noDecoFlags |
@@ -190,8 +223,8 @@ void TrackerView::renderUI() {
     ImGui::End();
 
     // ── Channel strip ────────────────────────────────────────────────────────
-    ImGui::SetNextWindowPos ({0, ORDER_H});
-    ImGui::SetNextWindowSize({W, CHAN_H});
+    ImGui::SetNextWindowPos ({0, PTBAR1_H + PTBAR2_H + ORDER_H});
+    ImGui::SetNextWindowSize({W, m_chanH});
     ImGui::PushStyleColor(ImGuiCol_WindowBg, kChHeader);
     ImGui::Begin("##chanstrip", nullptr, noDecoFlags |
                  ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
@@ -200,14 +233,229 @@ void TrackerView::renderUI() {
     ImGui::End();
 
     // ── Pattern panel ────────────────────────────────────────────────────────
-    float patY = ORDER_H + CHAN_H;
-    ImGui::SetNextWindowPos ({0, patY});
-    ImGui::SetNextWindowSize({W, H - patY});
+    ImGui::SetNextWindowPos ({0, m_patTop});
+    ImGui::SetNextWindowSize({W, H - m_patTop});
     ImGui::PushStyleColor(ImGuiCol_WindowBg, kBgNormal);
     ImGui::Begin("##pattern", nullptr, noDecoFlags);
     ImGui::PopStyleColor();
     drawPatternPanel();
     ImGui::End();
+}
+
+// ── Pattern toolbar helpers ───────────────────────────────────────────────────
+
+static void tip(const char* text) {
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal | ImGuiHoveredFlags_NoSharedDelay))
+        ImGui::SetTooltip("%s", text);
+}
+
+static void tbSep() {
+    ImGui::SameLine(0, 5);
+    ImVec2 p = ImGui::GetCursorScreenPos();
+    float  h = ImGui::GetFrameHeight();
+    ImGui::GetWindowDrawList()->AddLine(
+        {p.x, p.y + 2.f}, {p.x, p.y + h - 2.f},
+        IM_COL32(46, 46, 90, 220), 1.0f);
+    ImGui::Dummy({1.0f, h});
+    ImGui::SameLine(0, 5);
+}
+
+// ── Pattern toolbar row 1 ─────────────────────────────────────────────────────
+
+void TrackerView::drawPatternToolbar1() {
+    bool has = m_mod != nullptr;
+
+    // Qt toolbar color scheme
+    ImGui::PushStyleColor(ImGuiCol_Button,         IM_COL32( 20,  20,  40, 255)); // #141428
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered,  IM_COL32( 46,  46,  90, 255)); // #2e2e5a
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive,   IM_COL32( 64,  64, 160, 255)); // #4040a0
+    ImGui::PushStyleColor(ImGuiCol_Text,           IM_COL32(224, 224,  64, 255)); // #e0e040
+    ImGui::PushStyleColor(ImGuiCol_TextDisabled,   IM_COL32( 64,  64,  64, 255)); // #404040
+    ImGui::PushStyleColor(ImGuiCol_Border,         IM_COL32( 46,  46,  90, 255)); // #2e2e5a
+    ImGui::PushStyleColor(ImGuiCol_FrameBg,        IM_COL32( 13,  13,  30, 255)); // #0d0d1e
+    ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, IM_COL32( 26,  26,  46, 255));
+    ImGui::PushStyleColor(ImGuiCol_FrameBgActive,  IM_COL32( 46,  46,  90, 255));
+    ImGui::PushStyleColor(ImGuiCol_CheckMark,      IM_COL32(224, 224,  64, 255));
+
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,   {5.0f, 4.0f});
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,    {3.0f, 0.0f});
+    ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding,  2.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
+    ImGui::SetCursorPosY(5.0f);
+
+    auto actBtn = [&](const char* lbl, bool enabled = true) -> bool {
+        if (!enabled) ImGui::BeginDisabled();
+        bool r = ImGui::Button(lbl);
+        if (!enabled) ImGui::EndDisabled();
+        return r;
+    };
+
+    auto togBtn = [&](const char* lbl, bool& state, bool enabled = true) {
+        if (!enabled) ImGui::BeginDisabled();
+        bool wasActive = state;  // capture before Button() may change it
+        if (wasActive) {
+            ImGui::PushStyleColor(ImGuiCol_Button,        IM_COL32(64, 64, 160, 255));
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(80, 80, 190, 255));
+        }
+        if (ImGui::Button(lbl)) state = !state;
+        if (wasActive) ImGui::PopStyleColor(2);
+        if (!enabled) ImGui::EndDisabled();
+    };
+
+    // Transport
+    if (actBtn("+##ins", has))        { /* TODO: insert pattern */ }
+    tip("Insert pattern");
+    ImGui::SameLine();
+    if (actBtn("▶|##playcur", has)) {
+        int32_t row = m_editMode ? m_cur.row : m_state.current_row.load();
+        emit patternPlayFromCursor(m_state.current_order.load(), row, m_loopPattern);
+    }
+    tip("Play from cursor (stops at pattern end, loops if Loop is on)");
+    ImGui::SameLine();
+    if (actBtn("|▶##playstart", has)) emit patternPlayFromStart(
+                                          m_state.current_order.load(), m_loopPattern);
+    tip("Play pattern from start (loops if Loop is on)");
+    ImGui::SameLine();
+    if (actBtn("■##stop2", has))      emit stopRequested();
+    tip("Stop playback");
+    ImGui::SameLine();
+    if (actBtn("→##playrow", has)) {
+        int32_t ord = m_state.current_order.load();
+        int32_t row = m_cur.row;
+        advanceCursor();
+        emit patternPlayRow(ord, row);
+    }
+    tip("Play current row and advance cursor");
+    ImGui::SameLine();
+    // Record button — red when active
+    if (m_editMode) {
+        ImGui::PushStyleColor(ImGuiCol_Button,        IM_COL32(160, 30, 30, 255));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(190, 50, 50, 255));
+    }
+    if (actBtn("●##rec", has)) m_editMode = !m_editMode;
+    if (m_editMode) ImGui::PopStyleColor(2);
+    tip("Toggle record mode (Enter)");
+
+    tbSep();
+
+    // View toggles
+    togBtn("VU##vu",  m_showVU);
+    tip("Show/hide channel VU meters");
+    ImGui::SameLine();
+    togBtn("FX##fx",  m_showPluginRow);
+    tip("Show/hide plugin row");
+
+    tbSep();
+
+    // Pattern edit
+    if (actBtn("↩##undo",   has)) { /* TODO: undo */ }
+    tip("Undo");
+    ImGui::SameLine();
+    if (actBtn("≡##props",  has)) { /* TODO: properties */ }
+    tip("Pattern properties");
+    ImGui::SameLine();
+    if (actBtn("↕+##exp",   has)) { /* TODO: expand pattern */ }
+    tip("Expand pattern");
+    ImGui::SameLine();
+    if (actBtn("↕-##shr",   has)) { /* TODO: shrink pattern */ }
+    tip("Shrink pattern");
+
+    tbSep();
+
+    togBtn("≣##detail",  m_detailView);
+    tip("Detail view");
+
+    tbSep();
+
+    togBtn("⊕##ovf", m_overflowPaste);
+    tip("Overflow paste");
+
+    ImGui::PopStyleVar(4);
+    ImGui::PopStyleColor(10);
+}
+
+// ── Pattern toolbar row 2 ─────────────────────────────────────────────────────
+
+void TrackerView::drawPatternToolbar2() {
+    bool has = m_mod != nullptr;
+
+    // Qt toolbar color scheme
+    ImGui::PushStyleColor(ImGuiCol_Button,         IM_COL32( 20,  20,  40, 255));
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered,  IM_COL32( 46,  46,  90, 255));
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive,   IM_COL32( 64,  64, 160, 255));
+    ImGui::PushStyleColor(ImGuiCol_Text,           IM_COL32(224, 224,  64, 255));
+    ImGui::PushStyleColor(ImGuiCol_TextDisabled,   IM_COL32( 64,  64,  64, 255));
+    ImGui::PushStyleColor(ImGuiCol_Border,         IM_COL32( 46,  46,  90, 255));
+    ImGui::PushStyleColor(ImGuiCol_FrameBg,        IM_COL32( 13,  13,  30, 255));
+    ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, IM_COL32( 26,  26,  46, 255));
+    ImGui::PushStyleColor(ImGuiCol_FrameBgActive,  IM_COL32( 46,  46,  90, 255));
+    ImGui::PushStyleColor(ImGuiCol_CheckMark,      IM_COL32(224, 224,  64, 255));
+
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,    {4.0f, 3.0f});
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,     {4.0f, 0.0f});
+    ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding,   2.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
+    ImGui::SetCursorPosY(5.0f);
+
+    // Instrument
+    ImGui::TextColored(kDim, "Instr");
+    ImGui::SameLine(0, 4);
+    ImGui::SetNextItemWidth(48.0f);
+    if (ImGui::InputInt("##instr", &m_curInstrument, 1, 1))
+        m_curInstrument = std::clamp(m_curInstrument, 1, 255);
+    tip("Current instrument number");
+
+    tbSep();
+
+    // Plugin (stub — no write API yet)
+    ImGui::TextColored(kDim, "Plugin");
+    ImGui::SameLine(0, 4);
+    ImGui::SetNextItemWidth(70.0f);
+    ImGui::BeginDisabled();
+    int plugDummy = 0;
+    ImGui::InputInt("##plugin2", &plugDummy, 0, 0);
+    ImGui::EndDisabled();
+    tip("Plugin selector (not yet available)");
+
+    tbSep();
+
+    // Edit step
+    ImGui::TextColored(kDim, "Step");
+    ImGui::SameLine(0, 4);
+    ImGui::SetNextItemWidth(44.0f);
+    if (ImGui::InputInt("##step2", &m_editStep, 1, 1))
+        m_editStep = std::clamp(m_editStep, 0, 16);
+    tip("Edit step: rows to advance after entering a note (- / + keys)");
+
+    tbSep();
+
+    ImGui::Checkbox("Loop##lp",   &m_loopPattern);
+    tip("Loop current pattern during pattern playback");
+    ImGui::SameLine();
+    ImGui::Checkbox("Follow##fw", &m_followSong);
+    tip("Follow playback cursor in pattern view");
+
+    tbSep();
+
+    // Pattern name (display only for now)
+    ImGui::TextColored(kDim, "Pattern");
+    ImGui::SameLine(0, 4);
+    int32_t curPat = m_mod ? m_state.current_pattern.load() : -1;
+    std::string patName;
+    if (curPat >= 0) {
+        std::lock_guard<std::mutex> lk(m_state.meta_mutex);
+        if (curPat < (int32_t)m_state.pattern_names.size())
+            patName = m_state.pattern_names[curPat];
+    }
+    char patBuf[64] = {};
+    strncpy(patBuf, patName.c_str(), 63);
+    ImGui::SetNextItemWidth(120.0f);
+    ImGui::BeginDisabled(!has);
+    ImGui::InputText("##patname", patBuf, 64);
+    ImGui::EndDisabled();
+
+    ImGui::PopStyleVar(4);
+    ImGui::PopStyleColor(10);
 }
 
 // ── Order list ────────────────────────────────────────────────────────────────
@@ -317,7 +565,7 @@ void TrackerView::drawChannelStrip() {
     // "Row" label — vertically centred in the full header height
     {
         float textH = ImGui::GetTextLineHeight();
-        float rowLabelY = wPos.y + (CHAN_H - textH) * 0.5f;
+        float rowLabelY = wPos.y + (m_chanH - textH) * 0.5f;
         dl->AddText({wPos.x + 6, rowLabelY},
                     ImGui::ColorConvertFloat4ToU32(kDim), "Row");
     }
@@ -331,16 +579,16 @@ void TrackerView::drawChannelStrip() {
 
         bool muted = (m_muteState >> ch) & 1;
 
-        // Background covers full header height
+        // Background covers dynamic header height
         ImU32 hdrCol = muted ? IM_COL32(25, 15, 15, 255)
                              : ImGui::ColorConvertFloat4ToU32(kChHeader);
-        dl->AddRectFilled({chX, wPos.y}, {chX + cellW2, wPos.y + CHAN_H}, hdrCol);
+        dl->AddRectFilled({chX, wPos.y}, {chX + cellW2, wPos.y + m_chanH}, hdrCol);
 
         // Vertical separator
-        dl->AddLine({chX + cellW2, wPos.y}, {chX + cellW2, wPos.y + CHAN_H},
+        dl->AddLine({chX + cellW2, wPos.y}, {chX + cellW2, wPos.y + m_chanH},
                     ImGui::ColorConvertFloat4ToU32(kChBorder));
 
-        // Channel name — horizontally centred, vertically top-aligned in name row
+        // Channel name — horizontally centred
         std::string name = chNames[ch];
         if (name.size() > 12) name = name.substr(0, 12);
         ImU32 nameCol = muted ? ImGui::ColorConvertFloat4ToU32(kDim)
@@ -349,35 +597,40 @@ void TrackerView::drawChannelStrip() {
         float nameX = chX + (cellW2 - nameW) * 0.5f;
         dl->AddText({nameX, wPos.y + 2}, nameCol, name.c_str());
 
-        // Stereo VU
-        drawStereoVU(dl, chX + 2, wPos.y + CHANNAME_H + 1, cellW2 - 2, VU_H - 2,
-                     vu[ch].left, vu[ch].right);
+        float vuBottom = wPos.y + CHANNAME_H; // bottom of name row = VU start
 
-        // Plugin row — same background as header (already covered by full-height rect)
-        float plugY = wPos.y + CHANNAME_H + VU_H;
-        dl->AddLine({chX, plugY}, {chX + cellW2, plugY},
-                    IM_COL32(46, 46, 92, 255)); // subtle divider above plugin row
+        // VU meters (optional)
+        if (m_showVU) {
+            drawStereoVU(dl, chX + 2, vuBottom + 1, cellW2 - 2, VU_H - 2,
+                         vu[ch].left, vu[ch].right);
+            vuBottom += VU_H;
+        }
 
-        // Plugin label — centred; stub is always "-" (no plugin)
-        bool        hasPlugin = false;
-        const char* plugLabel = "-";
-        float       lblW      = ImGui::CalcTextSize(plugLabel).x;
-        float       lblX      = chX + (cellW2 - lblW) * 0.5f;
-        dl->AddText({lblX, plugY + 2}, ImGui::ColorConvertFloat4ToU32(kDim), plugLabel);
+        // Plugin row (optional)
+        bool hasPlugin = false;
+        if (m_showPluginRow) {
+            dl->AddLine({chX, vuBottom}, {chX + cellW2, vuBottom},
+                        IM_COL32(46, 46, 92, 255));
+            const char* plugLabel = "-";
+            float lblW = ImGui::CalcTextSize(plugLabel).x;
+            dl->AddText({chX + (cellW2 - lblW) * 0.5f, vuBottom + 2},
+                        ImGui::ColorConvertFloat4ToU32(kDim), plugLabel);
+        }
 
-        // Hit areas (inside PushID for unique widget IDs)
+        // Hit areas
         ImGui::PushID(ch);
 
-        // Mute: entire name + VU area
+        // Mute: name row + VU row (everything above plugin row)
+        float muteH = CHANNAME_H + (m_showVU ? VU_H : 0.f);
         ImGui::SetCursorScreenPos({chX, wPos.y});
-        if (ImGui::InvisibleButton("##mute", {cellW2, CHANNAME_H + VU_H})) {
+        if (ImGui::InvisibleButton("##mute", {cellW2, muteH})) {
             m_muteState ^= (1ULL << ch);
             m_state.channel_mute_mask.store(m_muteState);
         }
 
         // Plugin row — only clickable when a plugin is assigned
-        if (hasPlugin) {
-            ImGui::SetCursorScreenPos({chX, plugY});
+        if (m_showPluginRow && hasPlugin) {
+            ImGui::SetCursorScreenPos({chX, vuBottom});
             if (ImGui::InvisibleButton("##plug", {cellW2, PLUGIN_H}))
                 plugClickCh = ch;
         }
@@ -461,7 +714,7 @@ void TrackerView::drawPatternPanel() {
         int32_t snapRow = m_editMode ? m_cur.row : curRow;
         newScrollY  = float(snapRow) * rowH - visH * 0.5f + rowH * 0.5f;
         forceScroll = true;
-    } else if (playing && !m_editMode) {
+    } else if (playing && !m_editMode && m_followSong) {
         // Smooth-follow playback cursor
         float targetY = float(curRow) * rowH - visH * 0.5f + rowH * 0.5f;
         float dt = ImGui::GetIO().DeltaTime;
@@ -620,7 +873,7 @@ void TrackerView::mousePressEvent(QMouseEvent* e) {
 
     // Click inside pattern panel → move edit cursor
     if (m_mod && e->button() == Qt::LeftButton && m_rowH > 0.f) {
-        constexpr float patY = ORDER_H + CHAN_H;
+        float patY = m_patTop;
         float qx = float(e->pos().x());
         float qy = float(e->pos().y());
         if (qy >= patY) {

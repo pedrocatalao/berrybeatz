@@ -324,10 +324,32 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
     connect(m_updateTimer, &QTimer::timeout, this, &MainWindow::updateToolbarInfo);
     m_updateTimer->start();
 
-    // Order seek from TrackerView
+    // TrackerView transport signals
     connect(m_trackerView, &TrackerView::orderSeekRequested, this, [this](int32_t order){
         if (m_engine) m_engine->seekToOrder(order);
     });
+    connect(m_trackerView, &TrackerView::patternPlayFromCursor,
+            this, [this](int32_t order, int32_t row, bool loop) {
+        if (!m_engine) return;
+        m_engine->playPatternFrom(order, row, loop);
+        m_actPlayPause->setText("⏸");
+        m_actStop->setEnabled(true);
+    });
+    connect(m_trackerView, &TrackerView::patternPlayFromStart,
+            this, [this](int32_t order, bool loop) {
+        if (!m_engine) return;
+        m_engine->playPatternFrom(order, 0, loop);
+        m_actPlayPause->setText("⏸");
+        m_actStop->setEnabled(true);
+    });
+    connect(m_trackerView, &TrackerView::patternPlayRow,
+            this, [this](int32_t order, int32_t row) {
+        if (!m_engine) return;
+        m_engine->playRow(order, row);
+        m_actPlayPause->setText("⏸");
+        m_actStop->setEnabled(true);
+    });
+    connect(m_trackerView, &TrackerView::stopRequested, this, &MainWindow::onStop);
 }
 
 MainWindow::~MainWindow() {

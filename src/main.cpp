@@ -87,10 +87,10 @@ int main(int argc, char* argv[])
             "/Users/pedro/Library/Fonts/BigBlueTermPlusNerdFontMono-Regular.ttf",
             11.f, &pixCfg);
 
-        // IBM 3270 terminal font for the UI
+        // Monaco: classic Mac monospace, clean retro feel for UI
         fontUI = io.Fonts->AddFontFromFileTTF(
-            "/Users/pedro/Library/Fonts/3270NerdFontMono-SemiCondensed.ttf",
-            15.f, &uiCfg);
+            "/System/Library/Fonts/Monaco.ttf",
+            13.f, &uiCfg);
 
         // Fall back to default if fonts not found
         if (!fontMono) fontMono = io.Fonts->AddFontDefault();

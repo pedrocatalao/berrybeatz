@@ -24,24 +24,37 @@ static void popToolbarStyle()
     ImGui::PopStyleColor(6);
 }
 
+static const ImU32 kVuLoLit    = IM_COL32(  0, 200,   0, 255);
+static const ImU32 kVuLoUnlit  = IM_COL32(  0,  28,   0, 255);
+static const ImU32 kVuMedLit   = IM_COL32(255, 200,   0, 255);
+static const ImU32 kVuMedUnlit = IM_COL32( 40,  30,   0, 255);
+static const ImU32 kVuHiLit    = IM_COL32(225,   0,   0, 255);
+static const ImU32 kVuHiUnlit  = IM_COL32( 35,   0,   0, 255);
+
 static void drawVU(ImDrawList* dl,
                    float x, float y, float w, float h,
                    float lvlL, float lvlR)
 {
-    const float gap = 2.f;
-    const float bh  = (h - gap) * 0.5f;
+    constexpr float barW   = 2.f;
+    constexpr float stride = 3.f;
+    const float gap  = 2.f;
+    const float bh   = (h - gap) * 0.5f;
+    const int   N    = std::max(1, (int)((w - 1.f) / stride));
+    const float norm[2] = { std::min(lvlL / 1.2f, 1.f), std::min(lvlR / 1.2f, 1.f) };
+    const float tops[2] = { y, y + bh + gap };
 
-    auto bar = [&](float by, float level) {
-        dl->AddRectFilled({x, by}, {x + w, by + bh}, IM_COL32(20, 20, 36, 255));
-        float filled = std::min(level, 1.f) * w;
-        if (filled > 0.f)
-            dl->AddRectFilled({x, by}, {x + filled, by + bh},
-                              IM_COL32(60, 200, 60, 255));
-        dl->AddRect({x, by}, {x + w, by + bh}, IM_COL32(64, 64, 90, 255));
-    };
-
-    bar(y,            lvlL);
-    bar(y + bh + gap, lvlR);
+    for (int ch = 0; ch < 2; ++ch) {
+        for (int i = 0; i < N; ++i) {
+            float frac = float(i) / float(N);
+            ImU32 litCol, unlitCol;
+            if      (frac >= 0.80f) { litCol = kVuHiLit;  unlitCol = kVuHiUnlit;  }
+            else if (frac >= 0.60f) { litCol = kVuMedLit; unlitCol = kVuMedUnlit; }
+            else                    { litCol = kVuLoLit;  unlitCol = kVuLoUnlit;  }
+            float sx = x + float(i) * stride;
+            dl->AddRectFilled({sx, tops[ch]}, {sx + barW, tops[ch] + bh - 1.f},
+                              norm[ch] > frac ? litCol : unlitCol);
+        }
+    }
 }
 
 float DrawToolbar(ToolbarState& state,
@@ -73,8 +86,8 @@ float DrawToolbar(ToolbarState& state,
 
     const float frameH   = ImGui::GetFrameHeight();
     const float knobSz   = 36.f;
-    const float btnMidY  = (h - frameH) * 0.5f;
-    const float knobMidY = (h - knobSz) * 0.5f;
+    const float btnMidY  = 5.f;
+    const float knobMidY = 5.f;
 
     auto btnY = [&]() { ImGui::SetCursorPosY(btnMidY); };
 
@@ -138,22 +151,20 @@ float DrawToolbar(ToolbarState& state,
         if (wbutton('f', IM_COL32(18, 110, 75, 255)))
             { if (state.onWindowFullscreen)  state.onWindowFullscreen();  }
 
+        ImGui::SameLine(0.f, 8.f);
+        ImGui::SetCursorPosY(by);
+        if (ImGui::Button("New"))  { if (state.onNew)  state.onNew();  }
+        ImGui::SameLine(0.f, 3.f);
+        ImGui::SetCursorPosY(by);
+        if (ImGui::Button("Open")) { if (state.onOpen) state.onOpen(); }
+        ImGui::SameLine(0.f, 3.f);
+        ImGui::SetCursorPosY(by);
+        if (ImGui::Button("Save")) { if (state.onSave) state.onSave(); }
+
         // Window drag is handled in the GLFW mouse button callback (main.cpp),
         // which fires from inside GLFW's mouseDown: delegate — the only context
         // where performWindowDragWithEvent: is valid.
     }
-
-    ImGui::SameLine(0.f, 10.f);
-
-    // ─── File buttons ─────────────────────────────────────────────────────────
-    btnY();
-    if (ImGui::Button("New"))  { if (state.onNew)  state.onNew();  }
-    ImGui::SameLine();
-    btnY();
-    if (ImGui::Button("Open")) { if (state.onOpen) state.onOpen(); }
-    ImGui::SameLine();
-    btnY();
-    if (ImGui::Button("Save")) { if (state.onSave) state.onSave(); }
 
     ImGui::SameLine(0.f, 10.f);
 
@@ -293,7 +304,7 @@ float DrawToolbar(ToolbarState& state,
         const float vuH = 18.f;
         ImVec2 sp = ImGui::GetCursorScreenPos();
         drawVU(ImGui::GetWindowDrawList(),
-               sp.x, y + (h - vuH) * 0.5f, vuW, vuH,
+               sp.x, y + 5.f, vuW, vuH,
                state.vuLeft, state.vuRight);
         ImGui::Dummy({vuW, vuH});
     }

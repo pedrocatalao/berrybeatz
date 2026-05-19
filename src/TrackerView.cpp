@@ -159,22 +159,10 @@ void TrackerView::render(float x, float y, float w, float h) {
     drawOrderList(x, y + PTBAR1_H + PTBAR2_H, w);
     ImGui::End();
 
-    // Channel strip
+    // Pattern panel — channel headers are the frozen first row of the table
     float chanY = y + PTBAR1_H + PTBAR2_H + ORDER_H;
+    float patH  = h - (chanY - y);
     ImGui::SetNextWindowPos ({x, chanY});
-    ImGui::SetNextWindowSize({w, m_chanH});
-    ImGui::PushStyleColor(ImGuiCol_WindowBg, kChHeader);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.f, 0.f));
-    ImGui::Begin("##chanstrip", nullptr, noDecoFlags | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
-    ImGui::PopStyleVar();
-    ImGui::PopStyleColor();
-    drawChannelStrip(x, chanY, w);
-    ImGui::End();
-
-    // Pattern panel (main scrollable area)
-    float patY = chanY + m_chanH;
-    float patH = h - (patY - y);
-    ImGui::SetNextWindowPos ({x, patY});
     ImGui::SetNextWindowSize({w, patH});
     ImGui::PushStyleColor(ImGuiCol_WindowBg, kBgNormal);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.f, 0.f));
@@ -185,7 +173,7 @@ void TrackerView::render(float x, float y, float w, float h) {
     if (!ImGui::GetIO().WantTextInput)
         processInput();
 
-    drawPatternPanel(x, patY, w, patH);
+    drawPatternPanel(x, chanY, w, patH);
     ImGui::End();
 
     // Plugin settings popup (anchored to chanstrip window for ID stability)
@@ -517,11 +505,11 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
         return;
     }
 
-    // Handle click to move edit cursor
+    // Handle click to move edit cursor (offset relY past the frozen channel header row)
     if (ImGui::IsWindowHovered() && ImGui::IsMouseClicked(0) && m_rowH > 0.f) {
         ImVec2 mp = ImGui::GetIO().MousePos;
         ImVec2 wp = ImGui::GetWindowPos();
-        float relY = mp.y - wp.y + m_scrollY;
+        float relY = mp.y - wp.y - m_chanH + m_scrollY;
         float relX = mp.x - wp.x - m_rowNumW + m_hscroll;
         int32_t nch   = m_state.num_channels.load();
         int32_t nrows = pe_num_rows(m_mod, m_state.current_pattern.load());
@@ -549,11 +537,25 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
     float rowH  = ImGui::GetTextLineHeightWithSpacing();
     m_rowH = rowH;
     ImVec2 avail = ImGui::GetContentRegionAvail();
-    float visH  = avail.y;
+    float visH  = avail.y - m_chanH;  // exclude frozen header row from scroll math
+
+    // Fetch channel data for the frozen header row
+    std::array<ChannelVU, MAX_CHANNELS> vu{};
+    { std::lock_guard<std::mutex> lk(m_state.vu_mutex); vu = m_state.vu; }
+    std::vector<std::string> chNames(nch);
+    {
+        std::lock_guard<std::mutex> lk(m_state.meta_mutex);
+        for (int ch = 0; ch < nch; ch++) {
+            if (ch < (int)m_state.channel_names.size() && !m_state.channel_names[ch].empty())
+                chNames[ch] = std::to_string(ch + 1) + ": " + m_state.channel_names[ch];
+            else
+                chNames[ch] = "Channel " + std::to_string(ch + 1);
+        }
+    }
 
     if (!ImGui::BeginTable("##pat", totalCols, tFlags, avail)) return;
 
-    ImGui::TableSetupScrollFreeze(1, 0);
+    ImGui::TableSetupScrollFreeze(1, 1);  // freeze col 0 + row 0 (channel headers)
     ImGui::TableSetupColumn("##row", ImGuiTableColumnFlags_WidthFixed, m_rowNumW);
     for (int ch = 0; ch < nch; ch++) {
         char id[12]; snprintf(id, sizeof(id), "##c%d", ch);
@@ -561,6 +563,79 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
     }
 
     m_hscroll = ImGui::GetScrollX();
+
+    // ── Frozen channel header row ──────────────────────────────────────────────
+    {
+        ImDrawList* dl = ImGui::GetWindowDrawList();
+        uint64_t newMuteState = m_muteState;
+        int32_t plugClickCh = -1;
+
+        ImGui::TableNextRow(ImGuiTableRowFlags_None, m_chanH);
+
+        // Column 0: "Row" label
+        ImGui::TableSetColumnIndex(0);
+        {
+            ImVec2 p = ImGui::GetCursorScreenPos();
+            float textH = ImGui::GetTextLineHeight();
+            dl->AddText({p.x + 4, p.y + (m_chanH - textH) * 0.5f},
+                        ImGui::ColorConvertFloat4ToU32(kDim), "Row");
+            ImGui::Dummy({m_rowNumW, m_chanH});
+        }
+
+        for (int ch = 0; ch < nch; ch++) {
+            ImGui::TableSetColumnIndex(ch + 1);
+            ImVec2 p  = ImGui::GetCursorScreenPos();
+            float  cw = m_cellW;
+            bool muted = (m_muteState >> ch) & 1;
+
+            // Background + divider
+            ImU32 hdrCol = muted ? IM_COL32(20,20,30,255) : IM_COL32(30,30,60,255);
+            dl->AddRectFilled(p, {p.x + cw - 1, p.y + CHANNAME_H}, hdrCol);
+            dl->AddLine({p.x + cw - 1, p.y}, {p.x + cw - 1, p.y + m_chanH},
+                        IM_COL32(46, 46, 92, 200));
+
+            // Channel name, centred
+            float textH = ImGui::GetTextLineHeight();
+            ImU32 textCol = muted ? IM_COL32(60,60,60,255) : IM_COL32(200,200,120,255);
+            ImVec2 ts = ImGui::CalcTextSize(chNames[ch].c_str());
+            dl->AddText({p.x + (cw - ts.x) * 0.5f, p.y + (CHANNAME_H - textH) * 0.5f},
+                        textCol, chNames[ch].c_str());
+
+            // Mute click target
+            ImGui::SetCursorScreenPos(p);
+            ImGui::PushID(0x10000 + ch);
+            if (ImGui::InvisibleButton("##mute", {cw, CHANNAME_H}))
+                newMuteState ^= (uint64_t(1) << ch);
+
+            // VU
+            float vuTop = p.y + CHANNAME_H;
+            if (m_showVU)
+                drawStereoVU(dl, p.x, vuTop, cw - 1, VU_H, vu[ch].left, vu[ch].right);
+
+            // Plugin row
+            float vuBot = vuTop + (m_showVU ? VU_H : 0.f);
+            if (m_showPluginRow) {
+                dl->AddRectFilled({p.x, vuBot}, {p.x + cw - 1, vuBot + PLUGIN_H},
+                                  IM_COL32(20, 20, 35, 255));
+                dl->AddText({p.x + 2, vuBot + 1}, IM_COL32(60, 60, 80, 255), "–");
+                ImGui::SetCursorScreenPos({p.x, vuBot});
+                if (ImGui::InvisibleButton("##plug", {cw, PLUGIN_H}))
+                    plugClickCh = ch;
+            }
+            ImGui::PopID();
+
+            // Claim the full header height so the row is tall enough
+            ImGui::SetCursorScreenPos({p.x, p.y + m_chanH});
+            ImGui::Dummy({0.f, 0.f});
+        }
+
+        if (newMuteState != m_muteState) {
+            m_muteState = newMuteState;
+            m_state.channel_mute_mask.store(newMuteState);
+        }
+        if (plugClickCh >= 0)
+            m_pluginPopupCh = plugClickCh;
+    }
 
     float currentScrollY = ImGui::GetScrollY();
     bool  playing    = m_state.is_playing.load();

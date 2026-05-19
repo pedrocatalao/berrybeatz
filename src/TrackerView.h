@@ -16,6 +16,8 @@ struct KnobEditState {
     int                       value {0};
     int                       vmin  {0};
     int                       vmax  {100};
+    float                     popupX {0.f};
+    float                     popupY {0.f};
     std::function<void(int)>  onConfirm;
 };
 
@@ -41,7 +43,7 @@ public:
     void setBaseOctave(int o) { m_baseOctave = std::clamp(o, 0, 8); }
 
     void requestKnobEdit(const QString& title, int value, int vmin, int vmax,
-                         std::function<void(int)> onConfirm);
+                         float px, float py, std::function<void(int)> onConfirm);
 
 signals:
     void orderSeekRequested(int32_t order);

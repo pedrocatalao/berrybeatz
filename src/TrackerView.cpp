@@ -255,7 +255,9 @@ void TrackerView::renderUI() {
         ImGui::OpenPopup("##knobedit");
         m_knobEdit.pendingOpen = false;
     }
+    ImGui::SetNextWindowPos({m_knobEdit.popupX, m_knobEdit.popupY}, ImGuiCond_Appearing);
     ImGui::SetNextWindowSize({200, 0}, ImGuiCond_Always);
+    ImGui::PushStyleColor(ImGuiCol_ModalWindowDimBg, IM_COL32(0, 0, 0, 0));
     if (ImGui::BeginPopupModal("##knobedit", nullptr,
                                ImGuiWindowFlags_AlwaysAutoResize |
                                ImGuiWindowFlags_NoTitleBar)) {
@@ -276,6 +278,7 @@ void TrackerView::renderUI() {
         if (ImGui::Button("Cancel", {80, 0})) ImGui::CloseCurrentPopup();
         ImGui::EndPopup();
     }
+    ImGui::PopStyleColor(); // ModalWindowDimBg
 
     ImGui::End();
 }
@@ -300,11 +303,13 @@ static void togBtn(const char* lbl, bool& state, bool enabled = true) {
 }
 
 void TrackerView::requestKnobEdit(const QString& title, int value, int vmin, int vmax,
-                                  std::function<void(int)> onConfirm) {
+                                  float px, float py, std::function<void(int)> onConfirm) {
     m_knobEdit.title       = title;
     m_knobEdit.value       = value;
     m_knobEdit.vmin        = vmin;
     m_knobEdit.vmax        = vmax;
+    m_knobEdit.popupX      = px;
+    m_knobEdit.popupY      = py;
     m_knobEdit.onConfirm   = std::move(onConfirm);
     m_knobEdit.pendingOpen = true;
     update();

@@ -562,7 +562,12 @@ void MainWindow::setupToolbar() {
     auto wireKnobEdit = [&](RotaryKnob* k) {
         connect(k, &RotaryKnob::editRequested,
                 this, [this, k](const QString& lbl, int val, int lo, int hi) {
-                    m_trackerView->requestKnobEdit(lbl, val, lo, hi,
+                    // Map knob bottom-left to TrackerView local coordinates
+                    QPoint g  = k->mapToGlobal(QPoint(0, k->height()));
+                    QPoint lp = m_trackerView->mapFromGlobal(g);
+                    float  px = float(qBound(0, lp.x(), m_trackerView->width()  - 210));
+                    float  py = float(qBound(0, lp.y(), m_trackerView->height() - 120));
+                    m_trackerView->requestKnobEdit(lbl, val, lo, hi, px, py,
                         [k](int v){ k->applyEdit(v); });
                 });
     };

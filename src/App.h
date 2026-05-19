@@ -23,7 +23,6 @@ public:
 private:
     void syncToolbarState();
     void drawSidebar(float x, float y, float w, float h);
-    void drawKnobEditModal();
     void drawGeneralTab();
     void drawSamplesTab();
     void drawInstrumentsTab();
@@ -42,8 +41,6 @@ private:
     TrackerView   m_tracker;
 
     ToolbarState    m_toolbarState;
-    KnobEditRequest m_knobEdit;
-    int             m_editValue {0};
 
     GLFWwindow* m_glfwWindow {nullptr};
     ImFont*     m_fontMono   {nullptr};

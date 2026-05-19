@@ -33,7 +33,8 @@ inline bool KnobWidget(const char* id,
                        int*        value,
                        int         vmin,
                        int         vmax,
-                       bool*       editRequested = nullptr)
+                       bool*       editRequested = nullptr,
+                       bool        hideValue     = false)
 {
     ImGui::PushID(id);
 
@@ -116,15 +117,17 @@ inline bool KnobWidget(const char* id,
         dl->PathStroke(IM_COL32(80, 80, 192, 255), false, 2.5f);
     }
 
-    // Value text centered in the knob
-    char buf[16];
-    snprintf(buf, sizeof(buf), "%d", *value);
-    ImVec2 textSz = ImGui::CalcTextSize(buf);
-    dl->AddText(
-        ImVec2(center.x - textSz.x * 0.5f, center.y - textSz.y * 0.5f),
-        IM_COL32(208, 208, 80, 255),
-        buf
-    );
+    // Value text centered in the knob (suppressed when caller renders an edit field)
+    if (!hideValue) {
+        char buf[16];
+        snprintf(buf, sizeof(buf), "%d", *value);
+        ImVec2 textSz = ImGui::CalcTextSize(buf);
+        dl->AddText(
+            ImVec2(center.x - textSz.x * 0.5f, center.y - textSz.y * 0.5f),
+            IM_COL32(208, 208, 80, 255),
+            buf
+        );
+    }
 
     ImGui::PopID();
     return changed;

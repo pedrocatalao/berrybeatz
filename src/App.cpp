@@ -206,7 +206,7 @@ void App::render(int winW, int winH)
 
     syncToolbarState();
 
-    float contentY = DrawToolbar(m_toolbarState, m_knobEdit,
+    float contentY = DrawToolbar(m_toolbarState,
                                  m_fontUI, 0.f, 0.f, w, kToolbarH);
 
     ImGui::PushFont(m_fontUI);
@@ -309,7 +309,6 @@ void App::render(int winW, int winH)
         ImGui::End();
     }
 
-    drawKnobEditModal();
     ImGui::PopFont();
     handleEdgeResize(winW, winH);
 }
@@ -458,41 +457,6 @@ void App::syncToolbarState()
         m_toolbarState.speed    = (int)m_state.current_speed.load();
         m_toolbarState.rpb      = (int)m_state.rows_per_beat.load();
     }
-}
-
-void App::drawKnobEditModal()
-{
-    if (m_knobEdit.pending) {
-        ImGui::OpenPopup("##knob_edit");
-        m_knobEdit.pending = false;
-        ImGui::SetNextWindowPos(
-            {m_knobEdit.popupX, m_knobEdit.popupY}, ImGuiCond_Appearing);
-        m_editValue = m_knobEdit.value;
-    }
-
-    ImGui::PushStyleColor(ImGuiCol_ModalWindowDimBg, IM_COL32(0, 0, 0, 0));
-    if (ImGui::BeginPopupModal("##knob_edit", nullptr,
-            ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar)) {
-
-        ImGui::TextUnformatted(m_knobEdit.label.c_str());
-        ImGui::SetNextItemWidth(90.f);
-        ImGui::InputInt("##v", &m_editValue, 1, 10);
-        m_editValue = std::clamp(m_editValue, m_knobEdit.vmin, m_knobEdit.vmax);
-
-        bool confirm = ImGui::Button("OK", {44.f, 0.f});
-        confirm |= ImGui::IsKeyPressed(ImGuiKey_Enter, false);
-        if (confirm) {
-            if (m_knobEdit.onConfirm) m_knobEdit.onConfirm(m_editValue);
-            ImGui::CloseCurrentPopup();
-        }
-        ImGui::SameLine();
-        if (ImGui::Button("Cancel", {56.f, 0.f}) ||
-                ImGui::IsKeyPressed(ImGuiKey_Escape, false))
-            ImGui::CloseCurrentPopup();
-
-        ImGui::EndPopup();
-    }
-    ImGui::PopStyleColor();
 }
 
 // ─── Tab content ──────────────────────────────────────────────────────────────

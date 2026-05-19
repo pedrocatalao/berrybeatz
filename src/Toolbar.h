@@ -1,6 +1,5 @@
 #pragma once
 #include <functional>
-#include <string>
 #define GL_SILENCE_DEPRECATION
 #include <OpenGL/gl3.h>
 
@@ -49,16 +48,5 @@ struct ToolbarState {
     std::function<void(int)>   onGlobalVolChange;
 };
 
-struct KnobEditRequest {
-    bool                     pending  {false};
-    std::string              label;
-    int                      value    {0};
-    int                      vmin     {0};
-    int                      vmax     {100};
-    float                    popupX   {0.f};
-    float                    popupY   {0.f};
-    std::function<void(int)> onConfirm;
-};
-
-float DrawToolbar(ToolbarState& state, KnobEditRequest& knobEdit,
+float DrawToolbar(ToolbarState& state,
                   ImFont* fontUI, float x, float y, float w, float h);

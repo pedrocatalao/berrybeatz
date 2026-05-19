@@ -86,8 +86,8 @@ float DrawToolbar(ToolbarState& state,
 
     const float frameH   = ImGui::GetFrameHeight();
     const float knobSz   = 36.f;
-    const float btnMidY  = 5.f;
-    const float knobMidY = 26.f;
+    const float btnMidY  = 7.f;
+    const float knobMidY = 29.f;
 
     auto btnY = [&]() { ImGui::SetCursorPosY(btnMidY); };
 
@@ -96,7 +96,7 @@ float DrawToolbar(ToolbarState& state,
     {
         ImDrawList* dl  = ImGui::GetWindowDrawList();
         const float bsz = 16.f;
-        const float by  = 5.f;  // near top, not centred
+        const float by  = 7.f;  // near top, not centred
 
         int btnID = 0;
         auto wbutton = [&](char sym, ImU32 hoverBg) -> bool {
@@ -294,7 +294,7 @@ float DrawToolbar(ToolbarState& state,
     ImGui::SameLine(0.f, 6.f);
     doKnob("RPB",  &state.rpb,       1,   32,  state.onRPBChange);
     ImGui::SameLine(0.f, 6.f);
-    doKnob("GVol", &state.globalVol, 0,   256, state.onGlobalVolChange);
+    doKnob("Vol", &state.globalVol, 0,   256, state.onGlobalVolChange);
 
     // ─── VU meters (knob row) ─────────────────────────────────────────────────
     {

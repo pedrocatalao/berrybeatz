@@ -271,12 +271,16 @@ void App::render(int winW, int winH)
     if (ImGui::BeginTabBar("##tabs")) {
         const char* tabs[] = {"General", "Patterns", "Samples", "Instruments", "Comments"};
         for (int i = 0; i < 5; ++i) {
+            bool active = (i == m_activeTab);
+            ImGui::PushStyleColor(ImGuiCol_Text, active ? IM_COL32(208, 208, 224, 255)
+                                                        : IM_COL32(110, 110, 130, 255));
             ImGuiTabItemFlags flags = (!m_tabsInited && i == m_activeTab)
                                       ? ImGuiTabItemFlags_SetSelected : 0;
             if (ImGui::BeginTabItem(tabs[i], nullptr, flags)) {
                 m_activeTab = i;
                 ImGui::EndTabItem();
             }
+            ImGui::PopStyleColor();
         }
         m_tabsInited = true;
         ImGui::EndTabBar();

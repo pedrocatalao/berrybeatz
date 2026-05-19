@@ -176,7 +176,8 @@ float DrawToolbar(ToolbarState& state,
     ImGui::SameLine();
     btnY();
     const char* playLbl = (state.isPlaying && !state.isPaused) ? "Pause" : "Play";
-    if (ImGui::Button(playLbl)) { if (state.onPlayPause) state.onPlayPause(); }
+    const float playBtnW = ImGui::CalcTextSize("Pause").x + ImGui::GetStyle().FramePadding.x * 2.f;
+    if (ImGui::Button(playLbl, {playBtnW, 0.f})) { if (state.onPlayPause) state.onPlayPause(); }
     ImGui::SameLine();
     btnY();
     if (ImGui::Button("Restart")) { if (state.onPlayFromStart) state.onPlayFromStart(); }
@@ -196,19 +197,6 @@ float DrawToolbar(ToolbarState& state,
     }
 
     if (!state.hasModule) ImGui::EndDisabled();
-
-    ImGui::SameLine(0.f, 12.f);
-
-    // ─── VU meters ────────────────────────────────────────────────────────────
-    {
-        const float vuW = 120.f;
-        const float vuH = 18.f;
-        ImVec2 sp = ImGui::GetCursorScreenPos();
-        drawVU(ImGui::GetWindowDrawList(),
-               sp.x, y + 5.f, vuW, vuH,
-               state.vuLeft, state.vuRight);
-        ImGui::Dummy({vuW, vuH});
-    }
 
     ImGui::SetCursorPos({10.f, 26.f});
 
@@ -308,6 +296,18 @@ float DrawToolbar(ToolbarState& state,
     doKnob("RPB",  &state.rpb,       1,   32,  state.onRPBChange);
     ImGui::SameLine(0.f, 6.f);
     doKnob("GVol", &state.globalVol, 0,   256, state.onGlobalVolChange);
+
+    // ─── VU meters (knob row) ─────────────────────────────────────────────────
+    {
+        const float vuW = 185.f;
+        const float vuH = 25.f;
+        float vuX = ImGui::GetItemRectMax().x + 12.f;
+        float vuY = ImGui::GetWindowPos().y + knobMidY + (knobSz - vuH) * 0.5f;
+        drawVU(ImGui::GetWindowDrawList(), vuX, vuY, vuW, vuH,
+               state.vuLeft, state.vuRight);
+        ImGui::SetCursorScreenPos({vuX, ImGui::GetWindowPos().y + knobMidY});
+        ImGui::Dummy({vuW, knobSz});
+    }
 
     // ─── Logo (top-right) ─────────────────────────────────────────────────────
     if (state.logoTex && state.logoH > 0.f) {

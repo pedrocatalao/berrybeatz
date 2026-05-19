@@ -5,24 +5,6 @@
 #include <cmath>
 #include <algorithm>
 #include <cstdio>
-#include <cstdlib>
-#include <filesystem>
-#include <unordered_set>
-
-namespace fs = std::filesystem;
-
-static bool isModuleFile(const fs::path& p)
-{
-    std::string ext = p.extension().string();
-    for (auto& c : ext) c = (char)std::tolower((unsigned char)c);
-    static const std::unordered_set<std::string> kExts = {
-        ".mod", ".s3m", ".xm",  ".it",  ".mptm", ".669", ".amf", ".ams",
-        ".dbm", ".digi",".dmf", ".dsm", ".dtm",  ".far", ".gdm", ".imf",
-        ".j2b", ".mdl", ".med", ".mt2", ".mtm",  ".okt", ".plm", ".ptm",
-        ".sfx", ".stm", ".stp", ".ult", ".wow",  ".mo3", ".umx"
-    };
-    return kExts.count(ext) > 0;
-}
 
 // ─── Constructor / Destructor ─────────────────────────────────────────────────
 
@@ -100,9 +82,6 @@ App::App() : m_audio(m_state), m_tracker(m_state)
     };
     m_tracker.onStopRequested = [this]() { stopPlayback(); };
 
-    // ── Browser ───────────────────────────────────────────────────────────
-    const char* home = std::getenv("HOME");
-    browserNavigate(home ? fs::path(home) : fs::current_path());
 }
 
 App::~App()
@@ -130,9 +109,6 @@ void App::openFile(const std::string& path)
         m_toolbarState.tempo = (int)std::round(m_state.bpm.load());
         m_toolbarState.speed = (int)m_state.current_speed.load();
         m_toolbarState.rpb   = (int)m_state.rows_per_beat.load();
-        // Navigate sidebar to the file's directory
-        fs::path fp(path);
-        if (fp.has_parent_path()) browserNavigate(fp.parent_path());
         startPlayback();
     }
 }
@@ -247,106 +223,125 @@ void App::render(int winW, int winH)
     ImGui::PopFont();
 }
 
-// ─── Browser ──────────────────────────────────────────────────────────────────
-
-void App::browserNavigate(const fs::path& path)
-{
-    std::error_code ec;
-    if (!fs::is_directory(path, ec)) return;
-
-    m_browserPath = path;
-    m_browserEntries.clear();
-
-    for (auto& e : fs::directory_iterator(path, ec)) {
-        if (ec) break;
-        auto name = e.path().filename().string();
-        if (name.empty() || name[0] == '.') continue;  // skip hidden
-        if (e.is_directory(ec) || (e.is_regular_file(ec) && isModuleFile(e.path())))
-            m_browserEntries.push_back(e);
-    }
-
-    // Sort: directories first, then files; each group alphabetically
-    std::sort(m_browserEntries.begin(), m_browserEntries.end(),
-              [](const fs::directory_entry& a, const fs::directory_entry& b) {
-                  std::error_code ec;
-                  bool aDir = a.is_directory(ec), bDir = b.is_directory(ec);
-                  if (aDir != bDir) return aDir > bDir;
-                  return a.path().filename() < b.path().filename();
-              });
-}
+// ─── Sidebar (module tree) ────────────────────────────────────────────────────
 
 void App::drawSidebar(float x, float y, float w, float h)
 {
-    ImGui::PushStyleColor(ImGuiCol_WindowBg,          IM_COL32(18, 18, 30, 255));
-    ImGui::PushStyleColor(ImGuiCol_ScrollbarBg,       IM_COL32(18, 18, 30, 255));
-    ImGui::PushStyleColor(ImGuiCol_ScrollbarGrab,     IM_COL32(55, 55, 85, 255));
+    ImGui::PushStyleColor(ImGuiCol_WindowBg,             IM_COL32(18, 18, 30, 255));
+    ImGui::PushStyleColor(ImGuiCol_ScrollbarBg,          IM_COL32(18, 18, 30, 255));
+    ImGui::PushStyleColor(ImGuiCol_ScrollbarGrab,        IM_COL32(55, 55, 85, 255));
     ImGui::PushStyleColor(ImGuiCol_ScrollbarGrabHovered, IM_COL32(75, 75, 110, 255));
     ImGui::PushStyleColor(ImGuiCol_ScrollbarGrabActive,  IM_COL32(95, 95, 140, 255));
-    ImGui::PushStyleColor(ImGuiCol_Header,            IM_COL32(45, 45, 75, 255));
-    ImGui::PushStyleColor(ImGuiCol_HeaderHovered,     IM_COL32(60, 60, 95, 255));
-    ImGui::PushStyleColor(ImGuiCol_HeaderActive,      IM_COL32(75, 75, 115, 255));
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,  ImVec2(6.f, 4.f));
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,    ImVec2(4.f, 2.f));
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f);
+    ImGui::PushStyleColor(ImGuiCol_Header,               IM_COL32(45, 45, 75, 255));
+    ImGui::PushStyleColor(ImGuiCol_HeaderHovered,        IM_COL32(60, 60, 95, 255));
+    ImGui::PushStyleColor(ImGuiCol_HeaderActive,         IM_COL32(75, 75, 115, 255));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,     ImVec2(6.f, 4.f));
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,       ImVec2(4.f, 2.f));
+    ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing,     12.f);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize,  0.f);
 
     ImGui::SetNextWindowPos({x, y}, ImGuiCond_Always);
     ImGui::SetNextWindowSize({w, h}, ImGuiCond_Always);
-    ImGui::Begin("##browser", nullptr,
+    ImGui::Begin("##sidebar", nullptr,
         ImGuiWindowFlags_NoTitleBar    |
         ImGuiWindowFlags_NoResize      |
         ImGuiWindowFlags_NoCollapse    |
         ImGuiWindowFlags_NoMove        |
         ImGuiWindowFlags_NoSavedSettings);
-    ImGui::PopStyleVar(3);
+    ImGui::PopStyleVar(4);
     ImGui::PopStyleColor(8);
 
-    // ── Header ────────────────────────────────────────────────────────────
-    ImGui::TextColored({0.6f, 0.65f, 0.9f, 1.f}, "Browser");
-    ImGui::SameLine(w - 24.f);
-    if (ImGui::SmallButton(" ^ ") && m_browserPath.has_parent_path())
-        browserNavigate(m_browserPath.parent_path());
-
-    // Current directory name (dimmed)
-    {
-        std::string name = m_browserPath.filename().string();
-        if (name.empty()) name = m_browserPath.string();
-        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.45f, 0.45f, 0.65f, 1.f));
-        // Truncate display to fit width
-        ImGui::SetNextItemWidth(w - 12.f);
-        ImGui::TextUnformatted(name.c_str());
-        ImGui::PopStyleColor();
+    if (!m_hasModule) {
+        ImGui::TextDisabled("No module loaded");
+        ImGui::End();
+        return;
     }
 
+    // Module title
+    {
+        std::lock_guard<std::mutex> lk(m_state.meta_mutex);
+        const char* title = m_state.title.empty() ? "(untitled)" : m_state.title.c_str();
+        ImGui::TextColored({0.75f, 0.75f, 1.f, 1.f}, "%s", title);
+    }
     ImGui::Separator();
 
-    // ── File / directory list ─────────────────────────────────────────────
-    for (int i = 0; i < (int)m_browserEntries.size(); ++i) {
-        const auto& e   = m_browserEntries[i];
-        std::error_code ec;
-        bool isDir      = e.is_directory(ec);
-        std::string name = e.path().filename().string();
+    // Helper: draw a numbered list under a collapsing section.
+    // Returns the index that was clicked, or -1.
+    auto section = [&](const char* label,
+                        const std::vector<std::string>& names,
+                        int tabSwitch) -> int
+    {
+        char header[64];
+        snprintf(header, sizeof(header), "%s (%d)##hdr", label, (int)names.size());
 
-        // Directories: blue-white; files: warm yellow
-        ImVec4 col = isDir
-            ? ImVec4(0.70f, 0.78f, 1.00f, 1.f)
-            : ImVec4(0.88f, 0.88f, 0.70f, 1.f);
+        int clicked = -1;
+        ImGuiTreeNodeFlags nodeFlags =
+            ImGuiTreeNodeFlags_DefaultOpen |
+            ImGuiTreeNodeFlags_SpanAvailWidth;
 
-        ImGui::PushID(i);
-        ImGui::PushStyleColor(ImGuiCol_Text, col);
-        bool clicked = ImGui::Selectable(name.c_str(), false,
-                                         ImGuiSelectableFlags_None, {w - 18.f, 0.f});
-        ImGui::PopStyleColor();
-        ImGui::PopID();
-
-        if (clicked) {
-            if (isDir) browserNavigate(e.path());
-            else       openFile(e.path().string());
+        if (ImGui::TreeNodeEx(header, nodeFlags)) {
+            for (int i = 0; i < (int)names.size(); ++i) {
+                ImGui::PushID(i);
+                char row[256];
+                snprintf(row, sizeof(row), "%3d  %s", i + 1,
+                         names[i].empty() ? "---" : names[i].c_str());
+                if (ImGui::Selectable(row, false, 0, {w - 24.f, 0.f})) {
+                    clicked = i;
+                    m_activeTab = tabSwitch;
+                }
+                ImGui::PopID();
+            }
+            ImGui::TreePop();
         }
+        return clicked;
+    };
 
-        // Tooltip showing full path on hover
-        if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
-            ImGui::SetTooltip("%s", e.path().string().c_str());
+    // Patterns use 0-based numbering and a different tab index
+    auto patSection = [&]() {
+        std::lock_guard<std::mutex> lk(m_state.meta_mutex);
+        char header[64];
+        snprintf(header, sizeof(header), "Patterns (%d)##hdr", m_state.num_patterns);
+
+        ImGuiTreeNodeFlags nodeFlags =
+            ImGuiTreeNodeFlags_DefaultOpen |
+            ImGuiTreeNodeFlags_SpanAvailWidth;
+
+        if (ImGui::TreeNodeEx(header, nodeFlags)) {
+            for (int i = 0; i < m_state.num_patterns; ++i) {
+                ImGui::PushID(i + 10000);
+                char row[256];
+                const std::string& name =
+                    (i < (int)m_state.pattern_names.size()) ? m_state.pattern_names[i] : "";
+                snprintf(row, sizeof(row), "%3d  %s", i,
+                         name.empty() ? "---" : name.c_str());
+                if (ImGui::Selectable(row, false, 0, {w - 24.f, 0.f}))
+                    m_activeTab = 1;  // switch to Patterns tab
+                ImGui::PopID();
+            }
+            ImGui::TreePop();
+        }
+    };
+
+    {
+        std::lock_guard<std::mutex> lk(m_state.meta_mutex);
+        if (!m_state.instrument_names.empty()) {
+            // release lock while rendering, re-acquire via copies
+        }
     }
+
+    // Render sections with brief locks to copy the name vectors
+    std::vector<std::string> instrNames, sampleNames;
+    {
+        std::lock_guard<std::mutex> lk(m_state.meta_mutex);
+        instrNames  = m_state.instrument_names;
+        sampleNames = m_state.sample_names;
+    }
+
+    if (!instrNames.empty())
+        section("Instruments", instrNames, 3);
+
+    section("Samples", sampleNames, 2);
+    patSection();
 
     ImGui::End();
 }

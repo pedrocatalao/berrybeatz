@@ -4,8 +4,6 @@
 #include "TrackerView.h"
 #include "Toolbar.h"
 #include <string>
-#include <vector>
-#include <filesystem>
 
 struct ImFont;
 
@@ -22,9 +20,8 @@ private:
     // Per-frame state sync
     void syncToolbarState();
 
-    // Sidebar / browser
+    // Sidebar
     void drawSidebar(float x, float y, float w, float h);
-    void browserNavigate(const std::filesystem::path& path);
 
     // Modal
     void drawKnobEditModal();
@@ -59,10 +56,7 @@ private:
     bool  m_tabsInited {false};
     bool  m_hasModule  {false};
 
-    // Browser state
-    std::filesystem::path                        m_browserPath;
-    std::vector<std::filesystem::directory_entry> m_browserEntries;
-    float m_sidebarW {220.f};
+    float m_sidebarW {200.f};
 
     static constexpr float kToolbarH  = 60.f;
     static constexpr float kTabBarH   = 22.f;

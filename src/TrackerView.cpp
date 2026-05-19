@@ -249,6 +249,18 @@ static void tip(const char* text) {
         ImGui::SetTooltip("%s", text);
 }
 
+static void togBtn(const char* lbl, bool& state, bool enabled = true) {
+    if (!enabled) ImGui::BeginDisabled();
+    bool wasActive = state;
+    if (wasActive) {
+        ImGui::PushStyleColor(ImGuiCol_Button,        IM_COL32(64, 64, 160, 255));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(80, 80, 190, 255));
+    }
+    if (ImGui::Button(lbl)) state = !state;
+    if (wasActive) ImGui::PopStyleColor(2);
+    if (!enabled) ImGui::EndDisabled();
+}
+
 static void tbSep() {
     ImGui::SameLine(0, 5);
     ImVec2 p = ImGui::GetCursorScreenPos();
@@ -288,18 +300,6 @@ void TrackerView::drawPatternToolbar1() {
         bool r = ImGui::Button(lbl);
         if (!enabled) ImGui::EndDisabled();
         return r;
-    };
-
-    auto togBtn = [&](const char* lbl, bool& state, bool enabled = true) {
-        if (!enabled) ImGui::BeginDisabled();
-        bool wasActive = state;  // capture before Button() may change it
-        if (wasActive) {
-            ImGui::PushStyleColor(ImGuiCol_Button,        IM_COL32(64, 64, 160, 255));
-            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(80, 80, 190, 255));
-        }
-        if (ImGui::Button(lbl)) state = !state;
-        if (wasActive) ImGui::PopStyleColor(2);
-        if (!enabled) ImGui::EndDisabled();
     };
 
     // Transport
@@ -429,10 +429,10 @@ void TrackerView::drawPatternToolbar2() {
 
     tbSep();
 
-    ImGui::Checkbox("Loop##lp",   &m_loopPattern);
+    togBtn("Loop##lp",   m_loopPattern);
     tip("Loop current pattern during pattern playback");
     ImGui::SameLine();
-    ImGui::Checkbox("Follow##fw", &m_followSong);
+    togBtn("Follow##fw", m_followSong);
     tip("Follow playback cursor in pattern view");
 
     tbSep();

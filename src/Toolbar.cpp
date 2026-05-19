@@ -87,7 +87,7 @@ float DrawToolbar(ToolbarState& state,
     const float frameH   = ImGui::GetFrameHeight();
     const float knobSz   = 36.f;
     const float btnMidY  = 7.f;
-    const float knobMidY = 29.f;
+    const float knobMidY = 33.f;
 
     auto btnY = [&]() { ImGui::SetCursorPosY(btnMidY); };
 
@@ -96,7 +96,7 @@ float DrawToolbar(ToolbarState& state,
     {
         ImDrawList* dl  = ImGui::GetWindowDrawList();
         const float bsz = 16.f;
-        const float by  = 7.f;  // near top, not centred
+        const float by  = 7.f;  // offset down to clear rounded corner
 
         int btnID = 0;
         auto wbutton = [&](char sym, ImU32 hoverBg) -> bool {
@@ -138,6 +138,7 @@ float DrawToolbar(ToolbarState& state,
             return clicked;
         };
 
+        ImGui::SetCursorPosX(11.f);  // shift right to clear rounded corner
         if (wbutton('x', IM_COL32(140, 28, 28, 255)))
             { if (state.onWindowClose)    state.onWindowClose();    }
         ImGui::SameLine(0.f, 3.f);
@@ -197,7 +198,7 @@ float DrawToolbar(ToolbarState& state,
 
     if (!state.hasModule) ImGui::EndDisabled();
 
-    ImGui::SetCursorPos({10.f, knobMidY});
+    ImGui::SetCursorPos({14.f, knobMidY});
 
     // ─── Knobs ────────────────────────────────────────────────────────────────
     // Each knob is 36×36; draw label text below via the draw list.

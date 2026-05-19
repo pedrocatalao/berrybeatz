@@ -127,7 +127,7 @@ int main(int argc, char* argv[])
         if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
             double x, y;
             glfwGetCursorPos(win, &x, &y);
-            if (y < 72.0 && !ImGui::IsAnyItemHovered()) {
+            if (y < 78.0 && !ImGui::IsAnyItemHovered()) {
                 // performWindowDragWithEvent: blocks until mouse-up.
                 // Runs a nested NSRunLoop — render loop resumes afterwards.
                 beginWindowDrag(win);

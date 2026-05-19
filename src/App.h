@@ -67,7 +67,7 @@ private:
     int m_rsMouseX {0}, m_rsMouseY {0};
     int m_rsWinW   {0}, m_rsWinH   {0};
 
-    static constexpr float kToolbarH  = 72.f;
+    static constexpr float kToolbarH  = 78.f;
     static constexpr float kTabBarH   = 22.f;
     static constexpr float kSplitterW =  6.f;  // hit area; line drawn at 1px centre
 

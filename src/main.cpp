@@ -71,19 +71,28 @@ int main(int argc, char* argv[])
     ImFont* fontMono = nullptr;
     ImFont* fontUI   = nullptr;
     {
-        ImFontConfig cfg;
-        cfg.OversampleH = 2;
-        cfg.OversampleV = 2;
+        // Pixel-sharp config for bitmap-style fonts — no oversampling
+        ImFontConfig pixCfg;
+        pixCfg.OversampleH = 1;
+        pixCfg.OversampleV = 1;
+        pixCfg.PixelSnapH  = true;
 
-        // Monospaced font for the pattern editor
+        // Smooth config for the UI font
+        ImFontConfig uiCfg;
+        uiCfg.OversampleH = 2;
+        uiCfg.OversampleV = 2;
+
+        // BigBlue Terminal: authentic IBM VGA/DOS bitmap font for patterns
         fontMono = io.Fonts->AddFontFromFileTTF(
-            "/System/Library/Fonts/Menlo.ttc", 13.f, &cfg);
+            "/Users/pedro/Library/Fonts/BigBlueTermPlusNerdFontMono-Regular.ttf",
+            11.f, &pixCfg);
 
-        // UI font (Helvetica Neue) for toolbar and controls
+        // IBM 3270 terminal font for the UI
         fontUI = io.Fonts->AddFontFromFileTTF(
-            "/System/Library/Fonts/HelveticaNeue.ttc", 13.f, &cfg);
+            "/Users/pedro/Library/Fonts/3270NerdFontMono-SemiCondensed.ttf",
+            15.f, &uiCfg);
 
-        // Fall back to default if system font not found
+        // Fall back to default if fonts not found
         if (!fontMono) fontMono = io.Fonts->AddFontDefault();
         if (!fontUI)   fontUI   = io.Fonts->AddFontDefault();
 

@@ -164,7 +164,9 @@ void TrackerView::render(float x, float y, float w, float h) {
     ImGui::SetNextWindowPos ({x, chanY});
     ImGui::SetNextWindowSize({w, m_chanH});
     ImGui::PushStyleColor(ImGuiCol_WindowBg, kChHeader);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.f, 0.f));
     ImGui::Begin("##chanstrip", nullptr, noDecoFlags | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+    ImGui::PopStyleVar();
     ImGui::PopStyleColor();
     drawChannelStrip(x, chanY, w);
     ImGui::End();
@@ -175,7 +177,9 @@ void TrackerView::render(float x, float y, float w, float h) {
     ImGui::SetNextWindowPos ({x, patY});
     ImGui::SetNextWindowSize({w, patH});
     ImGui::PushStyleColor(ImGuiCol_WindowBg, kBgNormal);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.f, 0.f));
     ImGui::Begin("##pattern", nullptr, noDecoFlags);
+    ImGui::PopStyleVar();
     ImGui::PopStyleColor();
 
     if (!ImGui::GetIO().WantTextInput)

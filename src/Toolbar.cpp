@@ -197,7 +197,7 @@ float DrawToolbar(ToolbarState& state,
 
     if (!state.hasModule) ImGui::EndDisabled();
 
-    ImGui::SetCursorPos({10.f, 26.f});
+    ImGui::SetCursorPos({10.f, knobMidY});
 
     // ─── Knobs ────────────────────────────────────────────────────────────────
     // Each knob is 36×36; draw label text below via the draw list.
@@ -286,6 +286,10 @@ float DrawToolbar(ToolbarState& state,
         }
     };
 
+    const float kPad  = 5.f;
+    const float rowX0 = ImGui::GetCursorScreenPos().x - kPad;
+    const float rowY0 = ImGui::GetWindowPos().y + knobMidY - kPad;
+
     doKnob("Oct",  &state.octave,    0,   8,   state.onOctaveChange);
     ImGui::SameLine(0.f, 6.f);
     doKnob("BPM",  &state.tempo,     32,  512, state.onTempoChange);
@@ -306,6 +310,15 @@ float DrawToolbar(ToolbarState& state,
                state.vuLeft, state.vuRight);
         ImGui::SetCursorScreenPos({vuX, ImGui::GetWindowPos().y + knobMidY});
         ImGui::Dummy({vuW, knobSz});
+    }
+
+    // ─── Frame around knobs + VU ──────────────────────────────────────────────
+    {
+        float rowX1 = ImGui::GetItemRectMax().x + kPad;
+        float rowY1 = ImGui::GetWindowPos().y + knobMidY + knobSz + kPad;
+        ImGui::GetWindowDrawList()->AddRect(
+            {rowX0, rowY0}, {rowX1, rowY1},
+            IM_COL32(55, 55, 88, 255), 3.f);
     }
 
     // ─── Logo (top-right) ─────────────────────────────────────────────────────

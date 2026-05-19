@@ -11,7 +11,7 @@ struct ToolbarState {
     bool  isPaused  {false};
     float vuLeft    {0.f};
     float vuRight   {0.f};
-    float seekFrac  {0.f};   // 0..1 normalized position
+    float seekFrac  {0.f};
 
     // Knob values (read/write — Toolbar updates these, App reads them)
     int   octave    {4};
@@ -20,7 +20,14 @@ struct ToolbarState {
     int   rpb       {4};
     int   globalVol {128};
 
-    // Actions (Toolbar → App)
+    // Window controls (Toolbar → App)
+    std::function<void()>           onWindowClose;
+    std::function<void()>           onWindowMinimize;
+    std::function<void()>           onWindowMaximize;
+    std::function<void()>            onWindowFullscreen;
+    // (window drag is handled at GLFW callback level, not through ToolbarState)
+
+    // File / transport actions
     std::function<void()>      onNew;
     std::function<void()>      onOpen;
     std::function<void()>      onSave;
@@ -35,8 +42,6 @@ struct ToolbarState {
     std::function<void(int)>   onGlobalVolChange;
 };
 
-// Knob edit request — set by DrawToolbar when user clicks a knob without dragging.
-// Caller (App) should open an ImGui popup to let the user type a value.
 struct KnobEditRequest {
     bool                     pending  {false};
     std::string              label;
@@ -48,7 +53,5 @@ struct KnobEditRequest {
     std::function<void(int)> onConfirm;
 };
 
-// Draw the main toolbar as a fixed ImGui window at (x, y) with size (w × h).
-// Returns the bottom Y of the toolbar (y + h).
 float DrawToolbar(ToolbarState& state, KnobEditRequest& knobEdit,
                   ImFont* fontUI, float x, float y, float w, float h);

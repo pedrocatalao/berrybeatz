@@ -6,6 +6,7 @@
 #include <string>
 
 struct ImFont;
+struct GLFWwindow;
 
 class App {
 public:
@@ -13,26 +14,18 @@ public:
     ~App();
 
     void setFonts(ImFont* mono, ImFont* ui);
+    void setGLFWWindow(GLFWwindow* w) { m_glfwWindow = w; }
     void openFile(const std::string& path);
     void render(int winW, int winH);
 
 private:
-    // Per-frame state sync
     void syncToolbarState();
-
-    // Sidebar
     void drawSidebar(float x, float y, float w, float h);
-
-    // Modal
     void drawKnobEditModal();
-
-    // Tab content
     void drawGeneralTab();
     void drawSamplesTab();
     void drawInstrumentsTab();
     void drawCommentsTab();
-
-    // Operations
     void openFileDialog();
     void clearModule();
     void startPlayback();
@@ -40,6 +33,7 @@ private:
     void togglePlayPause();
     void playFromStart();
     void seekTo(float frac);
+    void handleEdgeResize(int winW, int winH);
 
     ModuleState   m_state;
     AudioEngine   m_audio;
@@ -49,14 +43,26 @@ private:
     KnobEditRequest m_knobEdit;
     int             m_editValue {0};
 
-    ImFont* m_fontMono {nullptr};
-    ImFont* m_fontUI   {nullptr};
+    GLFWwindow* m_glfwWindow {nullptr};
+    ImFont*     m_fontMono   {nullptr};
+    ImFont*     m_fontUI     {nullptr};
 
     int   m_activeTab  {0};
     bool  m_tabsInited {false};
     bool  m_hasModule  {false};
 
     float m_sidebarW {200.f};
+
+    bool m_isMaximized  {false};
+    int  m_restoreX {0}, m_restoreY {0}, m_restoreW {1280}, m_restoreH {800};
+
+    bool m_isFullscreen {false};
+    int  m_fsRestoreX {0}, m_fsRestoreY {0}, m_fsRestoreW {1280}, m_fsRestoreH {800};
+
+    enum class ResizeEdge { None, Right, Bottom, BottomRight };
+    ResizeEdge m_resizeEdge {ResizeEdge::None};
+    int m_rsMouseX {0}, m_rsMouseY {0};
+    int m_rsWinW   {0}, m_rsWinH   {0};
 
     static constexpr float kToolbarH  = 60.f;
     static constexpr float kTabBarH   = 22.f;

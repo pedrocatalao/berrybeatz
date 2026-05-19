@@ -8,6 +8,7 @@
 #include "backends/imgui_impl_opengl3.h"
 
 #include "App.h"
+#include "FileDialog.h"
 #include <cstdio>
 #include <memory>
 
@@ -31,6 +32,7 @@ int main(int argc, char* argv[])
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
     glfwWindowHint(GLFW_COCOA_RETINA_FRAMEBUFFER, GLFW_TRUE);
+    glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);  // no native chrome — we draw our own
 
     GLFWwindow* window = glfwCreateWindow(1280, 800, "OpenMPT", nullptr, nullptr);
     if (!window) {
@@ -62,7 +64,7 @@ int main(int argc, char* argv[])
     style.Colors[ImGuiCol_TitleBg]   = ImVec4(0.08f, 0.08f, 0.13f, 1.f);
     style.Colors[ImGuiCol_TitleBgActive] = ImVec4(0.12f, 0.12f, 0.20f, 1.f);
 
-    ImGui_ImplGlfw_InitForOpenGL(window, true);
+    ImGui_ImplGlfw_InitForOpenGL(window, false);  // we install callbacks manually below
     ImGui_ImplOpenGL3_Init("#version 150");
 
     // ── Fonts ─────────────────────────────────────────────────────────────
@@ -93,7 +95,35 @@ int main(int argc, char* argv[])
     app->setFonts(fontMono, fontUI);
     g_app = app.get();
 
+    app->setGLFWWindow(window);
+    setupWindowEventMonitor(window);
     glfwSetDropCallback(window, dropCallback);
+
+    // ── GLFW callbacks ────────────────────────────────────────────────────
+    // Forward all standard events to ImGui, then handle toolbar drag ourselves.
+    // Drag is initiated here — inside GLFW's mouseDown: delegate chain — which
+    // is the only context where performWindowDragWithEvent: is valid on macOS.
+    glfwSetWindowFocusCallback(window, ImGui_ImplGlfw_WindowFocusCallback);
+    glfwSetCursorEnterCallback(window, ImGui_ImplGlfw_CursorEnterCallback);
+    glfwSetCursorPosCallback  (window, ImGui_ImplGlfw_CursorPosCallback);
+    glfwSetScrollCallback     (window, ImGui_ImplGlfw_ScrollCallback);
+    glfwSetKeyCallback        (window, ImGui_ImplGlfw_KeyCallback);
+    glfwSetCharCallback       (window, ImGui_ImplGlfw_CharCallback);
+
+    glfwSetMouseButtonCallback(window, [](GLFWwindow* win, int button, int action, int mods) {
+        ImGui_ImplGlfw_MouseButtonCallback(win, button, action, mods);
+
+        // Left press in the toolbar drag zone (top 60 px, no ImGui item hovered)
+        if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
+            double x, y;
+            glfwGetCursorPos(win, &x, &y);
+            if (y < 60.0 && !ImGui::IsAnyItemHovered()) {
+                // performWindowDragWithEvent: blocks until mouse-up.
+                // Runs a nested NSRunLoop — render loop resumes afterwards.
+                beginWindowDrag(win);
+            }
+        }
+    });
 
     if (argc > 1)
         app->openFile(argv[1]);
@@ -106,13 +136,15 @@ int main(int argc, char* argv[])
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
-        int fbW, fbH;
+        // Logical size for ImGui layout; framebuffer size for OpenGL viewport
+        int winW, winH, fbW, fbH;
+        glfwGetWindowSize(window, &winW, &winH);
         glfwGetFramebufferSize(window, &fbW, &fbH);
         glViewport(0, 0, fbW, fbH);
         glClearColor(0.08f, 0.08f, 0.13f, 1.f);
         glClear(GL_COLOR_BUFFER_BIT);
 
-        app->render(fbW, fbH);
+        app->render(winW, winH);
 
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());

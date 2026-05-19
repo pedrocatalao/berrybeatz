@@ -2,7 +2,6 @@
 #include "Knob.h"
 #include "imgui.h"
 #include <algorithm>
-#include <cmath>
 
 static void pushToolbarStyle()
 {
@@ -60,13 +59,79 @@ float DrawToolbar(ToolbarState& state, KnobEditRequest& knobEdit,
         ImGuiWindowFlags_NoSavedSettings   |
         ImGuiWindowFlags_NoBringToFrontOnFocus);
 
-    const float frameH  = ImGui::GetFrameHeight();
-    const float knobSz  = 36.f;
-    const float btnMidY = (h - frameH) * 0.5f;
+    const float frameH   = ImGui::GetFrameHeight();
+    const float knobSz   = 36.f;
+    const float btnMidY  = (h - frameH) * 0.5f;
     const float knobMidY = (h - knobSz) * 0.5f;
 
-    // Helper: centre buttons vertically
     auto btnY = [&]() { ImGui::SetCursorPosY(btnMidY); };
+
+    // ─── Retro window-control buttons ─────────────────────────────────────────
+    // 16×16 squares, drawn manually so they look like old X11 WM buttons.
+    {
+        ImDrawList* dl  = ImGui::GetWindowDrawList();
+        const float bsz = 16.f;
+        const float by  = 5.f;  // near top, not centred
+
+        int btnID = 0;
+        auto wbutton = [&](char sym, ImU32 hoverBg) -> bool {
+            ImGui::SetCursorPosY(by);
+            ImGui::PushID(btnID++);
+            ImVec2 p = ImGui::GetCursorScreenPos();
+            bool clicked = ImGui::InvisibleButton("##wc", {bsz, bsz});
+            bool hov = ImGui::IsItemHovered();
+            dl->AddRectFilled(p, {p.x+bsz, p.y+bsz},
+                              hov ? hoverBg : IM_COL32(38, 38, 58, 255));
+            dl->AddRect(p, {p.x+bsz, p.y+bsz}, IM_COL32(72, 72, 100, 255));
+            float m = 4.f;
+            ImU32 sc = IM_COL32(210, 210, 220, 255);
+            if (sym == 'x') {
+                dl->AddLine({p.x+m,      p.y+m},      {p.x+bsz-m, p.y+bsz-m}, sc, 1.5f);
+                dl->AddLine({p.x+bsz-m,  p.y+m},      {p.x+m,     p.y+bsz-m}, sc, 1.5f);
+            } else if (sym == '-') {
+                float my = p.y + bsz * 0.5f;
+                dl->AddLine({p.x+m, my}, {p.x+bsz-m, my}, sc, 1.5f);
+            } else if (sym == '+') {
+                dl->AddRect({p.x+m, p.y+m}, {p.x+bsz-m, p.y+bsz-m}, sc, 0.f, 0, 1.5f);
+            } else if (sym == 'f') {
+                // Four outward-pointing L-corners — classic fullscreen icon
+                const float ci = m - 0.5f;  // inset from button edge
+                const float cl = 3.5f;      // arm length
+                // top-left
+                dl->AddLine({p.x+ci,      p.y+ci},      {p.x+ci+cl,  p.y+ci},      sc, 1.3f);
+                dl->AddLine({p.x+ci,      p.y+ci},      {p.x+ci,     p.y+ci+cl},   sc, 1.3f);
+                // top-right
+                dl->AddLine({p.x+bsz-ci,  p.y+ci},      {p.x+bsz-ci-cl, p.y+ci},  sc, 1.3f);
+                dl->AddLine({p.x+bsz-ci,  p.y+ci},      {p.x+bsz-ci, p.y+ci+cl},  sc, 1.3f);
+                // bottom-left
+                dl->AddLine({p.x+ci,      p.y+bsz-ci},  {p.x+ci+cl,  p.y+bsz-ci}, sc, 1.3f);
+                dl->AddLine({p.x+ci,      p.y+bsz-ci},  {p.x+ci,     p.y+bsz-ci-cl}, sc, 1.3f);
+                // bottom-right
+                dl->AddLine({p.x+bsz-ci,  p.y+bsz-ci},  {p.x+bsz-ci-cl, p.y+bsz-ci}, sc, 1.3f);
+                dl->AddLine({p.x+bsz-ci,  p.y+bsz-ci},  {p.x+bsz-ci, p.y+bsz-ci-cl}, sc, 1.3f);
+            }
+            ImGui::PopID();
+            return clicked;
+        };
+
+        if (wbutton('x', IM_COL32(140, 28, 28, 255)))
+            { if (state.onWindowClose)    state.onWindowClose();    }
+        ImGui::SameLine(0.f, 3.f);
+        if (wbutton('-', IM_COL32(120, 95, 20, 255)))
+            { if (state.onWindowMinimize) state.onWindowMinimize(); }
+        ImGui::SameLine(0.f, 3.f);
+        if (wbutton('+', IM_COL32(22, 68, 120, 255)))
+            { if (state.onWindowMaximize)    state.onWindowMaximize();    }
+        ImGui::SameLine(0.f, 3.f);
+        if (wbutton('f', IM_COL32(18, 110, 75, 255)))
+            { if (state.onWindowFullscreen)  state.onWindowFullscreen();  }
+
+        // Window drag is handled in the GLFW mouse button callback (main.cpp),
+        // which fires from inside GLFW's mouseDown: delegate — the only context
+        // where performWindowDragWithEvent: is valid.
+    }
+
+    ImGui::SameLine(0.f, 10.f);
 
     // ─── File buttons ─────────────────────────────────────────────────────────
     btnY();

@@ -83,6 +83,20 @@ void beginWindowDrag(GLFWwindow* glfwWin)
     }
 }
 
+// ─── Dock icon ───────────────────────────────────────────────────────────────
+
+void setDockIcon()
+{
+    @autoreleasepool {
+        [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
+        NSString* path = [[NSBundle mainBundle] pathForResource:@"AppIcon" ofType:@"icns"];
+        if (path) {
+            NSImage* icon = [[NSImage alloc] initWithContentsOfFile:path];
+            if (icon) [NSApp setApplicationIconImage:icon];
+        }
+    }
+}
+
 // ─── Rounded window corners ───────────────────────────────────────────────────
 
 void setWindowCornerRadius(GLFWwindow* glfwWin, float radius)

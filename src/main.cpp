@@ -26,6 +26,7 @@ int main(int argc, char* argv[])
         fprintf(stderr, "glfwInit failed\n");
         return 1;
     }
+    setDockIcon();
 
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);

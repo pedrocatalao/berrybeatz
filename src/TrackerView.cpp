@@ -164,17 +164,24 @@ void TrackerView::render(float x, float y, float w, float h) {
     float patH  = h - (chanY - y);
     ImGui::SetNextWindowPos ({x, chanY});
     ImGui::SetNextWindowSize({w, patH});
-    ImGui::PushStyleColor(ImGuiCol_WindowBg, kBgNormal);
+    ImGui::PushStyleColor(ImGuiCol_WindowBg,             kBgNormal);
+    ImGui::PushStyleColor(ImGuiCol_ScrollbarBg,          IM_COL32( 12,  12,  22, 255));
+    ImGui::PushStyleColor(ImGuiCol_ScrollbarGrab,        IM_COL32( 40,  85, 145, 200));
+    ImGui::PushStyleColor(ImGuiCol_ScrollbarGrabHovered, IM_COL32( 55, 112, 175, 230));
+    ImGui::PushStyleColor(ImGuiCol_ScrollbarGrabActive,  IM_COL32( 66, 130, 205, 255));
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.f, 0.f));
+    ImGui::PushStyleVar(ImGuiStyleVar_ScrollbarSize, 8.f);
     ImGui::Begin("##pattern", nullptr, noDecoFlags);
-    ImGui::PopStyleVar();
-    ImGui::PopStyleColor();
+    ImGui::PopStyleVar(1);   // WindowPadding — no longer needed after Begin
+    ImGui::PopStyleColor(1); // WindowBg — no longer needed after Begin
 
     if (!ImGui::GetIO().WantTextInput)
         processInput();
 
     drawPatternPanel(x, chanY, w, patH);
     ImGui::End();
+    ImGui::PopStyleVar(1);   // ScrollbarSize — must outlive End()
+    ImGui::PopStyleColor(4); // scrollbar colors — must outlive End()
 
     // Plugin settings popup (anchored to chanstrip window for ID stability)
     ImGui::SetNextWindowPos({x, chanY});

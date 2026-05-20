@@ -332,18 +332,14 @@ void App::render(int winW, int winH)
 
 void App::drawSidebar(float x, float y, float w, float h)
 {
-    ImGui::PushStyleColor(ImGuiCol_WindowBg,             IM_COL32(20, 20, 40, 255));
-    ImGui::PushStyleColor(ImGuiCol_ScrollbarBg,          IM_COL32(18, 18, 30, 255));
-    ImGui::PushStyleColor(ImGuiCol_ScrollbarGrab,        IM_COL32(55, 55, 85, 255));
-    ImGui::PushStyleColor(ImGuiCol_ScrollbarGrabHovered, IM_COL32(75, 75, 110, 255));
-    ImGui::PushStyleColor(ImGuiCol_ScrollbarGrabActive,  IM_COL32(95, 95, 140, 255));
-    ImGui::PushStyleColor(ImGuiCol_Header,               IM_COL32(45, 45, 75, 255));
-    ImGui::PushStyleColor(ImGuiCol_HeaderHovered,        IM_COL32(60, 60, 95, 255));
-    ImGui::PushStyleColor(ImGuiCol_HeaderActive,         IM_COL32(75, 75, 115, 255));
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,     ImVec2(8.f, 4.f));
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,       ImVec2(4.f, 2.f));
-    ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing,     12.f);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize,  0.f);
+    ImGui::PushStyleColor(ImGuiCol_WindowBg,      IM_COL32(20, 20, 40, 255));
+    ImGui::PushStyleColor(ImGuiCol_Header,        IM_COL32(45, 45, 75, 255));
+    ImGui::PushStyleColor(ImGuiCol_HeaderHovered, IM_COL32(60, 60, 95, 255));
+    ImGui::PushStyleColor(ImGuiCol_HeaderActive,  IM_COL32(75, 75, 115, 255));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,    ImVec2(8.f, 4.f));
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,      ImVec2(4.f, 2.f));
+    ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing,    12.f);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f);
 
     ImGui::SetNextWindowPos({x, y}, ImGuiCond_Always);
     ImGui::SetNextWindowSize({w, h}, ImGuiCond_Always);
@@ -356,7 +352,7 @@ void App::drawSidebar(float x, float y, float w, float h)
         ImGuiWindowFlags_NoScrollbar             |
         ImGuiWindowFlags_NoScrollWithMouse);
     ImGui::PopStyleVar(4);
-    ImGui::PopStyleColor(8);
+    ImGui::PopStyleColor(4);
 
     if (!m_hasModule) {
         ImGui::TextDisabled("No module loaded");
@@ -376,15 +372,21 @@ void App::drawSidebar(float x, float y, float w, float h)
     // ── Scrollable list ────────────────────────────────────────────────────────
     // Extend child into the parent's right padding so the scrollbar sits flush
     // against the sidebar edge.  Zero child padding so no extra gaps are added.
+    // Scrollbar style is pushed here (not on parent) and popped after EndChild
+    // so it is still active when ImGui renders the scrollbar in EndChild.
     {
-        const float rp = ImGui::GetStyle().WindowPadding.x;  // parent right padding
-        const float sw = ImGui::GetStyle().ScrollbarSize;
+        constexpr float kSbSz = 8.f;
+        const float rp    = ImGui::GetStyle().WindowPadding.x;
         const float childW = ImGui::GetContentRegionAvail().x + rp;
-        // With 0 child padding: ScrollMax.x = contentW + 0 - (childW - sw) = 0
-        ImGui::SetNextWindowContentSize({childW - sw, 0.f});
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.f, 0.f));
+        ImGui::SetNextWindowContentSize({childW - kSbSz, 0.f});
+        ImGui::PushStyleColor(ImGuiCol_ScrollbarBg,          IM_COL32( 12,  12,  22, 255));
+        ImGui::PushStyleColor(ImGuiCol_ScrollbarGrab,        IM_COL32( 40,  85, 145, 200));
+        ImGui::PushStyleColor(ImGuiCol_ScrollbarGrabHovered, IM_COL32( 55, 112, 175, 230));
+        ImGui::PushStyleColor(ImGuiCol_ScrollbarGrabActive,  IM_COL32( 66, 130, 205, 255));
+        ImGui::PushStyleVar(ImGuiStyleVar_ScrollbarSize,  kSbSz);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,  ImVec2(0.f, 0.f));
         ImGui::BeginChild("##sidebar_scroll", {childW, 0.f}, false, 0);
-        ImGui::PopStyleVar();
+        ImGui::PopStyleVar(1);  // WindowPadding — no longer needed after Begin
     }
 
     // Helper: draw a numbered list under a collapsing section.
@@ -459,6 +461,8 @@ void App::drawSidebar(float x, float y, float w, float h)
     patSection();
 
     ImGui::EndChild();
+    ImGui::PopStyleVar(1);   // ScrollbarSize
+    ImGui::PopStyleColor(4); // scrollbar colors
 
     ImGui::End();
 }

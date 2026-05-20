@@ -118,6 +118,7 @@ target_link_libraries(OpenMPTMac PRIVATE
 target_compile_options(OpenMPTMac PRIVATE ${PORTAUDIO_CFLAGS_OTHER})
 
 set_target_properties(OpenMPTMac PROPERTIES
+    MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/assets/Info.plist"
     MACOSX_BUNDLE_GUI_IDENTIFIER "org.openmpt.mac"
     MACOSX_BUNDLE_BUNDLE_NAME "OpenMPT"
     MACOSX_BUNDLE_ICON_FILE "AppIcon"

@@ -90,20 +90,20 @@ static void tbSep() {
 }
 
 static void pushToolbarStyle() {
-    ImGui::PushStyleColor(ImGuiCol_Button,         IM_COL32( 20,  20,  40, 255));
-    ImGui::PushStyleColor(ImGuiCol_ButtonHovered,  IM_COL32( 46,  46,  90, 255));
-    ImGui::PushStyleColor(ImGuiCol_ButtonActive,   IM_COL32( 64,  64, 160, 255));
-    ImGui::PushStyleColor(ImGuiCol_Text,           IM_COL32(224, 224,  64, 255));
-    ImGui::PushStyleColor(ImGuiCol_TextDisabled,   IM_COL32( 64,  64,  64, 255));
-    ImGui::PushStyleColor(ImGuiCol_Border,         IM_COL32( 46,  46,  90, 255));
+    ImGui::PushStyleColor(ImGuiCol_Button,         IM_COL32( 45,  45,  68, 255));
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered,  IM_COL32( 65,  65,  98, 255));
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive,   IM_COL32( 80,  80, 120, 255));
+    ImGui::PushStyleColor(ImGuiCol_Text,           IM_COL32(208, 208, 224, 255));
+    ImGui::PushStyleColor(ImGuiCol_TextDisabled,   IM_COL32( 80,  80,  90, 255));
+    ImGui::PushStyleColor(ImGuiCol_Border,         IM_COL32( 80,  80, 112, 255));
     ImGui::PushStyleColor(ImGuiCol_FrameBg,        IM_COL32( 13,  13,  30, 255));
     ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, IM_COL32( 26,  26,  46, 255));
     ImGui::PushStyleColor(ImGuiCol_FrameBgActive,  IM_COL32( 46,  46,  90, 255));
-    ImGui::PushStyleColor(ImGuiCol_CheckMark,      IM_COL32(224, 224,  64, 255));
+    ImGui::PushStyleColor(ImGuiCol_CheckMark,      IM_COL32(208, 208, 224, 255));
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,    {8.0f, 2.0f});
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,     {3.0f, 0.0f});
     ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding,   0.0f);
-    ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0.0f);
 }
 
 static void popToolbarStyle() {
@@ -213,26 +213,26 @@ void TrackerView::drawPatternToolbar1(float /*x*/, float /*y*/, float /*w*/) {
         return r;
     };
 
-    if (actBtn("+##ins", has))       { /* TODO: insert pattern */ }
+    if (actBtn("Insert##ins", has))       { /* TODO: insert pattern */ }
     tip("Insert pattern");
     ImGui::SameLine();
-    if (actBtn("▶|##playcur", has)) {
+    if (actBtn("Play Cursor##playcur", has)) {
         int32_t row = m_editMode ? m_cur.row : m_state.current_row.load();
         if (onPatternPlayFromCursor) onPatternPlayFromCursor(m_state.current_order.load(), row, m_loopPattern);
     }
     tip("Play from cursor (stops at pattern end, loops if Loop is on)");
     ImGui::SameLine();
-    if (actBtn("|▶##playstart", has)) {
+    if (actBtn("Play Start##playstart", has)) {
         if (onPatternPlayFromStart) onPatternPlayFromStart(m_state.current_order.load(), m_loopPattern);
     }
     tip("Play pattern from start");
     ImGui::SameLine();
-    if (actBtn("■##stop2", has)) {
+    if (actBtn("Stop##stop2", has)) {
         if (onStopRequested) onStopRequested();
     }
     tip("Stop playback");
     ImGui::SameLine();
-    if (actBtn("→##playrow", has)) {
+    if (actBtn("Play Row##playrow", has)) {
         int32_t ord = m_state.current_order.load();
         int32_t row = m_cur.row;
         advanceCursor();
@@ -246,7 +246,7 @@ void TrackerView::drawPatternToolbar1(float /*x*/, float /*y*/, float /*w*/) {
         ImGui::PushStyleColor(ImGuiCol_Button,        IM_COL32(160, 30, 30, 255));
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(190, 50, 50, 255));
     }
-    if (actBtn("●##rec", has)) m_editMode = !m_editMode;
+    if (actBtn("Record##rec", has)) m_editMode = !m_editMode;
     if (wasRec) ImGui::PopStyleColor(2);
     tip("Toggle record mode (Enter)");
 
@@ -256,18 +256,18 @@ void TrackerView::drawPatternToolbar1(float /*x*/, float /*y*/, float /*w*/) {
     togBtn("FX##fx", m_showPluginRow); tip("Show/hide plugin row");
 
     tbSep();
-    if (actBtn("↩##undo",  has)) {} tip("Undo");
+    if (actBtn("Undo##undo",       has)) {} tip("Undo");
     ImGui::SameLine();
-    if (actBtn("≡##props", has)) {} tip("Pattern properties");
+    if (actBtn("Props##props",     has)) {} tip("Pattern properties");
     ImGui::SameLine();
-    if (actBtn("↕+##exp",  has)) {} tip("Expand pattern");
+    if (actBtn("Expand##exp",      has)) {} tip("Expand pattern");
     ImGui::SameLine();
-    if (actBtn("↕-##shr",  has)) {} tip("Shrink pattern");
+    if (actBtn("Shrink##shr",      has)) {} tip("Shrink pattern");
 
     tbSep();
-    togBtn("≣##detail", m_detailView); tip("Detail view");
+    togBtn("Detail##detail", m_detailView); tip("Detail view");
     tbSep();
-    togBtn("⊕##ovf", m_overflowPaste); tip("Overflow paste");
+    togBtn("Overflow##ovf", m_overflowPaste); tip("Overflow paste");
 
     popToolbarStyle();
     if (m_fontUI) ImGui::PopFont();

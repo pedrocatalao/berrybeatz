@@ -95,7 +95,7 @@ float DrawToolbar(ToolbarState& state,
     // 16×16 squares, drawn manually so they look like old X11 WM buttons.
     {
         ImDrawList* dl  = ImGui::GetWindowDrawList();
-        const float bsz = 16.f;
+        const float bsz = ImGui::GetFrameHeight();
         const float by  = 7.f;  // offset down to clear rounded corner
 
         int btnID = 0;
@@ -291,6 +291,11 @@ float DrawToolbar(ToolbarState& state,
     const float rowX0 = ImGui::GetCursorScreenPos().x - kPad;
     const float rowY0 = ImGui::GetWindowPos().y + knobMidY - kPad;
 
+    // Split channels: knobs/VU draw in ch1 (front), background fills in ch0 (back)
+    ImDrawList* dl = ImGui::GetWindowDrawList();
+    dl->ChannelsSplit(2);
+    dl->ChannelsSetCurrent(1);
+
     doKnob("Oct",  &state.octave,    0,   8,   state.onOctaveChange);
     ImGui::SameLine(0.f, 6.f);
     doKnob("BPM",  &state.tempo,     32,  512, state.onTempoChange);
@@ -307,19 +312,19 @@ float DrawToolbar(ToolbarState& state,
         const float vuH = 25.f;
         float vuX = ImGui::GetItemRectMax().x + 12.f;
         float vuY = ImGui::GetWindowPos().y + knobMidY + (knobSz - vuH) * 0.5f;
-        drawVU(ImGui::GetWindowDrawList(), vuX, vuY, vuW, vuH,
-               state.vuLeft, state.vuRight);
+        drawVU(dl, vuX, vuY, vuW, vuH, state.vuLeft, state.vuRight);
         ImGui::SetCursorScreenPos({vuX, ImGui::GetWindowPos().y + knobMidY});
         ImGui::Dummy({vuW, knobSz});
     }
 
-    // ─── Frame around knobs + VU ──────────────────────────────────────────────
+    // ─── Background fill behind knobs + VU ───────────────────────────────────
     {
         float rowX1 = ImGui::GetItemRectMax().x + kPad;
         float rowY1 = ImGui::GetWindowPos().y + knobMidY + knobSz + kPad;
-        ImGui::GetWindowDrawList()->AddRect(
-            {rowX0, rowY0}, {rowX1, rowY1},
-            IM_COL32(55, 55, 88, 255), 3.f);
+        dl->ChannelsSetCurrent(0);
+        dl->AddRectFilled({rowX0, rowY0}, {rowX1, rowY1},
+                          IM_COL32(28, 28, 44, 255));
+        dl->ChannelsMerge();
     }
 
     // ─── Logo (top-right) ─────────────────────────────────────────────────────

@@ -663,11 +663,12 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
             {wp.x, wp.y + m_chanH}, {wp.x + ws.x, wp.y + ws.y}, false);
         if (inGrid) {
             float relY = mp.y - m_tableOriginY + m_scrollY;
-            float relX = mp.x - wp.x - m_rowNumW + m_hscroll;
+            float step  = m_colStep > 0.f ? m_colStep : (m_cellW + 2.f * ImGui::GetStyle().CellPadding.x);
+            float relX  = mp.x - (m_tableOriginX - m_hscroll);
             int32_t nch   = m_state.num_channels.load();
             int32_t nrows = pe_num_rows(m_mod, m_state.current_pattern.load());
             int row = int(relY / m_rowH);
-            int ch  = int(relX / m_cellW);
+            int ch  = int(relX / step);
             if (row >= 0 && row < nrows && ch >= 0 && ch < nch) {
                 m_cur.row = row; m_cur.channel = ch; m_cur.col = EditCol::Note;
                 m_editMode = true;
@@ -858,12 +859,16 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
         for (int ch = 0; ch < nch; ch++) {
             ImGui::TableNextColumn();
 
-            // Measure actual cell origin from the table's first rendered cell.
-            // This accounts for cell padding that our theoretical offsets miss.
-            if (r == clipper.DisplayStart && ch == 0) {
+            // Measure actual cell origins from the first two rendered cells.
+            if (r == clipper.DisplayStart) {
                 ImVec2 cp = ImGui::GetCursorScreenPos();
-                m_tableOriginY = cp.y - float(r) * m_rowH + m_scrollY
-                               - ImGui::GetStyle().CellPadding.y;
+                if (ch == 0) {
+                    m_tableOriginX = cp.x + m_hscroll;
+                    m_tableOriginY = cp.y - float(r) * m_rowH + m_scrollY
+                                   - ImGui::GetStyle().CellPadding.y;
+                } else if (ch == 1) {
+                    m_colStep = (cp.x + m_hscroll) - m_tableOriginX;
+                }
             }
 
             bool isEditCell = m_editMode && (r == m_cur.row) && (ch == m_cur.channel);

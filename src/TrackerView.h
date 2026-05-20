@@ -120,9 +120,10 @@ private:
     float    m_rowH         {16.0f};
     float    m_hscroll      {0.0f};
     float    m_scrollY      {0.0f};
-    // Table row origin Y: screen Y of row 0 top (outer boundary), scroll=0.
-    // Measured from inside the table loop to account for frozen header height.
+    // Table origins: screen positions at scroll=0, measured inside the table loop.
     float    m_tableOriginY {0.0f};
+    float    m_tableOriginX {0.0f};  // screen X of channel 0 content start, scroll=0
+    float    m_colStep      {0.0f};  // screen pitch per channel column (content + padding)
     int32_t  m_lastPattern  {-1};
     int32_t  m_lastRow      {-1};
     uint64_t m_muteState    {0};

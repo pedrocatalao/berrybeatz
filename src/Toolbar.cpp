@@ -198,7 +198,7 @@ float DrawToolbar(ToolbarState& state,
 
     if (!state.hasModule) ImGui::EndDisabled();
 
-    ImGui::SetCursorPos({14.f, knobMidY});
+    ImGui::SetCursorPos({16.f, knobMidY});
 
     // ─── Knobs ────────────────────────────────────────────────────────────────
     // Each knob is 36×36; draw label text below via the draw list.

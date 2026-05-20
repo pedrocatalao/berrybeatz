@@ -229,12 +229,6 @@ void App::render(int winW, int winH)
         ImGui::PopStyleVar();
         ImGui::PopStyleColor();
 
-        // Draw 1px line at centre of the hit area
-        ImVec2 wp = ImGui::GetWindowPos();
-        float  cx = wp.x + kSplitterW * 0.5f;
-        ImGui::GetWindowDrawList()->AddLine(
-            {cx, wp.y}, {cx, wp.y + h - contentY},
-            IM_COL32(55, 55, 80, 255), 1.f);
 
         ImGui::InvisibleButton("##drag", ImGui::GetContentRegionAvail());
         if (ImGui::IsItemHovered() || ImGui::IsItemActive())
@@ -365,7 +359,8 @@ void App::drawSidebar(float x, float y, float w, float h)
         const char* title = m_state.title.empty() ? "(untitled)" : m_state.title.c_str();
         ImGui::TextColored({0.75f, 0.75f, 1.f, 1.f}, "%s", title);
     }
-    ImGui::Separator();
+
+    ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 3.f);
 
     // ── Scrollable list ────────────────────────────────────────────────────────
     // Extend child into the parent's right padding so the scrollbar sits flush

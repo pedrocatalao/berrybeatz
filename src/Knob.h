@@ -127,24 +127,37 @@ inline bool KnobWidget(const char* id,
               : 0.f;
     float angEnd = ANG_START + t * SWEEP;
     if (angEnd > ANG_START) {
-        // Glow passes — additive blend
+        // Normal arc first
+        dl->PathArcTo(center, trackR, ANG_START, angEnd, 32);
+        dl->PathStroke(IM_COL32(0, 220, 255, 255), false, 2.5f);
+
+        // Glow on top — additive, high enough alpha to show on dark body
         dl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {
             glBlendFunc(GL_SRC_ALPHA, GL_ONE);
         }, nullptr);
         dl->PathArcTo(center, trackR, ANG_START, angEnd, 32);
-        dl->PathStroke(IM_COL32(0, 220, 255,  8), false, 12.0f);
+        dl->PathStroke(IM_COL32(0, 220, 255,   3), false, 22.0f);
         dl->PathArcTo(center, trackR, ANG_START, angEnd, 32);
-        dl->PathStroke(IM_COL32(0, 220, 255, 14), false,  8.0f);
+        dl->PathStroke(IM_COL32(0, 220, 255,   6), false, 15.0f);
         dl->PathArcTo(center, trackR, ANG_START, angEnd, 32);
-        dl->PathStroke(IM_COL32(0, 220, 255, 22), false,  5.0f);
+        dl->PathStroke(IM_COL32(0, 220, 255,  10), false, 10.0f);
         dl->PathArcTo(center, trackR, ANG_START, angEnd, 32);
-        dl->PathStroke(IM_COL32(0, 220, 255, 35), false,  3.0f);
+        dl->PathStroke(IM_COL32(0, 220, 255,  18), false,  6.0f);
+        dl->PathArcTo(center, trackR, ANG_START, angEnd, 32);
+        dl->PathStroke(IM_COL32(0, 220, 255,  28), false,  3.0f);
+
+        // Round caps at both arc endpoints (flat butt caps leave glow gaps)
+        float sx = center.x + trackR * cosf(ANG_START), sy = center.y + trackR * sinf(ANG_START);
+        float ex = center.x + trackR * cosf(angEnd),    ey = center.y + trackR * sinf(angEnd);
+        for (auto [cx2, cy2] : {std::pair{sx,sy}, std::pair{ex,ey}}) {
+            dl->AddCircleFilled({cx2, cy2}, 11.0f, IM_COL32(0, 220, 255,   3));
+            dl->AddCircleFilled({cx2, cy2},  8.0f, IM_COL32(0, 220, 255,   6));
+            dl->AddCircleFilled({cx2, cy2},  5.0f, IM_COL32(0, 220, 255,  10));
+            dl->AddCircleFilled({cx2, cy2},  3.0f, IM_COL32(0, 220, 255,  18));
+        }
         dl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {
             glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         }, nullptr);
-        // Normal arc on top
-        dl->PathArcTo(center, trackR, ANG_START, angEnd, 32);
-        dl->PathStroke(IM_COL32(0, 220, 255, 225), false, 2.5f);
     }
 
     // Value text centered in the knob (suppressed when caller renders an edit field)

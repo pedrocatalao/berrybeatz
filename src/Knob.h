@@ -129,7 +129,7 @@ inline bool KnobWidget(const char* id,
     if (angEnd > ANG_START) {
         // Normal arc first
         dl->PathArcTo(center, trackR, ANG_START, angEnd, 32);
-        dl->PathStroke(IM_COL32(0, 220, 255, 255), false, 2.5f);
+        dl->PathStroke(IM_COL32(0, 180, 210, 100), false, 2.5f);
 
         // Glow on top — additive, high enough alpha to show on dark body
         dl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {

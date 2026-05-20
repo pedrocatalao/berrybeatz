@@ -27,7 +27,7 @@ static constexpr NoteKey kHexKeys[] = {
 // ── OpenMPT "Blue (FT2)" colour scheme ────────────────────────────────────────
 static const ImVec4 kBgNormal    { 20/255.f,  20/255.f,  33/255.f, 1.f};
 static const ImVec4 kTextNormal  {224/255.f, 224/255.f,  64/255.f, 1.f};
-static const ImVec4 kBgCurRow    {112/255.f, 112/255.f, 112/255.f, 1.f};
+static const ImVec4 kBgCurRow    { 40/200.f,  85/200.f,  145/200.f, 1.f};
 static const ImVec4 kTextCurRow  {240/255.f, 240/255.f,  80/255.f, 1.f};
 static const ImVec4 kBgHilight   { 64/255.f,  64/255.f, 128/255.f, 1.f};
 static const ImVec4 kBgMeasure   { 46/255.f,  46/255.f,  90/255.f, 1.f};

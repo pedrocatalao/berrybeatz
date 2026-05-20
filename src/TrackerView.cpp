@@ -36,19 +36,19 @@ static const ImVec4 kBgHilight   { 64/255.f,  64/255.f, 128/255.f, 1.f};
 static const ImVec4 kBgMeasure   { 46/255.f,  46/255.f,  90/255.f, 1.f};
 static const ImVec4 kColNote     {100/255.f, 210/255.f, 220/255.f, 1.f};  // soft cyan
 static const ImVec4 kColInstr    {220/255.f, 200/255.f, 110/255.f, 1.f};  // soft yellow
-static const ImVec4 kColVolume   {220/255.f, 130/255.f, 160/255.f, 1.f};  // soft pink
+static const ImVec4 kColVolume   {240/255.f, 130/255.f, 130/255.f, 1.f};  // soft pink
 static const ImVec4 kColGlobal   {120/255.f, 200/255.f, 130/255.f, 1.f};  // soft green
 static const ImVec4 kDim         { 80/255.f,  80/255.f,  80/255.f, 1.f};
 static const ImVec4 kChHeader    { 30/255.f,  30/255.f,  60/255.f, 1.f};
 static const ImVec4 kOrderBg     {  0/255.f,   0/255.f,   0/255.f, 0.f};
 static const ImVec4 kOrderCur    { 64/255.f,  64/255.f, 160/255.f, 1.f};
 
-static const ImU32 kVuLoLit    = IM_COL32(  0, 220, 255, 255);  // cyan
-static const ImU32 kVuLoUnlit  = IM_COL32(  0,  35,  45, 255);
-static const ImU32 kVuMedLit   = IM_COL32(255,  30, 180, 255);  // hot pink
-static const ImU32 kVuMedUnlit = IM_COL32( 45,   0,  30, 255);
-static const ImU32 kVuHiLit    = IM_COL32(200,   0, 255, 255);  // violet
-static const ImU32 kVuHiUnlit  = IM_COL32( 35,   0,  50, 255);
+static const ImU32 kVuLoLit    = IM_COL32(  0, 220, 255, 225);  // cyan
+static const ImU32 kVuLoUnlit  = IM_COL32(  0,  35,  45, 225);
+static const ImU32 kVuMedLit   = IM_COL32(255,  30, 180, 225);  // hot pink
+static const ImU32 kVuMedUnlit = IM_COL32( 45,   0,  30, 225);
+static const ImU32 kVuHiLit    = IM_COL32(255,   0, 255,  90);  // violet
+static const ImU32 kVuHiUnlit  = IM_COL32( 45,   0,  20, 225);
 
 // ── Layout constants ──────────────────────────────────────────────────────────
 static constexpr float PTBAR1_H   = 32.0f;
@@ -927,9 +927,7 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
         bool isMeasure = (r % rpm == 0);
         bool isBeat    = (r % rpb == 0) && !isMeasure;
 
-        if (isCur)
-            ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, ImGui::ColorConvertFloat4ToU32(kBgCurRow));
-        else if (isMeasure)
+        if (isMeasure)
             ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, ImGui::ColorConvertFloat4ToU32(kBgMeasure));
         else if (isBeat)
             ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, ImGui::ColorConvertFloat4ToU32(kBgHilight));
@@ -942,6 +940,19 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
         }
 
         ImGui::TableNextColumn();
+        if (isCur) {
+            ImDrawList* dl  = ImGui::GetWindowDrawList();
+            ImRect      icr = ImGui::GetCurrentWindow()->InnerClipRect;
+            float       pad = ImGui::GetStyle().CellPadding.y;
+            float       rT  = ImGui::GetCursorScreenPos().y - pad;
+            float       rH  = ImGui::GetTextLineHeight() + 2.f * pad;
+            dl->PushClipRect(icr.Min, icr.Max, false);
+            dl->AddRectFilledMultiColor(
+                {icr.Min.x, rT}, {icr.Max.x, rT + rH},
+                IM_COL32(40, 85, 145, 128), IM_COL32(40, 85, 145, 205),
+                IM_COL32(40, 85, 145, 255), IM_COL32(40, 85, 145, 255));
+            dl->PopClipRect();
+        }
         ImGui::TextColored(isCur ? kTextCurRow : (isBeat||isMeasure ? kTextNormal : kDim), "%3d", r);
 
         for (int ch = 0; ch < nch; ch++) {
@@ -984,7 +995,12 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
             }
 
             float subX[5], subW[5];
-            auto recordPos = [&](int col) { subX[col] = ImGui::GetCursorScreenPos().x; };
+            float cellY = 0.f;
+            auto recordPos = [&](int col) {
+                ImVec2 cp = ImGui::GetCursorScreenPos();
+                subX[col] = cp.x;
+                if (col == 0) cellY = cp.y;
+            };
 
             std::string note  = m_mod->format_pattern_row_channel_command(curPat, r, ch, openmpt::module::command_note);
             std::string inst  = m_mod->format_pattern_row_channel_command(curPat, r, ch, openmpt::module::command_instrument);
@@ -1027,6 +1043,48 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
                 float x1cell = subX[4] + subW[4] + 1;
                 ImGui::GetWindowDrawList()->AddRect(
                     {x0cell, y0-1}, {x1cell, y1+1}, IM_COL32(255,255,255,220));
+            }
+
+            // Glow on non-empty cells — skip empty dots
+            if (hasNote || hasInst || hasVol || hasFx) {
+                ImDrawList* gdl  = ImGui::GetWindowDrawList();
+                ImFont*     font = ImGui::GetFont();
+                float       fsz  = ImGui::GetFontSize();
+                gdl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {
+                    glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+                }, nullptr);
+                auto addGlowText = [&](float gx, const ImVec4& c, const char* txt) {
+                    uint8_t a1 = isCur ? 30 : 20;
+                    uint8_t a2 = isCur ? 10 : 10;
+                    uint8_t a3 = isCur ? 5 :  0;
+                    ImU32 gc1 = IM_COL32((uint8_t)(c.x*255.f),(uint8_t)(c.y*255.f),(uint8_t)(c.z*255.f), a1);
+                    ImU32 gc2 = IM_COL32((uint8_t)(c.x*255.f),(uint8_t)(c.y*255.f),(uint8_t)(c.z*255.f), a2);
+                    ImU32 gc3 = IM_COL32((uint8_t)(c.x*255.f),(uint8_t)(c.y*255.f),(uint8_t)(c.z*255.f), a3);
+                    gdl->AddText(font, fsz, {gx-1, cellY-1}, gc1, txt);
+                    gdl->AddText(font, fsz, {gx+1, cellY-1}, gc1, txt);
+                    gdl->AddText(font, fsz, {gx-1, cellY+1}, gc1, txt);
+                    gdl->AddText(font, fsz, {gx+1, cellY+1}, gc1, txt);
+                    gdl->AddText(font, fsz, {gx-2, cellY-2}, gc2, txt);
+                    gdl->AddText(font, fsz, {gx+2, cellY-2}, gc2, txt);
+                    gdl->AddText(font, fsz, {gx-2, cellY+2}, gc2, txt);
+                    gdl->AddText(font, fsz, {gx+2, cellY+2}, gc2, txt);
+                    if (a3) {
+                        gdl->AddText(font, fsz, {gx-3, cellY-3}, gc3, txt);
+                        gdl->AddText(font, fsz, {gx+3, cellY-3}, gc3, txt);
+                        gdl->AddText(font, fsz, {gx-3, cellY+3}, gc3, txt);
+                        gdl->AddText(font, fsz, {gx+3, cellY+3}, gc3, txt);
+                    }
+                };
+                if (hasNote) addGlowText(subX[0], kColNote,   note.c_str());
+                if (hasInst) addGlowText(subX[1], kColInstr,  inst.c_str());
+                if (hasVol)  addGlowText(subX[2], kColVolume, vol.c_str());
+                if (hasFx) {
+                    addGlowText(subX[3], kColGlobal, fx.c_str());
+                    addGlowText(subX[4], kColGlobal, fxp.c_str());
+                }
+                gdl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {
+                    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+                }, nullptr);
             }
         }
     }

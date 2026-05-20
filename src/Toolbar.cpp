@@ -27,12 +27,12 @@ static void popToolbarStyle()
     ImGui::PopStyleColor(6);
 }
 
-static const ImU32 kVuLoLit    = IM_COL32(  0, 220, 255, 255);  // cyan
-static const ImU32 kVuLoUnlit  = IM_COL32(  0,  35,  45, 255);
-static const ImU32 kVuMedLit   = IM_COL32(255,  30, 180, 255);  // hot pink
-static const ImU32 kVuMedUnlit = IM_COL32( 45,   0,  30, 255);
-static const ImU32 kVuHiLit    = IM_COL32(200,   0, 255, 255);  // violet
-static const ImU32 kVuHiUnlit  = IM_COL32( 35,   0,  50, 255);
+static const ImU32 kVuLoLit    = IM_COL32(  0, 220, 255, 225);  // cyan
+static const ImU32 kVuLoUnlit  = IM_COL32(  0,  35,  45, 225);
+static const ImU32 kVuMedLit   = IM_COL32(255,  30, 180, 225);  // hot pink
+static const ImU32 kVuMedUnlit = IM_COL32( 45,   0,  30, 225);
+static const ImU32 kVuHiLit    = IM_COL32(255,   0,  90, 225);  // red
+static const ImU32 kVuHiUnlit  = IM_COL32( 45,   0,  20, 225);
 
 static void drawVU(ImDrawList* dl,
                    float x, float y, float w, float h,

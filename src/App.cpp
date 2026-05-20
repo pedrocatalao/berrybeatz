@@ -335,7 +335,7 @@ void App::drawSidebar(float x, float y, float w, float h)
     ImGui::PushStyleColor(ImGuiCol_Header,               IM_COL32(45, 45, 75, 255));
     ImGui::PushStyleColor(ImGuiCol_HeaderHovered,        IM_COL32(60, 60, 95, 255));
     ImGui::PushStyleColor(ImGuiCol_HeaderActive,         IM_COL32(75, 75, 115, 255));
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,     ImVec2(6.f, 4.f));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,     ImVec2(8.f, 4.f));
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,       ImVec2(4.f, 2.f));
     ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing,     12.f);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize,  0.f);

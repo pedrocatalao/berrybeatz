@@ -141,7 +141,7 @@ float DrawToolbar(ToolbarState& state,
             return clicked;
         };
 
-        ImGui::SetCursorPosX(11.f);  // shift right to clear rounded corner
+        ImGui::SetCursorPosX(8.f);
         if (wbutton('x', IM_COL32(140, 28, 28, 255)))
             { if (state.onWindowClose)    state.onWindowClose();    }
         ImGui::SameLine(0.f, 3.f);
@@ -201,7 +201,7 @@ float DrawToolbar(ToolbarState& state,
 
     if (!state.hasModule) ImGui::EndDisabled();
 
-    ImGui::SetCursorPos({16.f, knobMidY});
+    ImGui::SetCursorPos({13.f, knobMidY});
 
     // ─── Knobs ────────────────────────────────────────────────────────────────
     // Each knob is 36×36; draw label text below via the draw list.

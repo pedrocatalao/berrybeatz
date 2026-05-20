@@ -132,7 +132,7 @@ private:
     EditCursor m_cur;
     float      m_visualRow     {0.f};
     int32_t    m_baseOctave    {4};
-    int32_t    m_editStep      {1};
+    int        m_editStep      {1};
     bool       m_editMode      {false};
     int32_t    m_pluginPopupCh {-1};
 
@@ -157,7 +157,7 @@ private:
     bool    m_showPluginRow {true};
     bool    m_loopPattern   {false};
     bool    m_followSong    {true};
-    int32_t m_curInstrument {1};
+    int32_t m_curInstrument {0};
     bool    m_overflowPaste {false};
     bool    m_detailView    {false};
 };

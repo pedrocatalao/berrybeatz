@@ -435,31 +435,82 @@ void TrackerView::drawPatternToolbar2(float /*x*/, float /*y*/, float /*w*/) {
     pushToolbarStyle();
     ImGui::SetCursorPosY((ImGui::GetWindowHeight() - ImGui::GetFrameHeight()) * 0.5f);
 
+    ImGui::AlignTextToFramePadding();
     ImGui::TextColored(kDim, "Instr");
     ImGui::SameLine(0, 4);
-    ImGui::SetNextItemWidth(48.0f);
-    if (ImGui::InputInt("##instr", &m_curInstrument, 1, 1))
-        m_curInstrument = std::clamp(m_curInstrument, 1, 255);
-    tip("Current instrument number");
+    {
+        std::vector<std::string> names;
+        int total = 0;
+        {
+            std::lock_guard<std::mutex> lk(m_state.meta_mutex);
+            if (m_state.num_instruments > 0) {
+                names = m_state.instrument_names;
+                total = m_state.num_instruments;
+            } else {
+                names = m_state.sample_names;
+                total = m_state.num_samples;
+            }
+        }
+        char preview[80];
+        if (m_curInstrument <= 0)
+            snprintf(preview, sizeof(preview), "No instrument");
+        else {
+            int idx = m_curInstrument - 1;
+            if (idx < (int)names.size() && !names[idx].empty())
+                snprintf(preview, sizeof(preview), "%02d: %s", m_curInstrument, names[idx].c_str());
+            else
+                snprintf(preview, sizeof(preview), "%02d", m_curInstrument);
+        }
+        ImGui::SetNextItemWidth(160.0f);
+        bool comboOpen = ImGui::BeginCombo("##instr", preview,
+            ImGuiComboFlags_HeightLarge | ImGuiComboFlags_NoArrowButton);
+        // Small custom down-arrow
+        {
+            ImVec2 rMin = ImGui::GetItemRectMin(), rMax = ImGui::GetItemRectMax();
+            float cx = rMax.x - 10.f, cy = (rMin.y + rMax.y) * 0.5f;
+            constexpr float s = 4.f;
+            ImGui::GetWindowDrawList()->AddTriangleFilled(
+                {cx - s, cy - s * 0.55f}, {cx + s, cy - s * 0.55f}, {cx, cy + s * 0.65f},
+                IM_COL32(180, 180, 200, 200));
+        }
+        if (comboOpen) {
+            if (ImGui::Selectable("No instrument", m_curInstrument <= 0))
+                m_curInstrument = 0;
+            if (m_curInstrument <= 0) ImGui::SetItemDefaultFocus();
+            for (int i = 1; i <= total; i++) {
+                char lbl[80];
+                int idx = i - 1;
+                if (idx < (int)names.size() && !names[idx].empty())
+                    snprintf(lbl, sizeof(lbl), "%02d: %s", i, names[idx].c_str());
+                else
+                    snprintf(lbl, sizeof(lbl), "%02d", i);
+                bool sel = (m_curInstrument == i);
+                if (ImGui::Selectable(lbl, sel)) m_curInstrument = i;
+                if (sel) ImGui::SetItemDefaultFocus();
+            }
+            ImGui::EndCombo();
+        }
+    }
+    tip("Current instrument — click to pick from list");
 
-    tbSep();
-
-    ImGui::TextColored(kDim, "Plugin");
-    ImGui::SameLine(0, 4);
-    ImGui::SetNextItemWidth(70.0f);
+    ImGui::SameLine(0, 6);
     ImGui::BeginDisabled();
-    int plugDummy = 0;
-    ImGui::InputInt("##plugin2", &plugDummy, 0, 0);
+    ImGui::Button("Plugin##plugin2");
     ImGui::EndDisabled();
     tip("Plugin selector (not yet available)");
 
     tbSep();
 
     ImGui::TextColored(kDim, "Step");
+    ImGui::SameLine(0, 6);
+    ImGui::TextColored(ImVec4(0.82f, 0.82f, 0.88f, 1.f), "%d", m_editStep);
     ImGui::SameLine(0, 4);
     ImGui::SetNextItemWidth(44.0f);
-    if (ImGui::InputInt("##step2", &m_editStep, 1, 1))
-        m_editStep = std::clamp(m_editStep, 0, 16);
+    {
+        int sv = m_editStep;
+        if (ImGui::InputInt("##step2", &sv, 1, 1))
+            m_editStep = std::clamp(sv, 0, 16);
+    }
     tip("Edit step (- / + keys)");
 
     tbSep();

@@ -814,7 +814,7 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
                 float chAmp = (vu[ch].left + vu[ch].right) * 0.5f;
                 norm *= std::min(chAmp * 30.0f, 1.0f);
 
-                ImU32 wavCol = muted ? IM_COL32(40, 55, 45, 160) : IM_COL32(70, 215, 120, 220);
+                ImU32 wavCol = muted ? IM_COL32(80, 80, 80, 120) : IM_COL32(190, 190, 200, 220);
                 float xscale = (cw - 2.f) / float(displayN);
                 ImVec2 prev  = {p.x, cy - masterWave.samples[start] * norm};
                 for (int i = 1; i < displayN; ++i) {

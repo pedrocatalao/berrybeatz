@@ -153,7 +153,7 @@ private:
 
     // Pattern toolbar state
     bool    m_showVU        {true};
-    bool    m_showWave      {false};
+    bool    m_showWave      {true};
     bool    m_showPluginRow {true};
     bool    m_loopPattern   {false};
     bool    m_followSong    {true};

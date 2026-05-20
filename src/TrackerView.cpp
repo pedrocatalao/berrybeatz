@@ -553,7 +553,11 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
         }
     }
 
-    if (!ImGui::BeginTable("##pat", totalCols, tFlags, avail)) return;
+    ImGui::PushStyleColor(ImGuiCol_TableBorderStrong, IM_COL32(0, 0, 0, 0));
+    ImGui::PushStyleColor(ImGuiCol_TableBorderLight,  IM_COL32(0, 0, 0, 0));
+    bool tableOpen = ImGui::BeginTable("##pat", totalCols, tFlags, avail);
+    ImGui::PopStyleColor(2);
+    if (!tableOpen) return;
 
     ImGui::TableSetupScrollFreeze(1, 1);  // freeze col 0 + row 0 (channel headers)
     ImGui::TableSetupColumn("##row", ImGuiTableColumnFlags_WidthFixed, m_rowNumW);

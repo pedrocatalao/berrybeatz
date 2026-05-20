@@ -6,6 +6,8 @@
 #include <cstring>
 #include <cmath>
 #include <algorithm>
+#include <thread>
+#include <chrono>
 
 static constexpr int SAMPLE_RATE  = 48000;
 static constexpr int FRAMES_BLOCK = 480; // 10ms per block
@@ -44,23 +46,26 @@ struct PaCallbackData {
     }
 };
 
-AudioEngine::AudioEngine(ModuleState& state, QObject* parent)
-    : QThread(parent), m_state(state) {}
+AudioEngine::AudioEngine(ModuleState& state)
+    : m_state(state) {}
 
 AudioEngine::~AudioEngine() {
     stop();
-    wait();
+    join();
 }
 
-bool AudioEngine::loadFile(const QString& path) {
-    std::ifstream f(path.toStdString(), std::ios::binary);
-    if (!f) { emit loadFailed("Cannot open file: " + path); return false; }
+bool AudioEngine::loadFile(const std::string& path) {
+    std::ifstream f(path, std::ios::binary);
+    if (!f) {
+        if (onLoadFailed) onLoadFailed("Cannot open file: " + path);
+        return false;
+    }
     try {
         m_mod = std::make_unique<openmpt::module_ext>(f);
         fillState();
         return true;
     } catch (const std::exception& e) {
-        emit loadFailed(QString("Failed to load module: ") + e.what());
+        if (onLoadFailed) onLoadFailed(std::string("Failed to load module: ") + e.what());
         return false;
     }
 }
@@ -84,11 +89,19 @@ void AudioEngine::fillState() {
     m_state.duration_seconds  = m_mod->get_duration_seconds();
 }
 
-void AudioEngine::stop()                    { m_stop.store(true); }
+void AudioEngine::start() {
+    m_stop.store(false);
+    m_paused.store(false);
+    m_thread = std::thread(&AudioEngine::run, this);
+}
+
+void AudioEngine::stop()  { m_stop.store(true); }
+void AudioEngine::join()  { if (m_thread.joinable()) m_thread.join(); }
+bool AudioEngine::isRunning() const { return m_running.load(); }
 
 void AudioEngine::rewind() {
     m_stop.store(true);
-    wait(); // blocks until audio thread exits (≤50ms)
+    join();
     if (m_mod) m_mod->set_position_seconds(0.0);
     m_stop.store(false);
     m_paused.store(false);
@@ -99,6 +112,7 @@ void AudioEngine::rewind() {
         m_state.vu.fill({});
     }
 }
+
 void AudioEngine::setPaused(bool p)         { m_paused.store(p); }
 void AudioEngine::seekSeconds(double s)     { m_seek.store(s); }
 void AudioEngine::seekToOrder(int32_t o)    { m_seek_order.store(o); }
@@ -153,7 +167,6 @@ int AudioEngine::paCallback(const void*, void* output,
         return d->stop->load() ? paAbort : paContinue;
     }
 
-    // Pending seeks / subsong change
     // Apply pending channel mute changes via the interactive extension (same thread as read())
     uint64_t newMask = d->state->channel_mute_mask.load();
     if (newMask != d->appliedMuteMask) {
@@ -262,21 +275,21 @@ int AudioEngine::paCallback(const void*, void* output,
 
 void AudioEngine::run() {
     if (!m_mod) return;
-    m_stop.store(false);
+    m_running.store(true);
     m_state.is_playing.store(true);
 
     PaCallbackData cbData;
-    cbData.mod              = m_mod.get();
-    cbData.state            = &m_state;
-    cbData.stop             = &m_stop;
-    cbData.paused           = &m_paused;
-    cbData.seek             = &m_seek;
-    cbData.seek_order       = &m_seek_order;
-    cbData.subsong          = &m_subsong;
-    cbData.pat_play_order   = &m_patPlayOrder;
-    cbData.pat_play_startrow= &m_patPlayStartRow;
-    cbData.pat_play_loop    = &m_patPlayLoop;
-    cbData.pat_play_single  = &m_patPlaySingle;
+    cbData.mod               = m_mod.get();
+    cbData.state             = &m_state;
+    cbData.stop              = &m_stop;
+    cbData.paused            = &m_paused;
+    cbData.seek              = &m_seek;
+    cbData.seek_order        = &m_seek_order;
+    cbData.subsong           = &m_subsong;
+    cbData.pat_play_order    = &m_patPlayOrder;
+    cbData.pat_play_startrow = &m_patPlayStartRow;
+    cbData.pat_play_loop     = &m_patPlayLoop;
+    cbData.pat_play_single   = &m_patPlaySingle;
 
     Pa_Initialize();
 
@@ -287,18 +300,22 @@ void AudioEngine::run() {
     if (err != paNoError) {
         Pa_Terminate();
         m_state.is_playing.store(false);
-        emit loadFailed(QString("PortAudio: ") + Pa_GetErrorText(err));
+        m_running.store(false);
+        if (onLoadFailed) onLoadFailed(std::string("PortAudio: ") + Pa_GetErrorText(err));
         return;
     }
 
     Pa_StartStream(stream);
     while (!m_stop.load() && Pa_IsStreamActive(stream) > 0)
-        msleep(50);
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
     Pa_StopStream(stream);
     Pa_CloseStream(stream);
     Pa_Terminate();
 
     m_state.is_playing.store(false);
-    if (!m_stop.load()) emit songFinished();
+    m_running.store(false);
+    if (!m_stop.load()) {
+        if (onSongFinished) onSongFinished();
+    }
 }

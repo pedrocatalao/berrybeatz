@@ -1,18 +1,15 @@
 #pragma once
-#include <QOpenGLWidget>
-#include <QTimer>
-#include <QString>
 #include <functional>
+#include <cstdint>
 #include "ModuleState.h"
 
-struct ImGuiContext;
-struct ImDrawList;
 struct ImFont;
+struct ImDrawList;
 namespace openmpt { class module; class module_ext; }
 
 struct KnobEditState {
     bool                      pendingOpen {false};
-    QString                   title;
+    std::string               title;
     int                       value {0};
     int                       vmin  {0};
     int                       vmax  {100};
@@ -21,7 +18,6 @@ struct KnobEditState {
     std::function<void(int)>  onConfirm;
 };
 
-// Sub-column positions within one channel cell
 enum class EditCol : uint8_t { Note=0, Instr=1, Vol=2, FxCmd=3, FxParam=4, _Count=5 };
 
 struct EditCursor {
@@ -30,61 +26,46 @@ struct EditCursor {
     EditCol  col    {EditCol::Note};
 };
 
-class TrackerView : public QOpenGLWidget {
-    Q_OBJECT
+class TrackerView {
 public:
-    explicit TrackerView(ModuleState& state, QWidget* parent = nullptr);
-    ~TrackerView() override;
+    explicit TrackerView(ModuleState& state);
+    ~TrackerView() = default;
 
     void setModule(openmpt::module_ext* mod) { m_mod = mod; }
     void clearModule() { m_mod = nullptr; }
+    void setFonts(ImFont* mono, ImFont* ui) { m_fontMono = mono; m_fontUI = ui; }
 
     int  baseOctave() const   { return m_baseOctave; }
     void setBaseOctave(int o) { m_baseOctave = std::clamp(o, 0, 8); }
 
-    void requestKnobEdit(const QString& title, int value, int vmin, int vmax,
-                         float px, float py, std::function<void(int)> onConfirm);
+    // Call each frame when the patterns tab is visible.
+    // (x,y,w,h) is the area allocated by the App for the pattern editor.
+    void render(float x, float y, float w, float h);
 
-signals:
-    void orderSeekRequested(int32_t order);
-    void patternPlayFromCursor(int32_t order, int32_t row, bool loop);
-    void patternPlayFromStart(int32_t order, bool loop);
-    void patternPlayRow(int32_t order, int32_t row);
-    void stopRequested();
-
-protected:
-    void initializeGL() override;
-    void resizeGL(int w, int h) override;
-    void paintGL() override;
-
-    void mousePressEvent(QMouseEvent* e) override;
-    void mouseReleaseEvent(QMouseEvent* e) override;
-    void mouseMoveEvent(QMouseEvent* e) override;
-    void wheelEvent(QWheelEvent* e) override;
-    void keyPressEvent(QKeyEvent* e) override;
-    void keyReleaseEvent(QKeyEvent* e) override;
+    // Callbacks wired up by App
+    std::function<void(int32_t)>                onOrderSeekRequested;
+    std::function<void(int32_t, int32_t, bool)> onPatternPlayFromCursor;
+    std::function<void(int32_t, bool)>          onPatternPlayFromStart;
+    std::function<void(int32_t, int32_t)>       onPatternPlayRow;
+    std::function<void()>                       onStopRequested;
 
 private:
-    void renderUI();
-    void drawPatternToolbar1();
-    void drawPatternToolbar2();
-    void drawOrderList();
-    void drawChannelStrip();
-    void drawPatternPanel();
+    void processInput();
+    void drawPatternToolbar1(float x, float y, float w);
+    void drawPatternToolbar2(float x, float y, float w);
+    void drawOrderList(float x, float y, float w);
+    void drawChannelStrip(float x, float y, float w);
+    void drawPatternPanel(float x, float y, float w, float h);
     void drawStereoVU(ImDrawList* dl, float x, float y, float w, float h, float lvlL, float lvlR);
 
-    // Pattern editing
-    void handleEditKey(int qtKey, Qt::KeyboardModifiers mods, const QString& text);
     void enterNote(uint8_t note);
     void advanceCursor();
     void clampCursor();
 
     ModuleState&          m_state;
-    openmpt::module_ext*  m_mod        {nullptr};
-    ImGuiContext*         m_imgui      {nullptr};
-    ImFont*               m_fontUI     {nullptr}; // proportional font for toolbar buttons
-    QTimer                m_timer;
-    double                m_lastTime   {0.0};
+    openmpt::module_ext*  m_mod      {nullptr};
+    ImFont*               m_fontMono {nullptr};
+    ImFont*               m_fontUI   {nullptr};
 
     // Layout cache
     float    m_charW       {8.0f};
@@ -104,12 +85,9 @@ private:
     bool       m_editMode      {false};
     int32_t    m_pluginPopupCh {-1};
 
-    // Dynamic layout (recomputed each frame from toggle state)
-    float   m_chanH  {45.0f}; // CHANNAME_H+VU_H+PLUGIN_H, updated each frame
+    // Dynamic layout
+    float   m_chanH  {45.0f};
     float   m_patTop {0.0f};
-
-    // Knob edit modal state
-    KnobEditState m_knobEdit;
 
     // Pattern toolbar state
     bool    m_showVU        {true};

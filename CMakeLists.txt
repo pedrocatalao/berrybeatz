@@ -1,16 +1,16 @@
 cmake_minimum_required(VERSION 3.22)
-project(OpenMPTMac VERSION 0.1 LANGUAGES CXX)
+project(BerryBeatz VERSION 0.1 LANGUAGES CXX OBJCXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_AUTOMOC ON)
-set(CMAKE_AUTORCC ON)
-
-# Qt
-find_package(Qt6 REQUIRED COMPONENTS Core Widgets OpenGL OpenGLWidgets)
 
 # OpenGL
 find_package(OpenGL REQUIRED)
+
+# GLFW (Homebrew arm64 prefix)
+set(GLFW_ROOT "/opt/homebrew/opt/glfw")
+find_library(GLFW_LIBRARY glfw HINTS "${GLFW_ROOT}/lib" REQUIRED)
+set(GLFW_INCLUDE_DIR "${GLFW_ROOT}/include")
 
 # PortAudio + libopenmpt runtime deps
 find_package(PkgConfig REQUIRED)
@@ -44,7 +44,7 @@ set_target_properties(libopenmpt PROPERTIES
     INTERFACE_INCLUDE_DIRECTORIES "${OPENMPT_ROOT}"
 )
 
-# Dear ImGui
+# Dear ImGui (with GLFW backend)
 set(IMGUI_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/imgui")
 add_library(imgui STATIC
     ${IMGUI_DIR}/imgui.cpp
@@ -52,44 +52,53 @@ add_library(imgui STATIC
     ${IMGUI_DIR}/imgui_widgets.cpp
     ${IMGUI_DIR}/imgui_tables.cpp
     ${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp
+    ${IMGUI_DIR}/backends/imgui_impl_glfw.cpp
 )
-target_include_directories(imgui PUBLIC ${IMGUI_DIR} ${IMGUI_DIR}/backends)
+target_include_directories(imgui PUBLIC
+    ${IMGUI_DIR}
+    ${IMGUI_DIR}/backends
+    ${GLFW_INCLUDE_DIR}
+)
 
-# Main app
+# Main app sources
 set(SOURCES
     src/main.cpp
-    src/MainWindow.cpp
+    src/App.cpp
+    src/Toolbar.cpp
     src/AudioEngine.cpp
     src/TrackerView.cpp
     src/PatternEditor.cpp
+    src/CocoaHelpers.mm
+    src/Logo.mm
+    assets/logo.png
+    assets/AppIcon.icns
 )
 
-set(HEADERS
-    src/MainWindow.h
-    src/AudioEngine.h
-    src/ModuleState.h
-    src/TrackerView.h
-)
-
-add_executable(OpenMPTMac MACOSX_BUNDLE
+add_executable(BerryBeatz MACOSX_BUNDLE
     ${SOURCES}
-    src/MainWindow.h
-    src/AudioEngine.h
-    src/TrackerView.h
 )
 
-target_include_directories(OpenMPTMac PRIVATE
+# Mark the Objective-C++ sources explicitly
+set_source_files_properties(src/CocoaHelpers.mm src/Logo.mm PROPERTIES
+    LANGUAGE OBJCXX
+)
+
+# Bundle the logo into Resources/
+set_source_files_properties(assets/logo.png assets/AppIcon.icns PROPERTIES
+    MACOSX_PACKAGE_LOCATION Resources
+)
+
+target_include_directories(BerryBeatz PRIVATE
     src
+    ${GLFW_INCLUDE_DIR}
     ${PORTAUDIO_INCLUDE_DIRS}
     ${OPENMPT_ROOT}
+    ${MPG123_INCLUDE_DIRS}
 )
 
-target_link_libraries(OpenMPTMac PRIVATE
-    Qt6::Core
-    Qt6::Widgets
-    Qt6::OpenGL
-    Qt6::OpenGLWidgets
+target_link_libraries(BerryBeatz PRIVATE
     OpenGL::GL
+    ${GLFW_LIBRARY}
     imgui
     libopenmpt
     ${PORTAUDIO_LINK_LIBRARIES}
@@ -98,17 +107,21 @@ target_link_libraries(OpenMPTMac PRIVATE
     ${OGG_LINK_LIBRARIES}
     ${MPG123_LIBRARIES}
     "-lz"
+    "-framework Cocoa"
+    "-framework IOKit"
     "-framework CoreAudio"
     "-framework AudioUnit"
     "-framework CoreFoundation"
     "-framework CoreMIDI"
 )
 
-target_compile_options(OpenMPTMac PRIVATE ${PORTAUDIO_CFLAGS_OTHER})
+target_compile_options(BerryBeatz PRIVATE ${PORTAUDIO_CFLAGS_OTHER})
 
-set_target_properties(OpenMPTMac PROPERTIES
-    MACOSX_BUNDLE_GUI_IDENTIFIER "org.openmpt.mac"
-    MACOSX_BUNDLE_BUNDLE_NAME "OpenMPT"
+set_target_properties(BerryBeatz PROPERTIES
+    MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/assets/Info.plist"
+    MACOSX_BUNDLE_GUI_IDENTIFIER "com.berrybeatz.app"
+    MACOSX_BUNDLE_BUNDLE_NAME "BerryBeatz"
+    MACOSX_BUNDLE_ICON_FILE "AppIcon"
     MACOSX_BUNDLE_BUNDLE_VERSION "0.1"
     MACOSX_BUNDLE_SHORT_VERSION_STRING "0.1"
 )

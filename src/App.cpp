@@ -264,7 +264,7 @@ void App::render(int winW, int winH)
     ImGui::PopStyleVar(2);
     ImGui::PopStyleColor();
 
-    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,   ImVec2(5.f, 2.f));
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,   ImVec2(8.5f, 4.f));
     ImGui::PushStyleVar(ImGuiStyleVar_ItemInnerSpacing, ImVec2(1.f, 0.f));
     ImGui::PushStyleColor(ImGuiCol_Tab,        IM_COL32(10, 10, 22, 255));
     ImGui::PushStyleColor(ImGuiCol_TabHovered, IM_COL32(35, 35, 60, 255));

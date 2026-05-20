@@ -68,7 +68,7 @@ private:
     int m_rsWinW   {0}, m_rsWinH   {0};
 
     static constexpr float kToolbarH  = 78.f;
-    static constexpr float kTabBarH   = 22.f;
+    static constexpr float kTabBarH   = 26.f;
     static constexpr float kSplitterW =  6.f;  // hit area; line drawn at 1px centre
 
     std::string m_loadedPath;

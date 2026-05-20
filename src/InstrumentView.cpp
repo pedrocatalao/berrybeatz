@@ -761,7 +761,7 @@ void InstrumentView::drawNoteKeyboard(float w, float h) {
         // The white key to the left
         int prevWhiteIdx = whiteIndex - 1;  // actually the current accumulated white index
         // Black key x: right portion of previous white key
-        float kx = origin.x + (prevWhiteIdx + kBlackOffset[semi]) * whiteW - blackW * 0.5f;
+        float kx = origin.x + (prevWhiteIdx + kBlackOffset[semi]) * whiteW - blackW * 0.5f + 7.f;
         float ky = origin.y;
         ImVec2 kMin = {kx,            ky};
         ImVec2 kMax = {kx + blackW,   ky + blackH};

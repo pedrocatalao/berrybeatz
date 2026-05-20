@@ -51,8 +51,9 @@ static const ImU32 kVuHiLit    = IM_COL32(255,   0, 255,  90);  // violet
 static const ImU32 kVuHiUnlit  = IM_COL32( 45,   0,  20, 225);
 
 // ── Layout constants ──────────────────────────────────────────────────────────
-static constexpr float PTBAR1_H   = 32.0f;
-static constexpr float PTBAR2_H   = 30.0f;
+static constexpr float PTBAR1_H   = 28.0f;
+static constexpr float PTBAR2_H   = 28.0f;
+static constexpr float PTBAR3_H   = 28.0f;
 static constexpr float ORDER_H    = 26.0f;
 static constexpr float CHANNAME_H = 18.0f;
 static constexpr float VU_H       = 13.0f;
@@ -268,7 +269,7 @@ void TrackerView::render(float x, float y, float w, float h) {
              + (m_showVU        ? VU_H     : 0.f)
              + (m_showWave      ? WAVE_H   : 0.f)
              + (m_showPluginRow ? PLUGIN_H : 0.f);
-    m_patTop = y + PTBAR1_H + PTBAR2_H + ORDER_H + m_chanH;
+    m_patTop = y + PTBAR1_H + PTBAR2_H + PTBAR3_H + ORDER_H + m_chanH;
 
     ImGuiWindowFlags noDecoFlags =
         ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
@@ -286,26 +287,35 @@ void TrackerView::render(float x, float y, float w, float h) {
     drawPatternToolbar1(x, y, w);
     ImGui::End();
 
-    // Pattern toolbar row 2
+    // Pattern toolbar row 2 (edit ops)
     ImGui::SetNextWindowPos ({x, y + PTBAR1_H});
-    ImGui::SetNextWindowSize({w, PTBAR2_H});
+    ImGui::SetNextWindowSize({w, PTBAR3_H});
     ImGui::PushStyleColor(ImGuiCol_WindowBg, kBarBg);
     ImGui::Begin("##ptbar2", nullptr, noDecoFlags | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
     ImGui::PopStyleColor();
-    drawPatternToolbar2(x, y + PTBAR1_H, w);
+    drawPatternToolbar3(x, y + PTBAR1_H, w);
+    ImGui::End();
+
+    // Pattern toolbar row 3 (instrument/step)
+    ImGui::SetNextWindowPos ({x, y + PTBAR1_H + PTBAR3_H});
+    ImGui::SetNextWindowSize({w, PTBAR2_H});
+    ImGui::PushStyleColor(ImGuiCol_WindowBg, kBarBg);
+    ImGui::Begin("##ptbar3", nullptr, noDecoFlags | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+    ImGui::PopStyleColor();
+    drawPatternToolbar2(x, y + PTBAR1_H + PTBAR3_H, w);
     ImGui::End();
 
     // Order list
-    ImGui::SetNextWindowPos ({x, y + PTBAR1_H + PTBAR2_H});
+    ImGui::SetNextWindowPos ({x, y + PTBAR1_H + PTBAR2_H + PTBAR3_H});
     ImGui::SetNextWindowSize({w, ORDER_H});
     ImGui::PushStyleColor(ImGuiCol_WindowBg, kOrderBg);
     ImGui::Begin("##orders", nullptr, noDecoFlags | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
     ImGui::PopStyleColor();
-    drawOrderList(x, y + PTBAR1_H + PTBAR2_H, w);
+    drawOrderList(x, y + PTBAR1_H + PTBAR2_H + PTBAR3_H, w);
     ImGui::End();
 
     // Pattern panel — channel headers are the frozen first row of the table
-    float chanY = y + PTBAR1_H + PTBAR2_H + ORDER_H;
+    float chanY = y + PTBAR1_H + PTBAR2_H + PTBAR3_H + ORDER_H;
     float patH  = h - (chanY - y);
     ImGui::SetNextWindowPos ({x, chanY});
     ImGui::SetNextWindowSize({w, patH});
@@ -409,19 +419,41 @@ void TrackerView::drawPatternToolbar1(float /*x*/, float /*y*/, float /*w*/) {
     ImGui::SameLine();
     togBtn("FX##fx", m_showPluginRow); tip("Show/hide plugin row");
 
-    tbSep();
+    popToolbarStyle();
+    if (m_fontUI) ImGui::PopFont();
+}
+
+// ── Pattern toolbar row 3 ─────────────────────────────────────────────────────
+
+void TrackerView::drawPatternToolbar3(float /*x*/, float /*y*/, float /*w*/) {
+    bool has = m_mod != nullptr;
+    if (m_fontUI) ImGui::PushFont(m_fontUI);
+    pushToolbarStyle();
+    ImGui::SetCursorPosY((ImGui::GetWindowHeight() - ImGui::GetFrameHeight()) * 0.5f);
+
+    auto actBtn = [&](const char* lbl, bool enabled = true) -> bool {
+        if (!enabled) ImGui::BeginDisabled();
+        bool r = ImGui::Button(lbl);
+        if (!enabled) ImGui::EndDisabled();
+        return r;
+    };
+
     if (actBtn("Undo##undo", has && !m_undoStack.empty())) { doUndo(); } tip("Undo");
     ImGui::SameLine();
-    if (actBtn("Props##props",     has)) {} tip("Pattern properties");
+    if (actBtn("Props##props",  has)) {} tip("Pattern properties");
     ImGui::SameLine();
-    if (actBtn("Expand##exp",      has)) {} tip("Expand pattern");
+    if (actBtn("Expand##exp",   has)) {} tip("Expand pattern");
     ImGui::SameLine();
-    if (actBtn("Shrink##shr",      has)) {} tip("Shrink pattern");
+    if (actBtn("Shrink##shr",   has)) {} tip("Shrink pattern");
 
     tbSep();
-    togBtn("Detail##detail", m_detailView); tip("Detail view");
+    togBtn("Loop##lp",           m_loopPattern);    tip("Loop current pattern");
+    ImGui::SameLine();
+    togBtn("Follow##fw",         m_followSong);     tip("Follow playback cursor");
     tbSep();
-    togBtn("Overflow##ovf", m_overflowPaste); tip("Overflow paste");
+    togBtn("Detail##detail",     m_detailView);     tip("Detail view");
+    tbSep();
+    togBtn("Overflow##ovf",      m_overflowPaste);  tip("Overflow paste");
 
     popToolbarStyle();
     if (m_fontUI) ImGui::PopFont();
@@ -512,11 +544,6 @@ void TrackerView::drawPatternToolbar2(float /*x*/, float /*y*/, float /*w*/) {
             m_editStep = std::clamp(sv, 0, 16);
     }
     tip("Edit step (- / + keys)");
-
-    tbSep();
-    togBtn("Loop##lp",   m_loopPattern); tip("Loop current pattern");
-    ImGui::SameLine();
-    togBtn("Follow##fw", m_followSong);  tip("Follow playback cursor");
 
     tbSep();
 

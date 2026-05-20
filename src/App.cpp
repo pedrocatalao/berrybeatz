@@ -343,11 +343,13 @@ void App::drawSidebar(float x, float y, float w, float h)
     ImGui::SetNextWindowPos({x, y}, ImGuiCond_Always);
     ImGui::SetNextWindowSize({w, h}, ImGuiCond_Always);
     ImGui::Begin("##sidebar", nullptr,
-        ImGuiWindowFlags_NoTitleBar    |
-        ImGuiWindowFlags_NoResize      |
-        ImGuiWindowFlags_NoCollapse    |
-        ImGuiWindowFlags_NoMove        |
-        ImGuiWindowFlags_NoSavedSettings);
+        ImGuiWindowFlags_NoTitleBar              |
+        ImGuiWindowFlags_NoResize                |
+        ImGuiWindowFlags_NoCollapse              |
+        ImGuiWindowFlags_NoMove                  |
+        ImGuiWindowFlags_NoSavedSettings         |
+        ImGuiWindowFlags_NoScrollbar             |
+        ImGuiWindowFlags_NoScrollWithMouse);
     ImGui::PopStyleVar(4);
     ImGui::PopStyleColor(8);
 
@@ -357,13 +359,27 @@ void App::drawSidebar(float x, float y, float w, float h)
         return;
     }
 
-    // Module title
+    // ── Sticky header (never scrolls) ─────────────────────────────────────────
     {
         std::lock_guard<std::mutex> lk(m_state.meta_mutex);
         const char* title = m_state.title.empty() ? "(untitled)" : m_state.title.c_str();
         ImGui::TextColored({0.75f, 0.75f, 1.f, 1.f}, "%s", title);
     }
     ImGui::Separator();
+
+    // ── Scrollable list ────────────────────────────────────────────────────────
+    // Extend child into the parent's right padding so the scrollbar sits flush
+    // against the sidebar edge.  Zero child padding so no extra gaps are added.
+    {
+        const float rp = ImGui::GetStyle().WindowPadding.x;  // parent right padding
+        const float sw = ImGui::GetStyle().ScrollbarSize;
+        const float childW = ImGui::GetContentRegionAvail().x + rp;
+        // With 0 child padding: ScrollMax.x = contentW + 0 - (childW - sw) = 0
+        ImGui::SetNextWindowContentSize({childW - sw, 0.f});
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.f, 0.f));
+        ImGui::BeginChild("##sidebar_scroll", {childW, 0.f}, false, 0);
+        ImGui::PopStyleVar();
+    }
 
     // Helper: draw a numbered list under a collapsing section.
     // Returns the index that was clicked, or -1.
@@ -385,7 +401,7 @@ void App::drawSidebar(float x, float y, float w, float h)
                 char row[256];
                 snprintf(row, sizeof(row), "%3d  %s", i + 1,
                          names[i].empty() ? "---" : names[i].c_str());
-                if (ImGui::Selectable(row, false, 0, {w - 24.f, 0.f})) {
+                if (ImGui::Selectable(row, false, 0, {0.f, 0.f})) {
                     clicked = i;
                     m_activeTab = tabSwitch;
                 }
@@ -414,20 +430,13 @@ void App::drawSidebar(float x, float y, float w, float h)
                     (i < (int)m_state.pattern_names.size()) ? m_state.pattern_names[i] : "";
                 snprintf(row, sizeof(row), "%3d  %s", i,
                          name.empty() ? "---" : name.c_str());
-                if (ImGui::Selectable(row, false, 0, {w - 24.f, 0.f}))
-                    m_activeTab = 1;  // switch to Patterns tab
+                if (ImGui::Selectable(row, false, 0, {0.f, 0.f}))
+                    m_activeTab = 1;
                 ImGui::PopID();
             }
             ImGui::TreePop();
         }
     };
-
-    {
-        std::lock_guard<std::mutex> lk(m_state.meta_mutex);
-        if (!m_state.instrument_names.empty()) {
-            // release lock while rendering, re-acquire via copies
-        }
-    }
 
     // Render sections with brief locks to copy the name vectors
     std::vector<std::string> instrNames, sampleNames;
@@ -442,6 +451,8 @@ void App::drawSidebar(float x, float y, float w, float h)
 
     section("Samples", sampleNames, 2);
     patSection();
+
+    ImGui::EndChild();
 
     ImGui::End();
 }

@@ -27,12 +27,12 @@ static void popToolbarStyle()
     ImGui::PopStyleColor(6);
 }
 
-static const ImU32 kVuLoLit    = IM_COL32(  0, 200,   0, 255);
-static const ImU32 kVuLoUnlit  = IM_COL32(  0,  28,   0, 255);
-static const ImU32 kVuMedLit   = IM_COL32(255, 200,   0, 255);
-static const ImU32 kVuMedUnlit = IM_COL32( 40,  30,   0, 255);
-static const ImU32 kVuHiLit    = IM_COL32(225,   0,   0, 255);
-static const ImU32 kVuHiUnlit  = IM_COL32( 35,   0,   0, 255);
+static const ImU32 kVuLoLit    = IM_COL32(  0, 220, 255, 255);  // cyan
+static const ImU32 kVuLoUnlit  = IM_COL32(  0,  35,  45, 255);
+static const ImU32 kVuMedLit   = IM_COL32(255,  30, 180, 255);  // hot pink
+static const ImU32 kVuMedUnlit = IM_COL32( 45,   0,  30, 255);
+static const ImU32 kVuHiLit    = IM_COL32(200,   0, 255, 255);  // violet
+static const ImU32 kVuHiUnlit  = IM_COL32( 35,   0,  50, 255);
 
 static void drawVU(ImDrawList* dl,
                    float x, float y, float w, float h,
@@ -46,6 +46,33 @@ static void drawVU(ImDrawList* dl,
     const float norm[2] = { std::min(lvlL / 1.2f, 1.f), std::min(lvlR / 1.2f, 1.f) };
     const float tops[2] = { y, y + bh + gap };
 
+    // Glow pass — additive blending, only lit segments
+    dl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+    }, nullptr);
+    for (int ch = 0; ch < 2; ++ch) {
+        for (int i = 0; i < N; ++i) {
+            float frac = float(i) / float(N);
+            if (norm[ch] <= frac) continue;
+            int gr, gg, gb;
+            if      (frac >= 0.80f) { gr = 200; gg =   0; gb = 255; }
+            else if (frac >= 0.60f) { gr = 255; gg =  30; gb = 180; }
+            else                    { gr =   0; gg = 220; gb = 255; }
+            float sx = x + float(i) * stride;
+            float ty = tops[ch];
+            dl->AddRectFilled({sx - 16, ty - 6}, {sx + barW + 16, ty + bh + 6}, IM_COL32(gr, gg, gb,  1));
+            dl->AddRectFilled({sx - 11, ty - 5}, {sx + barW + 11, ty + bh + 5}, IM_COL32(gr, gg, gb,  1));
+            dl->AddRectFilled({sx -  7, ty - 3}, {sx + barW +  7, ty + bh + 3}, IM_COL32(gr, gg, gb,  1));
+            dl->AddRectFilled({sx -  4, ty - 2}, {sx + barW +  4, ty + bh + 2}, IM_COL32(gr, gg, gb,  2));
+            dl->AddRectFilled({sx -  2, ty - 1}, {sx + barW +  2, ty + bh + 1}, IM_COL32(gr, gg, gb,  3));
+            dl->AddRectFilled({sx -  1, ty    }, {sx + barW +  1, ty + bh    }, IM_COL32(gr, gg, gb,  3));
+        }
+    }
+    dl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    }, nullptr);
+
+    // Normal bars
     for (int ch = 0; ch < 2; ++ch) {
         for (int i = 0; i < N; ++i) {
             float frac = float(i) / float(N);

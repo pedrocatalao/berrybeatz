@@ -1,3 +1,5 @@
+#define GL_SILENCE_DEPRECATION
+#include <OpenGL/gl3.h>
 #include "TrackerView.h"
 #include "PatternEditor.h"
 #include <libopenmpt/libopenmpt_ext.hpp>
@@ -41,12 +43,12 @@ static const ImVec4 kChHeader    { 30/255.f,  30/255.f,  60/255.f, 1.f};
 static const ImVec4 kOrderBg     {  0/255.f,   0/255.f,   0/255.f, 0.f};
 static const ImVec4 kOrderCur    { 64/255.f,  64/255.f, 160/255.f, 1.f};
 
-static const ImU32 kVuLoLit    = IM_COL32(  0, 200,   0, 255);
-static const ImU32 kVuLoUnlit  = IM_COL32(  0,  28,   0, 255);
-static const ImU32 kVuMedLit   = IM_COL32(255, 200,   0, 255);
-static const ImU32 kVuMedUnlit = IM_COL32( 40,  30,   0, 255);
-static const ImU32 kVuHiLit    = IM_COL32(225,   0,   0, 255);
-static const ImU32 kVuHiUnlit  = IM_COL32( 35,   0,   0, 255);
+static const ImU32 kVuLoLit    = IM_COL32(  0, 220, 255, 255);  // cyan
+static const ImU32 kVuLoUnlit  = IM_COL32(  0,  35,  45, 255);
+static const ImU32 kVuMedLit   = IM_COL32(255,  30, 180, 255);  // hot pink
+static const ImU32 kVuMedUnlit = IM_COL32( 45,   0,  30, 255);
+static const ImU32 kVuHiLit    = IM_COL32(200,   0, 255, 255);  // violet
+static const ImU32 kVuHiUnlit  = IM_COL32( 35,   0,  50, 255);
 
 // ── Layout constants ──────────────────────────────────────────────────────────
 static constexpr float PTBAR1_H   = 32.0f;
@@ -534,19 +536,52 @@ void TrackerView::drawStereoVU(ImDrawList* dl, float x, float y, float w, float 
                                 float lvlL, float lvlR) {
     constexpr float barW   = 2.0f;
     constexpr float stride = 3.0f;
-    float cx  = x + w * 0.5f;
-    int   N   = std::max(1, int((w * 0.5f - 1.0f) / stride));
-    float bH  = h - 1.0f;
+    float cx    = x + w * 0.5f;
+    int   N     = std::max(1, int((w * 0.5f - 1.0f) / stride));
+    float bH    = h - 1.0f;
     float normL = std::min(lvlL / 1.2f, 1.0f);
     float normR = std::min(lvlR / 1.2f, 1.0f);
 
+    // Glow pass — additive blending, only lit segments
+    dl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+    }, nullptr);
+    for (int i = 0; i < N; i++) {
+        float frac = float(i) / float(N);
+        int gr, gg, gb;
+        if      (frac >= 0.80f) { gr = 200; gg =   0; gb = 255; }
+        else if (frac >= 0.60f) { gr = 255; gg =  30; gb = 180; }
+        else                    { gr =   0; gg = 220; gb = 255; }
+        float rx = cx + 1.0f + float(i) * stride;
+        float lx = cx - 1.0f - float(i) * stride - barW;
+        if (normR > frac) {
+            dl->AddRectFilled({rx - 16, y - 6}, {rx + barW + 16, y + bH + 6}, IM_COL32(gr, gg, gb,  1));
+            dl->AddRectFilled({rx - 11, y - 5}, {rx + barW + 11, y + bH + 5}, IM_COL32(gr, gg, gb,  1));
+            dl->AddRectFilled({rx -  7, y - 3}, {rx + barW +  7, y + bH + 3}, IM_COL32(gr, gg, gb,  1));
+            dl->AddRectFilled({rx -  4, y - 2}, {rx + barW +  4, y + bH + 2}, IM_COL32(gr, gg, gb,  2));
+            dl->AddRectFilled({rx -  2, y - 1}, {rx + barW +  2, y + bH + 1}, IM_COL32(gr, gg, gb,  3));
+            dl->AddRectFilled({rx -  1, y    }, {rx + barW +  1, y + bH    }, IM_COL32(gr, gg, gb,  3));
+        }
+        if (normL > frac) {
+            dl->AddRectFilled({lx - 16, y - 6}, {lx + barW + 16, y + bH + 6}, IM_COL32(gr, gg, gb,  1));
+            dl->AddRectFilled({lx - 11, y - 5}, {lx + barW + 11, y + bH + 5}, IM_COL32(gr, gg, gb,  1));
+            dl->AddRectFilled({lx -  7, y - 3}, {lx + barW +  7, y + bH + 3}, IM_COL32(gr, gg, gb,  1));
+            dl->AddRectFilled({lx -  4, y - 2}, {lx + barW +  4, y + bH + 2}, IM_COL32(gr, gg, gb,  2));
+            dl->AddRectFilled({lx -  2, y - 1}, {lx + barW +  2, y + bH + 1}, IM_COL32(gr, gg, gb,  3));
+            dl->AddRectFilled({lx -  1, y    }, {lx + barW +  1, y + bH    }, IM_COL32(gr, gg, gb,  3));
+        }
+    }
+    dl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    }, nullptr);
+
+    // Normal bars
     for (int i = 0; i < N; i++) {
         float frac = float(i) / float(N);
         ImU32 litCol, unlitCol;
         if      (frac >= 0.80f) { litCol = kVuHiLit;  unlitCol = kVuHiUnlit;  }
         else if (frac >= 0.60f) { litCol = kVuMedLit; unlitCol = kVuMedUnlit; }
         else                    { litCol = kVuLoLit;  unlitCol = kVuLoUnlit;  }
-
         float rx = cx + 1.0f + float(i) * stride;
         dl->AddRectFilled({rx, y}, {rx + barW, y + bH}, normR > frac ? litCol : unlitCol);
         float lx = cx - 1.0f - float(i) * stride - barW;

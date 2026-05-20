@@ -6,10 +6,16 @@
 #include <vector>
 
 static constexpr int MAX_CHANNELS = 64;
+static constexpr int WAVE_BUF     = 64;
 
 struct ChannelVU {
     float left  = 0.0f;
     float right = 0.0f;
+};
+
+struct ChannelWave {
+    float   samples[WAVE_BUF]{};
+    int32_t head{0};
 };
 
 struct ModuleState {
@@ -34,9 +40,10 @@ struct ModuleState {
     std::atomic<uint64_t> channel_mute_mask{0};
 
 
-    // Per-channel VU (audio thread writes under vu_mutex)
+    // Per-channel VU + waveform ring buffer (audio thread writes under vu_mutex)
     std::mutex vu_mutex;
-    std::array<ChannelVU, MAX_CHANNELS> vu{};
+    std::array<ChannelVU,   MAX_CHANNELS> vu{};
+    std::array<ChannelWave, MAX_CHANNELS> wave{};
 
     // Module metadata (written once on load)
     std::mutex meta_mutex;
@@ -69,6 +76,7 @@ struct ModuleState {
         {
             std::lock_guard<std::mutex> lk(vu_mutex);
             vu.fill({});
+            wave.fill({});
         }
         {
             std::lock_guard<std::mutex> lk(meta_mutex);

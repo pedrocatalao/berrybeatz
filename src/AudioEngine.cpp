@@ -161,6 +161,9 @@ int AudioEngine::paCallback(const void*, void* output,
                 for (int32_t ch = 0; ch < nch && ch < MAX_CHANNELS; ++ch) {
                     d->state->vu[ch].left  *= 0.88f;
                     d->state->vu[ch].right *= 0.88f;
+                    auto& cw = d->state->wave[ch];
+                    cw.samples[cw.head] = 0.f;
+                    cw.head = (cw.head + 1) % WAVE_BUF;
                 }
             }
         }
@@ -250,13 +253,18 @@ int AudioEngine::paCallback(const void*, void* output,
     d->state->position_seconds.store(d->mod->get_position_seconds());
     d->state->bpm            .store(d->mod->get_current_estimated_bpm());
 
-    // Per-channel VU with decay
+    // Per-channel VU with decay + waveform ring buffer
     int32_t nch = d->state->num_channels.load();
     if (nch > 0) {
         std::lock_guard<std::mutex> lk(d->state->vu_mutex);
         for (int32_t ch = 0; ch < nch && ch < MAX_CHANNELS; ++ch) {
-            d->state->vu[ch].left  = d->state->vu[ch].left  * 0.8f + d->mod->get_current_channel_vu_left(ch)  * 0.2f;
-            d->state->vu[ch].right = d->state->vu[ch].right * 0.8f + d->mod->get_current_channel_vu_right(ch) * 0.2f;
+            float rawL = d->mod->get_current_channel_vu_left(ch);
+            float rawR = d->mod->get_current_channel_vu_right(ch);
+            d->state->vu[ch].left  = d->state->vu[ch].left  * 0.8f + rawL * 0.2f;
+            d->state->vu[ch].right = d->state->vu[ch].right * 0.8f + rawR * 0.2f;
+            auto& cw = d->state->wave[ch];
+            cw.samples[cw.head] = (rawL + rawR) * 0.5f;
+            cw.head = (cw.head + 1) % WAVE_BUF;
         }
     }
 

@@ -54,6 +54,7 @@ static constexpr float PTBAR2_H   = 30.0f;
 static constexpr float ORDER_H    = 26.0f;
 static constexpr float CHANNAME_H = 18.0f;
 static constexpr float VU_H       = 13.0f;
+static constexpr float WAVE_H     = 28.0f;
 static constexpr float PLUGIN_H   = 14.0f;
 
 // ── TrackerView ───────────────────────────────────────────────────────────────
@@ -263,6 +264,7 @@ void TrackerView::render(float x, float y, float w, float h) {
 
     m_chanH  = CHANNAME_H
              + (m_showVU        ? VU_H     : 0.f)
+             + (m_showWave      ? WAVE_H   : 0.f)
              + (m_showPluginRow ? PLUGIN_H : 0.f);
     m_patTop = y + PTBAR1_H + PTBAR2_H + ORDER_H + m_chanH;
 
@@ -400,6 +402,8 @@ void TrackerView::drawPatternToolbar1(float /*x*/, float /*y*/, float /*w*/) {
 
     tbSep();
     togBtn("VU##vu", m_showVU);   tip("Show/hide channel VU meters");
+    ImGui::SameLine();
+    togBtn("WF##wf", m_showWave); tip("Show/hide channel waveform");
     ImGui::SameLine();
     togBtn("FX##fx", m_showPluginRow); tip("Show/hide plugin row");
 
@@ -696,8 +700,13 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
     float visH  = avail.y - m_chanH;  // exclude frozen header row from scroll math
 
     // Fetch channel data for the frozen header row
-    std::array<ChannelVU, MAX_CHANNELS> vu{};
-    { std::lock_guard<std::mutex> lk(m_state.vu_mutex); vu = m_state.vu; }
+    std::array<ChannelVU,   MAX_CHANNELS> vu{};
+    std::array<ChannelWave, MAX_CHANNELS> wave{};
+    {
+        std::lock_guard<std::mutex> lk(m_state.vu_mutex);
+        vu   = m_state.vu;
+        wave = m_state.wave;
+    }
     std::vector<std::string> chNames(nch);
     {
         std::lock_guard<std::mutex> lk(m_state.meta_mutex);
@@ -772,13 +781,33 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
             if (m_showVU)
                 drawStereoVU(dl, p.x, vuTop, cw - 1, VU_H, vu[ch].left, vu[ch].right);
 
-            // Plugin row
+            // Waveform
             float vuBot = vuTop + (m_showVU ? VU_H : 0.f);
+            if (m_showWave) {
+                float wy = vuBot;
+                dl->AddRectFilled({p.x, wy}, {p.x + cw - 1, wy + WAVE_H}, IM_COL32(8, 8, 18, 255));
+                float cy = wy + WAVE_H * 0.5f;
+                dl->AddLine({p.x, cy}, {p.x + cw - 1, cy}, IM_COL32(20, 35, 25, 255));
+                float colW = (cw - 1.f) / float(WAVE_BUF);
+                ImU32 wavCol = muted ? IM_COL32(40, 50, 40, 160) : IM_COL32(70, 210, 120, 210);
+                const auto& cwave = wave[ch];
+                for (int i = 0; i < WAVE_BUF; i++) {
+                    int   idx  = (cwave.head + i) % WAVE_BUF;
+                    float amp  = std::min(cwave.samples[idx] / 1.2f, 1.0f);
+                    float barH = amp * (WAVE_H * 0.5f - 1.0f);
+                    float px   = p.x + float(i) * colW;
+                    if (barH >= 0.5f)
+                        dl->AddRectFilled({px, cy - barH}, {px + colW - 0.3f, cy + barH}, wavCol);
+                }
+            }
+
+            // Plugin row
+            float plugTop = vuBot + (m_showWave ? WAVE_H : 0.f);
             if (m_showPluginRow) {
-                dl->AddRectFilled({p.x, vuBot}, {p.x + cw - 1, vuBot + PLUGIN_H},
+                dl->AddRectFilled({p.x, plugTop}, {p.x + cw - 1, plugTop + PLUGIN_H},
                                   IM_COL32(20, 20, 35, 255));
-                dl->AddText({p.x + 2, vuBot + 1}, IM_COL32(60, 60, 80, 255), "–");
-                ImGui::SetCursorScreenPos({p.x, vuBot});
+                dl->AddText({p.x + 2, plugTop + 1}, IM_COL32(60, 60, 80, 255), "–");
+                ImGui::SetCursorScreenPos({p.x, plugTop});
                 if (ImGui::InvisibleButton("##plug", {cw, PLUGIN_H}))
                     plugClickCh = ch;
             }

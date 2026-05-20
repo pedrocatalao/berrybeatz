@@ -1,4 +1,6 @@
 #pragma once
+#define GL_SILENCE_DEPRECATION
+#include <OpenGL/gl3.h>
 #include "imgui.h"
 #include <unordered_map>
 #include <cmath>
@@ -125,8 +127,24 @@ inline bool KnobWidget(const char* id,
               : 0.f;
     float angEnd = ANG_START + t * SWEEP;
     if (angEnd > ANG_START) {
+        // Glow passes — additive blend
+        dl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+        }, nullptr);
         dl->PathArcTo(center, trackR, ANG_START, angEnd, 32);
-        dl->PathStroke(IM_COL32(80, 80, 192, 255), false, 2.5f);
+        dl->PathStroke(IM_COL32(0, 220, 255,  8), false, 12.0f);
+        dl->PathArcTo(center, trackR, ANG_START, angEnd, 32);
+        dl->PathStroke(IM_COL32(0, 220, 255, 14), false,  8.0f);
+        dl->PathArcTo(center, trackR, ANG_START, angEnd, 32);
+        dl->PathStroke(IM_COL32(0, 220, 255, 22), false,  5.0f);
+        dl->PathArcTo(center, trackR, ANG_START, angEnd, 32);
+        dl->PathStroke(IM_COL32(0, 220, 255, 35), false,  3.0f);
+        dl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        }, nullptr);
+        // Normal arc on top
+        dl->PathArcTo(center, trackR, ANG_START, angEnd, 32);
+        dl->PathStroke(IM_COL32(0, 220, 255, 225), false, 2.5f);
     }
 
     // Value text centered in the knob (suppressed when caller renders an edit field)

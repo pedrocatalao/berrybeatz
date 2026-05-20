@@ -90,6 +90,7 @@ void AudioEngine::fillState() {
 }
 
 void AudioEngine::start() {
+    if (m_thread.joinable()) m_thread.join();
     m_stop.store(false);
     m_paused.store(false);
     m_thread = std::thread(&AudioEngine::run, this);

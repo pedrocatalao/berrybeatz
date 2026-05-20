@@ -283,6 +283,17 @@ void App::render(int winW, int winH)
     ImGui::PopStyleVar(2);
     ImGui::End();
 
+    // Extend the tab bar separator to the left edge of the window.
+    // The bar's inner rect starts at cx + tabBarPaddingX, so overlap by that amount.
+    {
+        constexpr float tabBarPadX = 1.f;  // WindowPadding.x used for ##tabbar
+        constexpr float tabBarPadY = 2.f;  // WindowPadding.y used for ##tabbar
+        ImVec4 c   = ImGui::GetStyle().Colors[ImGuiCol_TabSelected];
+        ImU32  col = ImGui::ColorConvertFloat4ToU32(c);
+        float  lineY = contentY + kTabBarH - tabBarPadY - 2.f;
+        ImGui::GetForegroundDrawList()->AddLine({0.f, lineY}, {cx + tabBarPadX, lineY}, col, 1.f);
+    }
+
     // ── Content area ──────────────────────────────────────────────────────
     float cy = contentY + kTabBarH;
     float ch = h - cy;

@@ -25,7 +25,7 @@ static constexpr NoteKey kHexKeys[] = {
 };
 
 // ── OpenMPT "Blue (FT2)" colour scheme ────────────────────────────────────────
-static const ImVec4 kBgNormal    {  0/255.f,   0/255.f,   0/255.f, 1.f};
+static const ImVec4 kBgNormal    { 20/255.f,  20/255.f,  33/255.f, 1.f};
 static const ImVec4 kTextNormal  {224/255.f, 224/255.f,  64/255.f, 1.f};
 static const ImVec4 kBgCurRow    {112/255.f, 112/255.f, 112/255.f, 1.f};
 static const ImVec4 kTextCurRow  {240/255.f, 240/255.f,  80/255.f, 1.f};
@@ -711,8 +711,7 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
     ImGui::PushStyleColor(ImGuiCol_TableBorderStrong, IM_COL32(0, 0, 0, 0));
     ImGui::PushStyleColor(ImGuiCol_TableBorderLight,  IM_COL32(0, 0, 0, 0));
     bool tableOpen = ImGui::BeginTable("##pat", totalCols, tFlags, avail);
-    ImGui::PopStyleColor(2);
-    if (!tableOpen) return;
+    if (!tableOpen) { ImGui::PopStyleColor(2); return; }
 
     ImGui::TableSetupScrollFreeze(1, 1);  // freeze col 0 + row 0 (channel headers)
     ImGui::TableSetupColumn("##row", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, m_rowNumW);
@@ -935,6 +934,8 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
     clipper.End();
     if (m_fontMono) ImGui::PopFont();
     ImGui::EndTable();
+    ImGui::PopStyleColor(2);
+
 }
 
 // ── Cursor helpers ────────────────────────────────────────────────────────────

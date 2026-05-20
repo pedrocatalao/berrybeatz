@@ -9,8 +9,23 @@
 
 #include "App.h"
 #include "CocoaHelpers.h"
+#include <CoreFoundation/CoreFoundation.h>
 #include <cstdio>
 #include <memory>
+#include <string>
+
+// Returns the path to a file inside the app bundle's Resources directory.
+static std::string bundleResource(const char* filename)
+{
+    CFStringRef  name = CFStringCreateWithCString(nullptr, filename, kCFStringEncodingUTF8);
+    CFURLRef     url  = CFBundleCopyResourceURL(CFBundleGetMainBundle(), name, nullptr, nullptr);
+    CFRelease(name);
+    if (!url) return {};
+    char buf[4096];
+    bool ok = CFURLGetFileSystemRepresentation(url, true, (UInt8*)buf, sizeof(buf));
+    CFRelease(url);
+    return ok ? buf : std::string{};
+}
 
 static App* g_app = nullptr;
 
@@ -84,9 +99,11 @@ int main(int argc, char* argv[])
         uiCfg.OversampleV = 2;
 
         // BigBlue Terminal: authentic IBM VGA/DOS bitmap font for patterns
-        fontMono = io.Fonts->AddFontFromFileTTF(
-            "/Users/pedro/Library/Fonts/BigBlueTermPlusNerdFontMono-Regular.ttf",
-            11.f, &pixCfg);
+        {
+            std::string path = bundleResource("BigBlueTermPlusNerdFontMono-Regular.ttf");
+            if (!path.empty())
+                fontMono = io.Fonts->AddFontFromFileTTF(path.c_str(), 11.f, &pixCfg);
+        }
 
         // Monaco: classic Mac monospace, clean retro feel for UI
         fontUI = io.Fonts->AddFontFromFileTTF(

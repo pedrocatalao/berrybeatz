@@ -72,6 +72,7 @@ set(SOURCES
     src/Logo.mm
     assets/logo.png
     assets/AppIcon.icns
+    assets/BigBlueTermPlusNerdFontMono-Regular.ttf
 )
 
 add_executable(BerryBeatz MACOSX_BUNDLE
@@ -84,8 +85,11 @@ set_source_files_properties(src/CocoaHelpers.mm src/Logo.mm PROPERTIES
 )
 
 # Bundle the logo into Resources/
-set_source_files_properties(assets/logo.png assets/AppIcon.icns PROPERTIES
-    MACOSX_PACKAGE_LOCATION Resources
+set_source_files_properties(
+    assets/logo.png
+    assets/AppIcon.icns
+    assets/BigBlueTermPlusNerdFontMono-Regular.ttf
+    PROPERTIES MACOSX_PACKAGE_LOCATION Resources
 )
 
 target_include_directories(BerryBeatz PRIVATE

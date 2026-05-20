@@ -8,7 +8,7 @@ GLuint loadLogoTexture(float& outW, float& outH)
 {
     outW = outH = 0.f;
     @autoreleasepool {
-        NSString* path = [[NSBundle mainBundle] pathForResource:@"logo" ofType:@"png"];
+        NSString* path = [[NSBundle mainBundle] pathForResource:@"berrybeatz4-banner" ofType:@"png"];
         if (!path) return 0;
 
         NSImage* nsImg = [[NSImage alloc] initWithContentsOfFile:path];

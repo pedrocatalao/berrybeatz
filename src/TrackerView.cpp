@@ -31,10 +31,10 @@ static const ImVec4 kBgCurRow    {112/255.f, 112/255.f, 112/255.f, 1.f};
 static const ImVec4 kTextCurRow  {240/255.f, 240/255.f,  80/255.f, 1.f};
 static const ImVec4 kBgHilight   { 64/255.f,  64/255.f, 128/255.f, 1.f};
 static const ImVec4 kBgMeasure   { 46/255.f,  46/255.f,  90/255.f, 1.f};
-static const ImVec4 kColNote     {224/255.f, 224/255.f,  64/255.f, 1.f};
-static const ImVec4 kColInstr    {255/255.f, 255/255.f,   0/255.f, 1.f};
-static const ImVec4 kColVolume   {  0/255.f, 255/255.f,   0/255.f, 1.f};
-static const ImVec4 kColGlobal   {255/255.f,  64/255.f,  64/255.f, 1.f};
+static const ImVec4 kColNote     {100/255.f, 210/255.f, 220/255.f, 1.f};  // soft cyan
+static const ImVec4 kColInstr    {220/255.f, 200/255.f, 110/255.f, 1.f};  // soft yellow
+static const ImVec4 kColVolume   {220/255.f, 130/255.f, 160/255.f, 1.f};  // soft pink
+static const ImVec4 kColGlobal   {120/255.f, 200/255.f, 130/255.f, 1.f};  // soft green
 static const ImVec4 kDim         { 80/255.f,  80/255.f,  80/255.f, 1.f};
 static const ImVec4 kChHeader    { 30/255.f,  30/255.f,  60/255.f, 1.f};
 static const ImVec4 kOrderBg     {  0/255.f,   0/255.f,   0/255.f, 0.f};
@@ -256,7 +256,7 @@ void TrackerView::render(float x, float y, float w, float h) {
     if (m_fontMono) ImGui::PushFont(m_fontMono);
     m_charW   = ImGui::CalcTextSize("A").x;
     m_rowNumW = m_charW * 3.0f + 2.0f;
-    m_cellW   = m_charW * 20.0f;
+    m_cellW   = m_charW * 11.0f + 26.0f;
     m_rowH    = ImGui::GetTextLineHeightWithSpacing();
     if (m_fontMono) ImGui::PopFont();
 

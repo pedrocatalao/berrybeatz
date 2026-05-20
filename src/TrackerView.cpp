@@ -760,7 +760,8 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
             // Background + divider
             ImU32 hdrCol = muted ? IM_COL32(20,20,30,255) : IM_COL32(30,30,60,255);
             dl->AddRectFilled(p, {p.x + cw - 1, p.y + CHANNAME_H}, hdrCol);
-            dl->AddLine({p.x + cw - 1, p.y}, {p.x + cw - 1, p.y + m_chanH},
+            dl->AddLine({p.x + cw - 1, p.y - ImGui::GetStyle().CellPadding.y},
+                        {p.x + cw - 1, p.y - ImGui::GetStyle().CellPadding.y + m_chanH + 4.f},
                         IM_COL32(46, 46, 92, 200));
 
             // Channel name, centred
@@ -910,6 +911,17 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
 
         for (int ch = 0; ch < nch; ch++) {
             ImGui::TableNextColumn();
+
+            // Channel divider line — spans exactly one row height, tiles cleanly
+            {
+                ImVec2 cp   = ImGui::GetCursorScreenPos();
+                float  pad  = ImGui::GetStyle().CellPadding.y;
+                float  rowH = ImGui::GetTextLineHeight() + 2.f * pad;
+                ImGui::GetWindowDrawList()->AddLine(
+                    {cp.x + m_cellW - 1, cp.y - pad},
+                    {cp.x + m_cellW - 1, cp.y - pad + rowH},
+                    IM_COL32(46, 46, 92, 200));
+            }
 
             // Measure actual cell origins from the first two rendered cells.
             if (r == clipper.DisplayStart) {

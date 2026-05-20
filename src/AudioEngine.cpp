@@ -152,21 +152,12 @@ int AudioEngine::paCallback(const void*, void* output,
     if (d->stop->load() || d->paused->load()) {
         std::memset(out, 0, frameCount * 2 * sizeof(float));
         if (d->paused->load()) {
-            // Decay VU toward silence while paused
-            d->state->master_vu_left .store(d->state->master_vu_left .load() * 0.88f);
-            d->state->master_vu_right.store(d->state->master_vu_right.load() * 0.88f);
-            int32_t nch = d->state->num_channels.load();
-            if (nch > 0) {
+            d->state->master_vu_left .store(0.f);
+            d->state->master_vu_right.store(0.f);
+            {
                 std::lock_guard<std::mutex> lk(d->state->vu_mutex);
-                for (int32_t ch = 0; ch < nch && ch < MAX_CHANNELS; ++ch) {
-                    d->state->vu[ch].left  *= 0.88f;
-                    d->state->vu[ch].right *= 0.88f;
-                }
-                // Push silence into oscilloscope while paused
-                int n = std::min((int)frameCount, WAVE_BUF);
-                std::fill(d->state->masterWave.samples,
-                          d->state->masterWave.samples + n, 0.f);
-                d->state->masterWave.count = n;
+                d->state->vu.fill({});
+                d->state->masterWave = {};
             }
         }
         return d->stop->load() ? paAbort : paContinue;
@@ -321,6 +312,16 @@ void AudioEngine::run() {
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
     Pa_StopStream(stream);
+
+    // Clear visual state now that audio has fully stopped
+    m_state.master_vu_left .store(0.f);
+    m_state.master_vu_right.store(0.f);
+    {
+        std::lock_guard<std::mutex> lk(m_state.vu_mutex);
+        m_state.vu.fill({});
+        m_state.masterWave = {};
+    }
+
     Pa_CloseStream(stream);
     Pa_Terminate();
 

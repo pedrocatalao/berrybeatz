@@ -35,7 +35,7 @@ int main(int argc, char* argv[])
     glfwWindowHint(GLFW_COCOA_RETINA_FRAMEBUFFER, GLFW_TRUE);
     glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);  // no native chrome — we draw our own
 
-    GLFWwindow* window = glfwCreateWindow(1280, 800, "OpenMPT", nullptr, nullptr);
+    GLFWwindow* window = glfwCreateWindow(1280, 800, "BerryBeatz", nullptr, nullptr);
     if (!window) {
         fprintf(stderr, "glfwCreateWindow failed\n");
         glfwTerminate();

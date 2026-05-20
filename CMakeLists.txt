@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(OpenMPTMac VERSION 0.1 LANGUAGES CXX OBJCXX)
+project(BerryBeatz VERSION 0.1 LANGUAGES CXX OBJCXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -74,7 +74,7 @@ set(SOURCES
     assets/AppIcon.icns
 )
 
-add_executable(OpenMPTMac MACOSX_BUNDLE
+add_executable(BerryBeatz MACOSX_BUNDLE
     ${SOURCES}
 )
 
@@ -88,7 +88,7 @@ set_source_files_properties(assets/logo.png assets/AppIcon.icns PROPERTIES
     MACOSX_PACKAGE_LOCATION Resources
 )
 
-target_include_directories(OpenMPTMac PRIVATE
+target_include_directories(BerryBeatz PRIVATE
     src
     ${GLFW_INCLUDE_DIR}
     ${PORTAUDIO_INCLUDE_DIRS}
@@ -96,7 +96,7 @@ target_include_directories(OpenMPTMac PRIVATE
     ${MPG123_INCLUDE_DIRS}
 )
 
-target_link_libraries(OpenMPTMac PRIVATE
+target_link_libraries(BerryBeatz PRIVATE
     OpenGL::GL
     ${GLFW_LIBRARY}
     imgui
@@ -115,12 +115,12 @@ target_link_libraries(OpenMPTMac PRIVATE
     "-framework CoreMIDI"
 )
 
-target_compile_options(OpenMPTMac PRIVATE ${PORTAUDIO_CFLAGS_OTHER})
+target_compile_options(BerryBeatz PRIVATE ${PORTAUDIO_CFLAGS_OTHER})
 
-set_target_properties(OpenMPTMac PROPERTIES
+set_target_properties(BerryBeatz PROPERTIES
     MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/assets/Info.plist"
-    MACOSX_BUNDLE_GUI_IDENTIFIER "org.openmpt.mac"
-    MACOSX_BUNDLE_BUNDLE_NAME "OpenMPT"
+    MACOSX_BUNDLE_GUI_IDENTIFIER "com.berrybeatz.app"
+    MACOSX_BUNDLE_BUNDLE_NAME "BerryBeatz"
     MACOSX_BUNDLE_ICON_FILE "AppIcon"
     MACOSX_BUNDLE_BUNDLE_VERSION "0.1"
     MACOSX_BUNDLE_SHORT_VERSION_STRING "0.1"

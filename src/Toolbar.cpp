@@ -332,7 +332,7 @@ float DrawToolbar(ToolbarState& state,
 
     // ─── Logo (top-right) ─────────────────────────────────────────────────────
     if (state.logoTex && state.logoH > 0.f) {
-        const float lh  = 79.f;
+        const float lh  = 90.f;
         const float lw  = lh * (state.logoW / state.logoH);
         ImVec2 winPos   = ImGui::GetWindowPos();
         float  winW     = ImGui::GetWindowSize().x;
@@ -374,7 +374,7 @@ float DrawToolbar(ToolbarState& state,
             glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         }, nullptr);
 
-        drawQuad(0.f, 0.f, IM_COL32(255, 255, 255, 95));
+        drawQuad(0.f, 0.f, IM_COL32(255, 255, 255, 200));
     }
 
     ImGui::End();

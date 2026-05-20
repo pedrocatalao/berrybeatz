@@ -784,26 +784,42 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
             // Oscilloscope waveform
             float vuBot = vuTop + (m_showVU ? VU_H : 0.f);
             if (m_showWave && masterWave.count > 1) {
-                float wy = vuBot;
-                dl->AddRectFilled({p.x, wy}, {p.x + cw - 1, wy + WAVE_H}, IM_COL32(8, 8, 18, 255));
+                float wy    = vuBot;
+                dl->AddRectFilled({p.x, wy}, {p.x + cw - 1, wy + WAVE_H}, IM_COL32(20, 20, 33, 255));
                 float cy    = wy + WAVE_H * 0.5f;
                 float halfH = WAVE_H * 0.5f - 2.f;
-                // Normalize by peak so the waveform fills the display height
+
+                // Show only a portion of the buffer so individual waves are visible
+                static constexpr int kDisplaySamples = 160;
+                int total = masterWave.count;
+                int displayN = std::min(total, kDisplaySamples);
+
+                // Oscilloscope trigger: find first upward zero crossing in the
+                // lead-in window so the waveform appears stable (no flickering)
+                int start = 0;
+                int searchEnd = total - displayN;
+                for (int i = 1; i < searchEnd; ++i) {
+                    if (masterWave.samples[i - 1] <= 0.f && masterWave.samples[i] > 0.f) {
+                        start = i;
+                        break;
+                    }
+                }
+
+                // Normalize by peak, partial floor so quiet signals stay readable
                 float peak = 0.f;
-                for (int i = 0; i < masterWave.count; ++i)
+                for (int i = start; i < start + displayN; ++i)
                     peak = std::max(peak, std::abs(masterWave.samples[i]));
                 float norm = (peak > 0.0001f) ? halfH / std::max(peak, 0.3f) : 0.f;
-                // Fade out when channel is silent
+                // Fade when channel is silent
                 float chAmp = (vu[ch].left + vu[ch].right) * 0.5f;
                 norm *= std::min(chAmp * 30.0f, 1.0f);
+
                 ImU32 wavCol = muted ? IM_COL32(40, 55, 45, 160) : IM_COL32(70, 215, 120, 220);
-                int   n      = masterWave.count;
-                int   step   = std::max(1, n / int(cw));
-                float xscale = (cw - 2.f) / float(n);
-                ImVec2 prev  = {p.x, cy};
-                for (int i = step; i < n; i += step) {
+                float xscale = (cw - 2.f) / float(displayN);
+                ImVec2 prev  = {p.x, cy - masterWave.samples[start] * norm};
+                for (int i = 1; i < displayN; ++i) {
                     float fx = p.x + float(i) * xscale;
-                    float fy = cy - masterWave.samples[i] * norm;
+                    float fy = cy - masterWave.samples[start + i] * norm;
                     dl->AddLine(prev, {fx, fy}, wavCol);
                     prev = {fx, fy};
                 }

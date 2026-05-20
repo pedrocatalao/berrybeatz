@@ -255,7 +255,7 @@ static void popToolbarStyle() {
 void TrackerView::render(float x, float y, float w, float h) {
     if (m_fontMono) ImGui::PushFont(m_fontMono);
     m_charW   = ImGui::CalcTextSize("A").x;
-    m_rowNumW = m_charW * 5.0f;
+    m_rowNumW = m_charW * 3.0f + 2.0f;
     m_cellW   = m_charW * 16.0f;
     m_rowH    = ImGui::GetTextLineHeightWithSpacing();
     if (m_fontMono) ImGui::PopFont();
@@ -729,13 +729,14 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
         int32_t plugClickCh = -1;
 
         ImGui::TableNextRow(ImGuiTableRowFlags_None, m_chanH);
+        ImGui::TableSetBgColor(ImGuiTableBgTarget_CellBg, IM_COL32(20, 20, 40, 255), 0);
 
         // Column 0: "Row" label
         ImGui::TableSetColumnIndex(0);
         {
-            ImVec2 p = ImGui::GetCursorScreenPos();
+            ImVec2 p    = ImGui::GetCursorScreenPos();
             float textH = ImGui::GetTextLineHeight();
-            dl->AddText({p.x + 4, p.y + (m_chanH - textH) * 0.5f},
+            dl->AddText({p.x + 2, p.y + (m_chanH - textH) * 0.5f},
                         ImGui::ColorConvertFloat4ToU32(kDim), "Row");
             ImGui::Dummy({m_rowNumW, m_chanH});
         }
@@ -849,6 +850,14 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
             ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, ImGui::ColorConvertFloat4ToU32(kBgMeasure));
         else if (isBeat)
             ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, ImGui::ColorConvertFloat4ToU32(kBgHilight));
+
+        {
+            ImU32 rowNumBg = isCur     ? ImGui::ColorConvertFloat4ToU32(kBgCurRow)
+                           : isMeasure ? ImGui::ColorConvertFloat4ToU32(kBgMeasure)
+                           : isBeat    ? ImGui::ColorConvertFloat4ToU32(kBgHilight)
+                           : IM_COL32(20, 20, 40, 255);
+            ImGui::TableSetBgColor(ImGuiTableBgTarget_CellBg, rowNumBg, 0);
+        }
 
         ImGui::TableNextColumn();
         ImGui::TextColored(isCur ? kTextCurRow : (isBeat||isMeasure ? kTextNormal : kDim), "%3d", r);

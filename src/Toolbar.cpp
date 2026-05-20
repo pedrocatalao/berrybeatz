@@ -1,3 +1,5 @@
+#define GL_SILENCE_DEPRECATION
+#include <OpenGL/gl3.h>
 #include "Toolbar.h"
 #include "Knob.h"
 #include "imgui.h"
@@ -335,15 +337,39 @@ float DrawToolbar(ToolbarState& state,
         float  winW     = ImGui::GetWindowSize().x;
         ImVec2 p0       = {winPos.x + winW - lw - 6.f, winPos.y + 6.f};
 
-        // Slight tilt: top-right corner lifted 5px
-        ImGui::GetForegroundDrawList()->AddImageQuad(
-            (ImTextureID)(intptr_t)state.logoTex,
-            {p0.x,      p0.y     },   // top-left     (normal)
-            {p0.x + lw, p0.y - 4.f}, // top-right    (5px up)
-            {p0.x + lw, p0.y + lh + 2.f},  // bottom-right (normal)
-            {p0.x,      p0.y + lh},  // bottom-left  (normal)
-            {0.f, 0.f}, {1.f, 0.f}, {1.f, 1.f}, {0.f, 1.f},
-            IM_COL32(255, 255, 255, 180));
+        ImDrawList* fdl = ImGui::GetForegroundDrawList();
+
+        auto drawQuad = [&](float ox, float oy, ImU32 col) {
+            fdl->AddImageQuad(
+                (ImTextureID)(intptr_t)state.logoTex,
+                {p0.x + ox,      p0.y + oy            },
+                {p0.x + lw + ox, p0.y - 4.f + oy      },
+                {p0.x + lw + ox, p0.y + lh + 2.f + oy },
+                {p0.x + ox,      p0.y + lh + oy        },
+                {0.f, 0.f}, {1.f, 0.f}, {1.f, 1.f}, {0.f, 1.f},
+                col);
+        };
+
+        // Glow passes use additive blending so they add light to the background
+        // rather than accumulating alpha over the main image.
+        fdl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+        }, nullptr);
+
+        static const float kDirs[8][2] = {
+            {-1.f, 0.f},{1.f, 0.f},{0.f,-1.f},{0.f, 1.f},
+            {-1.f,-1.f},{1.f,-1.f},{-1.f,1.f},{1.f, 1.f}
+        };
+        for (auto& d : kDirs) drawQuad(d[0]*5.f, d[1]*5.f, IM_COL32(160, 160, 255, 14));
+        for (auto& d : kDirs) drawQuad(d[0]*3.f, d[1]*3.f, IM_COL32(180, 180, 255, 22));
+        for (auto& d : kDirs) drawQuad(d[0]*1.5f, d[1]*1.5f, IM_COL32(200, 200, 255, 32));
+
+        // Restore normal blending before drawing the main image
+        fdl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        }, nullptr);
+
+        drawQuad(0.f, 0.f, IM_COL32(255, 255, 255, 180));
     }
 
     ImGui::End();

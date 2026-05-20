@@ -257,6 +257,7 @@ void TrackerView::render(float x, float y, float w, float h) {
     m_charW   = ImGui::CalcTextSize("A").x;
     m_rowNumW = m_charW * 5.0f;
     m_cellW   = m_charW * 16.0f;
+    m_rowH    = ImGui::GetTextLineHeightWithSpacing();
     if (m_fontMono) ImGui::PopFont();
 
     m_chanH  = CHANNAME_H
@@ -651,18 +652,26 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
         return;
     }
 
-    // Handle click to move edit cursor (offset relY past the frozen channel header row)
-    if (ImGui::IsWindowHovered() && ImGui::IsMouseClicked(0) && m_rowH > 0.f) {
+    // Handle click to move edit cursor.
+    // Uses m_tableOriginX/Y measured from inside the table loop last frame,
+    // which correctly accounts for table cell padding.
+    if (ImGui::IsMouseClicked(0) && m_rowH > 0.f && m_tableOriginY > 0.f) {
         ImVec2 mp = ImGui::GetIO().MousePos;
         ImVec2 wp = ImGui::GetWindowPos();
-        float relY = mp.y - wp.y - m_chanH + m_scrollY;
-        float relX = mp.x - wp.x - m_rowNumW + m_hscroll;
-        int32_t nch   = m_state.num_channels.load();
-        int32_t nrows = pe_num_rows(m_mod, m_state.current_pattern.load());
-        int row = int(relY / m_rowH);
-        int ch  = int(relX / m_cellW);
-        if (row >= 0 && row < nrows && ch >= 0 && ch < nch) {
-            m_cur.row = row; m_cur.channel = ch; m_cur.col = EditCol::Note;
+        ImVec2 ws = ImGui::GetWindowSize();
+        bool inGrid = ImGui::IsMouseHoveringRect(
+            {wp.x, wp.y + m_chanH}, {wp.x + ws.x, wp.y + ws.y}, false);
+        if (inGrid) {
+            float relY = mp.y - m_tableOriginY + m_scrollY;
+            float relX = mp.x - wp.x - m_rowNumW + m_hscroll;
+            int32_t nch   = m_state.num_channels.load();
+            int32_t nrows = pe_num_rows(m_mod, m_state.current_pattern.load());
+            int row = int(relY / m_rowH);
+            int ch  = int(relX / m_cellW);
+            if (row >= 0 && row < nrows && ch >= 0 && ch < nch) {
+                m_cur.row = row; m_cur.channel = ch; m_cur.col = EditCol::Note;
+                m_editMode = true;
+            }
         }
     }
 
@@ -680,8 +689,7 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
         ImGuiTableFlags_ScrollX | ImGuiTableFlags_ScrollY |
         ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_NoPadOuterX;
 
-    float rowH  = ImGui::GetTextLineHeightWithSpacing();
-    m_rowH = rowH;
+    float rowH  = m_rowH;  // pre-computed with mono font in render()
     ImVec2 avail = ImGui::GetContentRegionAvail();
     float visH  = avail.y - m_chanH;  // exclude frozen header row from scroll math
 
@@ -706,10 +714,10 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
     if (!tableOpen) return;
 
     ImGui::TableSetupScrollFreeze(1, 1);  // freeze col 0 + row 0 (channel headers)
-    ImGui::TableSetupColumn("##row", ImGuiTableColumnFlags_WidthFixed, m_rowNumW);
+    ImGui::TableSetupColumn("##row", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, m_rowNumW);
     for (int ch = 0; ch < nch; ch++) {
         char id[12]; snprintf(id, sizeof(id), "##c%d", ch);
-        ImGui::TableSetupColumn(id, ImGuiTableColumnFlags_WidthFixed, m_cellW);
+        ImGui::TableSetupColumn(id, ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, m_cellW);
     }
 
     m_hscroll = ImGui::GetScrollX();
@@ -847,6 +855,15 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
 
         for (int ch = 0; ch < nch; ch++) {
             ImGui::TableNextColumn();
+
+            // Measure actual cell origin from the table's first rendered cell.
+            // This accounts for cell padding that our theoretical offsets miss.
+            if (r == clipper.DisplayStart && ch == 0) {
+                ImVec2 cp = ImGui::GetCursorScreenPos();
+                m_tableOriginY = cp.y - float(r) * m_rowH + m_scrollY
+                               - ImGui::GetStyle().CellPadding.y;
+            }
+
             bool isEditCell = m_editMode && (r == m_cur.row) && (ch == m_cur.channel);
 
             // Selection highlight (tinted background, drawn before text)

@@ -114,15 +114,18 @@ private:
     ImFont*               m_fontUI   {nullptr};
 
     // Layout cache
-    float    m_charW       {8.0f};
-    float    m_rowNumW     {40.0f};
-    float    m_cellW       {130.0f};
-    float    m_rowH        {16.0f};
-    float    m_hscroll     {0.0f};
-    float    m_scrollY     {0.0f};
-    int32_t  m_lastPattern {-1};
-    int32_t  m_lastRow     {-1};
-    uint64_t m_muteState   {0};
+    float    m_charW        {8.0f};
+    float    m_rowNumW      {40.0f};
+    float    m_cellW        {130.0f};
+    float    m_rowH         {16.0f};
+    float    m_hscroll      {0.0f};
+    float    m_scrollY      {0.0f};
+    // Table row origin Y: screen Y of row 0 top (outer boundary), scroll=0.
+    // Measured from inside the table loop to account for frozen header height.
+    float    m_tableOriginY {0.0f};
+    int32_t  m_lastPattern  {-1};
+    int32_t  m_lastRow      {-1};
+    uint64_t m_muteState    {0};
 
     // Edit cursor
     EditCursor m_cur;

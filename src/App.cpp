@@ -233,8 +233,12 @@ void App::render(int winW, int winH)
 
 
         ImGui::InvisibleButton("##drag", ImGui::GetContentRegionAvail());
-        if (ImGui::IsItemHovered() || ImGui::IsItemActive())
-            ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
+        {
+            float mx = ImGui::GetIO().MousePos.x;
+            bool inBand = (mx >= m_sidebarW && mx < m_sidebarW + kSplitterW);
+            if (inBand || ImGui::IsItemActive())
+                ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
+        }
         if (ImGui::IsItemActive()) {
             m_sidebarW = std::clamp(m_sidebarW + ImGui::GetIO().MouseDelta.x, 100.f, 500.f);
         }

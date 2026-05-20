@@ -52,7 +52,7 @@ private:
     bool  m_tabsInited {false};
     bool  m_hasModule  {false};
 
-    float m_sidebarW {200.f};
+    float m_sidebarW {260.f};
 
     bool m_isMaximized  {false};
     int  m_restoreX {0}, m_restoreY {0}, m_restoreW {1280}, m_restoreH {800};

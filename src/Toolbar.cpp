@@ -4,6 +4,7 @@
 #include "Knob.h"
 #include "imgui.h"
 #include <algorithm>
+#include <cmath>
 
 static void pushToolbarStyle()
 {
@@ -356,20 +357,24 @@ float DrawToolbar(ToolbarState& state,
             glBlendFunc(GL_SRC_ALPHA, GL_ONE);
         }, nullptr);
 
+        // Pulse: 0..1 over ~10s period
+        float pulse = (std::sin((float)ImGui::GetTime() * 0.62f) + 1.f) * 0.5f;
+        auto ga = [&](int base) { return (int)(base * (0.5f + 0.5f * pulse)); };
+
         static const float kDirs[8][2] = {
             {-1.f, 0.f},{1.f, 0.f},{0.f,-1.f},{0.f, 1.f},
             {-1.f,-1.f},{1.f,-1.f},{-1.f,1.f},{1.f, 1.f}
         };
-        for (auto& d : kDirs) drawQuad(d[0]*5.f, d[1]*5.f, IM_COL32(160, 160, 255, 14));
-        for (auto& d : kDirs) drawQuad(d[0]*3.f, d[1]*3.f, IM_COL32(180, 180, 255, 22));
-        for (auto& d : kDirs) drawQuad(d[0]*1.5f, d[1]*1.5f, IM_COL32(200, 200, 255, 32));
+        for (auto& d : kDirs) drawQuad(d[0]*5.f,  d[1]*5.f,  IM_COL32(160, 160, 255, ga( 8)));
+        for (auto& d : kDirs) drawQuad(d[0]*3.f,  d[1]*3.f,  IM_COL32(180, 180, 255, ga(13)));
+        for (auto& d : kDirs) drawQuad(d[0]*1.5f, d[1]*1.5f, IM_COL32(200, 200, 255, ga(18)));
 
         // Restore normal blending before drawing the main image
         fdl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {
             glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         }, nullptr);
 
-        drawQuad(0.f, 0.f, IM_COL32(255, 255, 255, 180));
+        drawQuad(0.f, 0.f, IM_COL32(255, 255, 255, 95));
     }
 
     ImGui::End();

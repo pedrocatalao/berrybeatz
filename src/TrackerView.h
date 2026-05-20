@@ -1,7 +1,10 @@
 #pragma once
 #include <functional>
 #include <cstdint>
+#include <deque>
+#include <vector>
 #include "ModuleState.h"
+#include "PatternEditor.h"
 
 struct ImFont;
 struct ImDrawList;
@@ -26,13 +29,40 @@ struct EditCursor {
     EditCol  col    {EditCol::Note};
 };
 
+// Block selection state
+struct PatSel {
+    bool    active    {false};
+    int32_t rowAnchor {0};
+    int32_t chAnchor  {0};
+    int32_t rowCursor {0};
+    int32_t chCursor  {0};
+    int32_t rowMin() const { return std::min(rowAnchor, rowCursor); }
+    int32_t rowMax() const { return std::max(rowAnchor, rowCursor); }
+    int32_t chMin()  const { return std::min(chAnchor,  chCursor);  }
+    int32_t chMax()  const { return std::max(chAnchor,  chCursor);  }
+};
+
+// Single cell edit record for undo
+struct CellEdit {
+    int32_t     pat, row, ch;
+    PatternCell before, after;
+};
+using UndoEntry = std::vector<CellEdit>;
+
+// Clipboard data
+struct ClipData {
+    std::vector<std::vector<PatternCell>> cells; // [row][ch]
+    int32_t rows  {0};
+    int32_t chans {0};
+};
+
 class TrackerView {
 public:
     explicit TrackerView(ModuleState& state);
     ~TrackerView() = default;
 
     void setModule(openmpt::module_ext* mod) { m_mod = mod; }
-    void clearModule() { m_mod = nullptr; }
+    void clearModule() { m_mod = nullptr; m_undoStack.clear(); m_redoStack.clear(); m_sel.active = false; }
     void setFonts(ImFont* mono, ImFont* ui) { m_fontMono = mono; m_fontUI = ui; }
 
     int  baseOctave() const   { return m_baseOctave; }
@@ -48,6 +78,7 @@ public:
     std::function<void(int32_t, bool)>          onPatternPlayFromStart;
     std::function<void(int32_t, int32_t)>       onPatternPlayRow;
     std::function<void()>                       onStopRequested;
+    std::function<void()>                       onInsertPatternRequested;
 
 private:
     void processInput();
@@ -61,6 +92,21 @@ private:
     void enterNote(uint8_t note);
     void advanceCursor();
     void clampCursor();
+
+    // Undo / redo
+    void pushEdit(UndoEntry e);
+    void doUndo();
+    void doRedo();
+
+    // Block operations
+    void selCopy();
+    void selPaste();
+    void selDelete();
+    void insertRow();
+    void deleteRow();
+
+    // Helper: set a cell with undo tracking
+    void setCell(int32_t pat, int32_t row, int32_t ch, const PatternCell& cell);
 
     ModuleState&          m_state;
     openmpt::module_ext*  m_mod      {nullptr};
@@ -84,6 +130,17 @@ private:
     int32_t    m_editStep      {1};
     bool       m_editMode      {false};
     int32_t    m_pluginPopupCh {-1};
+
+    // Block selection
+    PatSel m_sel;
+
+    // Undo / redo stacks
+    std::deque<UndoEntry> m_undoStack;
+    std::deque<UndoEntry> m_redoStack;
+    static constexpr int  kMaxUndo = 64;
+
+    // Clipboard
+    ClipData m_clip;
 
     // Dynamic layout
     float   m_chanH  {45.0f};

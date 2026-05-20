@@ -37,6 +37,7 @@ struct ToolbarState {
     std::function<void()>      onNew;
     std::function<void()>      onOpen;
     std::function<void()>      onSave;
+    std::function<void()>      onInsertPattern;
     std::function<void()>      onStop;
     std::function<void()>      onPlayPause;
     std::function<void()>      onPlayFromStart;

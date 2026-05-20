@@ -1,6 +1,7 @@
 #include "App.h"
 #include "CocoaHelpers.h"
 #include "Logo.h"
+#include "OpenMPTInternal.h"
 #include "imgui.h"
 #include <GLFW/glfw3.h>
 #include <libopenmpt/libopenmpt_ext.hpp>
@@ -89,7 +90,7 @@ App::App() : m_audio(m_state), m_tracker(m_state)
 
     m_toolbarState.onNew  = [this]() { clearModule(); };
     m_toolbarState.onOpen = [this]() { openFileDialog(); };
-    m_toolbarState.onSave = [this]() { /* TODO: save */ };
+    m_toolbarState.onSave = [this]() { saveModule(); };
     m_toolbarState.onStop = [this]() {
         if (m_audio.isRunning()) {
             m_audio.stop();
@@ -157,6 +158,7 @@ App::App() : m_audio(m_state), m_tracker(m_state)
         m_audio.playRow(order, row);
     };
     m_tracker.onStopRequested = [this]() { stopPlayback(); };
+    m_tracker.onInsertPatternRequested = [this]() { insertPattern(); };
 
 }
 
@@ -611,6 +613,30 @@ void App::handleEdgeResize(int winW, int winH)
 }
 
 // ─── Operations ───────────────────────────────────────────────────────────────
+
+void App::saveModule()
+{
+    if (!m_hasModule || m_loadedPath.empty()) return;
+    auto* mod = m_audio.getModule();
+    if (!mod) return;
+    std::string type = mod->get_metadata("type");
+    bb_save_module(mod, m_loadedPath, type);
+}
+
+void App::insertPattern()
+{
+    if (!m_hasModule) return;
+    auto* mod = m_audio.getModule();
+    if (!mod) return;
+    int idx = bb_insert_pattern(mod, 64);
+    if (idx >= 0) {
+        std::lock_guard<std::mutex> lk(m_state.meta_mutex);
+        // Ensure pattern_names is large enough for the new index
+        if (idx >= (int)m_state.pattern_names.size())
+            m_state.pattern_names.resize(idx + 1);
+        m_state.num_patterns = std::max(m_state.num_patterns, idx + 1);
+    }
+}
 
 void App::openFileDialog()
 {

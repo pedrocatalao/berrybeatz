@@ -30,3 +30,8 @@ int  pe_num_rows(openmpt::module_ext* mod, int pat);
 void pe_get_cell(openmpt::module_ext* mod, int pat, int row, int ch, PatternCell& out);
 void pe_set_cell(openmpt::module_ext* mod, int pat, int row, int ch, const PatternCell& cell);
 void pe_clear_cell(openmpt::module_ext* mod, int pat, int row, int ch);
+
+// Shift all rows from 'row' down by one; the last row is lost. The inserted row is cleared.
+void pe_insert_row(openmpt::module_ext* mod, int pat, int row, int nch);
+// Shift all rows from 'row+1' up by one; the last row is cleared.
+void pe_delete_row(openmpt::module_ext* mod, int pat, int row, int nch);

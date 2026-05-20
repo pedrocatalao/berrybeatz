@@ -28,6 +28,8 @@ private:
     void drawInstrumentsTab();
     void drawCommentsTab();
     void openFileDialog();
+    void saveModule();
+    void insertPattern();
     void clearModule();
     void startPlayback();
     void stopPlayback();

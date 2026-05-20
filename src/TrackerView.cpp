@@ -59,6 +59,145 @@ static constexpr float PLUGIN_H   = 14.0f;
 
 TrackerView::TrackerView(ModuleState& state) : m_state(state) {}
 
+// ── Undo / Redo ───────────────────────────────────────────────────────────────
+
+void TrackerView::pushEdit(UndoEntry e) {
+    m_redoStack.clear();
+    m_undoStack.push_back(std::move(e));
+    if ((int)m_undoStack.size() > kMaxUndo)
+        m_undoStack.pop_front();
+}
+
+void TrackerView::doUndo() {
+    if (m_undoStack.empty() || !m_mod) return;
+    UndoEntry e = std::move(m_undoStack.back());
+    m_undoStack.pop_back();
+    for (auto& c : e)
+        pe_set_cell(m_mod, c.pat, c.row, c.ch, c.before);
+    m_redoStack.push_back(std::move(e));
+}
+
+void TrackerView::doRedo() {
+    if (m_redoStack.empty() || !m_mod) return;
+    UndoEntry e = std::move(m_redoStack.back());
+    m_redoStack.pop_back();
+    for (auto& c : e)
+        pe_set_cell(m_mod, c.pat, c.row, c.ch, c.after);
+    m_undoStack.push_back(std::move(e));
+}
+
+// Helper: perform a single-cell edit with undo tracking
+void TrackerView::setCell(int32_t pat, int32_t row, int32_t ch, const PatternCell& cell) {
+    PatternCell before;
+    pe_get_cell(m_mod, pat, row, ch, before);
+    pe_set_cell(m_mod, pat, row, ch, cell);
+    UndoEntry e;
+    e.push_back({pat, row, ch, before, cell});
+    pushEdit(std::move(e));
+}
+
+// ── Block operations ──────────────────────────────────────────────────────────
+
+void TrackerView::selCopy() {
+    if (!m_sel.active || !m_mod) return;
+    int32_t pat  = m_state.current_pattern.load();
+    int32_t rMin = m_sel.rowMin(), rMax = m_sel.rowMax();
+    int32_t cMin = m_sel.chMin(),  cMax = m_sel.chMax();
+    m_clip.rows  = rMax - rMin + 1;
+    m_clip.chans = cMax - cMin + 1;
+    m_clip.cells.assign(m_clip.rows, std::vector<PatternCell>(m_clip.chans));
+    for (int32_t r = 0; r < m_clip.rows; r++)
+        for (int32_t c = 0; c < m_clip.chans; c++)
+            pe_get_cell(m_mod, pat, rMin + r, cMin + c, m_clip.cells[r][c]);
+}
+
+void TrackerView::selPaste() {
+    if (m_clip.rows <= 0 || m_clip.chans <= 0 || !m_mod) return;
+    int32_t pat   = m_state.current_pattern.load();
+    int32_t nrows = pe_num_rows(m_mod, pat);
+    int32_t nch   = m_state.num_channels.load();
+    UndoEntry e;
+    for (int32_t r = 0; r < m_clip.rows; r++) {
+        int32_t dr = m_cur.row + r;
+        if (dr >= nrows) { if (!m_overflowPaste) break; dr %= nrows; }
+        for (int32_t c = 0; c < m_clip.chans; c++) {
+            int32_t dc = m_cur.channel + c;
+            if (dc >= nch) break;
+            PatternCell before;
+            pe_get_cell(m_mod, pat, dr, dc, before);
+            pe_set_cell(m_mod, pat, dr, dc, m_clip.cells[r][c]);
+            e.push_back({pat, dr, dc, before, m_clip.cells[r][c]});
+        }
+    }
+    if (!e.empty()) pushEdit(std::move(e));
+}
+
+void TrackerView::selDelete() {
+    if (!m_sel.active || !m_mod) return;
+    int32_t pat  = m_state.current_pattern.load();
+    int32_t rMin = m_sel.rowMin(), rMax = m_sel.rowMax();
+    int32_t cMin = m_sel.chMin(),  cMax = m_sel.chMax();
+    UndoEntry e;
+    for (int32_t r = rMin; r <= rMax; r++) {
+        for (int32_t c = cMin; c <= cMax; c++) {
+            PatternCell before;
+            pe_get_cell(m_mod, pat, r, c, before);
+            static const PatternCell kEmpty{};
+            pe_set_cell(m_mod, pat, r, c, kEmpty);
+            e.push_back({pat, r, c, before, kEmpty});
+        }
+    }
+    if (!e.empty()) pushEdit(std::move(e));
+}
+
+void TrackerView::insertRow() {
+    if (!m_mod) return;
+    int32_t pat  = m_state.current_pattern.load();
+    int32_t nch  = m_state.num_channels.load();
+    int32_t nrows = pe_num_rows(m_mod, pat);
+    // Build undo entry: snapshot before state
+    UndoEntry e;
+    e.reserve((nrows - m_cur.row) * nch);
+    for (int32_t r = m_cur.row; r < nrows; r++) {
+        for (int32_t c = 0; c < nch; c++) {
+            PatternCell before;
+            pe_get_cell(m_mod, pat, r, c, before);
+            e.push_back({pat, r, c, before, PatternCell{}});
+        }
+    }
+    // Perform the shift
+    pe_insert_row(m_mod, pat, m_cur.row, nch);
+    // Capture after state
+    for (auto& ce : e) {
+        pe_get_cell(m_mod, pat, ce.row, ce.ch, ce.after);
+    }
+    pushEdit(std::move(e));
+}
+
+void TrackerView::deleteRow() {
+    if (!m_mod) return;
+    int32_t pat  = m_state.current_pattern.load();
+    int32_t nch  = m_state.num_channels.load();
+    int32_t nrows = pe_num_rows(m_mod, pat);
+    // Snapshot before state
+    UndoEntry e;
+    e.reserve((nrows - m_cur.row) * nch);
+    for (int32_t r = m_cur.row; r < nrows; r++) {
+        for (int32_t c = 0; c < nch; c++) {
+            PatternCell before;
+            pe_get_cell(m_mod, pat, r, c, before);
+            e.push_back({pat, r, c, before, PatternCell{}});
+        }
+    }
+    // Perform the shift
+    pe_delete_row(m_mod, pat, m_cur.row, nch);
+    // Capture after state
+    for (auto& ce : e) {
+        pe_get_cell(m_mod, pat, ce.row, ce.ch, ce.after);
+    }
+    pushEdit(std::move(e));
+}
+
 // ── Toolbar helpers ───────────────────────────────────────────────────────────
 
 static void tip(const char* text) {
@@ -218,7 +357,9 @@ void TrackerView::drawPatternToolbar1(float /*x*/, float /*y*/, float /*w*/) {
         return r;
     };
 
-    if (actBtn("Insert##ins", has))       { /* TODO: insert pattern */ }
+    if (actBtn("Insert##ins", has)) {
+        if (onInsertPatternRequested) onInsertPatternRequested();
+    }
     tip("Insert pattern");
     ImGui::SameLine();
     if (actBtn("Play Cursor##playcur", has)) {
@@ -261,7 +402,7 @@ void TrackerView::drawPatternToolbar1(float /*x*/, float /*y*/, float /*w*/) {
     togBtn("FX##fx", m_showPluginRow); tip("Show/hide plugin row");
 
     tbSep();
-    if (actBtn("Undo##undo",       has)) {} tip("Undo");
+    if (actBtn("Undo##undo", has && !m_undoStack.empty())) { doUndo(); } tip("Undo");
     ImGui::SameLine();
     if (actBtn("Props##props",     has)) {} tip("Pattern properties");
     ImGui::SameLine();
@@ -708,6 +849,17 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
             ImGui::TableNextColumn();
             bool isEditCell = m_editMode && (r == m_cur.row) && (ch == m_cur.channel);
 
+            // Selection highlight (tinted background, drawn before text)
+            bool isSelected = m_sel.active
+                && r >= m_sel.rowMin() && r <= m_sel.rowMax()
+                && ch >= m_sel.chMin() && ch <= m_sel.chMax();
+            if (isSelected) {
+                ImVec2 rMin = ImGui::GetCursorScreenPos();
+                ImVec2 rMax = {rMin.x + m_cellW, rMin.y + m_rowH};
+                ImGui::GetWindowDrawList()->AddRectFilled(
+                    rMin, rMax, IM_COL32(80, 80, 200, 60));
+            }
+
             float subX[5], subW[5];
             auto recordPos = [&](int col) { subX[col] = ImGui::GetCursorScreenPos().x; };
 
@@ -783,64 +935,131 @@ void TrackerView::processInput() {
     int32_t nrows = pe_num_rows(m_mod, pat);
     int32_t nch   = m_state.num_channels.load();
     bool    shift = ImGui::GetIO().KeyShift;
+    bool    ctrl  = ImGui::GetIO().KeyCtrl;
 
-    // Navigation (always active, with auto-repeat)
-    if (ImGui::IsKeyPressed(ImGuiKey_UpArrow))   { m_cur.row = std::max(0, m_cur.row - 1); return; }
-    if (ImGui::IsKeyPressed(ImGuiKey_DownArrow))  { m_cur.row = std::min(nrows-1, m_cur.row + 1); return; }
+    // ── Ctrl shortcuts (Undo/Redo/Copy/Paste/Cut) ─────────────────────────────
+    if (ctrl) {
+        if (ImGui::IsKeyPressed(ImGuiKey_Z)) {
+            if (shift) doRedo(); else doUndo();
+            return;
+        }
+        if (ImGui::IsKeyPressed(ImGuiKey_Y)) { doRedo(); return; }
+        if (ImGui::IsKeyPressed(ImGuiKey_C)) { selCopy(); return; }
+        if (ImGui::IsKeyPressed(ImGuiKey_X)) { selCopy(); selDelete(); return; }
+        if (ImGui::IsKeyPressed(ImGuiKey_V)) { selPaste(); return; }
+    }
+
+    // ── Insert / delete row (keyboard only) ────────────────────────────────────
+    if (ImGui::IsKeyPressed(ImGuiKey_Insert))    { insertRow(); return; }
+    if (ImGui::IsKeyPressed(ImGuiKey_Backspace))  { deleteRow(); return; }
+
+    // ── Navigation with optional shift-selection ──────────────────────────────
+    auto navigate = [&](int32_t newRow, int32_t newCh, EditCol newCol) {
+        if (shift) {
+            if (!m_sel.active) {
+                m_sel.active    = true;
+                m_sel.rowAnchor = m_cur.row;
+                m_sel.chAnchor  = m_cur.channel;
+            }
+            m_sel.rowCursor = newRow;
+            m_sel.chCursor  = newCh;
+        } else {
+            m_sel.active = false;
+        }
+        m_cur.row     = newRow;
+        m_cur.channel = newCh;
+        m_cur.col     = newCol;
+    };
+
+    if (ImGui::IsKeyPressed(ImGuiKey_UpArrow)) {
+        navigate(std::max(0, m_cur.row - 1), m_cur.channel, m_cur.col); return;
+    }
+    if (ImGui::IsKeyPressed(ImGuiKey_DownArrow)) {
+        navigate(std::min(nrows - 1, m_cur.row + 1), m_cur.channel, m_cur.col); return;
+    }
     if (ImGui::IsKeyPressed(ImGuiKey_LeftArrow)) {
-        if (m_cur.col == EditCol::Note) {
-            if (m_cur.channel > 0) { m_cur.channel--; m_cur.col = EditCol::FxParam; }
-        } else { m_cur.col = EditCol(int(m_cur.col) - 1); }
-        return;
+        int32_t newCh  = m_cur.channel;
+        EditCol newCol = m_cur.col;
+        if (newCol == EditCol::Note) {
+            if (newCh > 0) { newCh--; newCol = EditCol::FxParam; }
+        } else {
+            newCol = EditCol(int(newCol) - 1);
+        }
+        navigate(m_cur.row, newCh, newCol); return;
     }
     if (ImGui::IsKeyPressed(ImGuiKey_RightArrow)) {
-        if (m_cur.col == EditCol::FxParam) {
-            if (m_cur.channel < nch-1) { m_cur.channel++; m_cur.col = EditCol::Note; }
-        } else { m_cur.col = EditCol(int(m_cur.col) + 1); }
-        return;
+        int32_t newCh  = m_cur.channel;
+        EditCol newCol = m_cur.col;
+        if (newCol == EditCol::FxParam) {
+            if (newCh < nch - 1) { newCh++; newCol = EditCol::Note; }
+        } else {
+            newCol = EditCol(int(newCol) + 1);
+        }
+        navigate(m_cur.row, newCh, newCol); return;
     }
     if (ImGui::IsKeyPressed(ImGuiKey_Tab)) {
-        if (shift) m_cur.channel = (m_cur.channel + nch - 1) % nch;
-        else       m_cur.channel = (m_cur.channel + 1) % nch;
-        m_cur.col = EditCol::Note; return;
+        int32_t newCh = shift ? (m_cur.channel + nch - 1) % nch
+                               : (m_cur.channel + 1) % nch;
+        navigate(m_cur.row, newCh, EditCol::Note); return;
     }
-    if (ImGui::IsKeyPressed(ImGuiKey_PageUp))  { m_cur.row = std::max(0, m_cur.row - 16); return; }
-    if (ImGui::IsKeyPressed(ImGuiKey_PageDown)) { m_cur.row = std::min(nrows-1, m_cur.row + 16); return; }
-    if (ImGui::IsKeyPressed(ImGuiKey_Home))    { m_cur.row = 0; return; }
-    if (ImGui::IsKeyPressed(ImGuiKey_End))     { m_cur.row = nrows - 1; return; }
-    if (ImGui::IsKeyPressed(ImGuiKey_F1))      { m_baseOctave = std::max(0, m_baseOctave - 1); return; }
-    if (ImGui::IsKeyPressed(ImGuiKey_F2))      { m_baseOctave = std::min(8, m_baseOctave + 1); return; }
-    if (ImGui::IsKeyPressed(ImGuiKey_Minus))   { m_editStep = std::max(0, m_editStep - 1); return; }
-    if (ImGui::IsKeyPressed(ImGuiKey_Equal))   { m_editStep = std::min(16, m_editStep + 1); return; }
+    if (ImGui::IsKeyPressed(ImGuiKey_PageUp)) {
+        navigate(std::max(0, m_cur.row - 16), m_cur.channel, m_cur.col); return;
+    }
+    if (ImGui::IsKeyPressed(ImGuiKey_PageDown)) {
+        navigate(std::min(nrows - 1, m_cur.row + 16), m_cur.channel, m_cur.col); return;
+    }
+    if (ImGui::IsKeyPressed(ImGuiKey_Home)) {
+        navigate(0, m_cur.channel, m_cur.col); return;
+    }
+    if (ImGui::IsKeyPressed(ImGuiKey_End)) {
+        navigate(nrows - 1, m_cur.channel, m_cur.col); return;
+    }
+
+    if (ImGui::IsKeyPressed(ImGuiKey_F1))    { m_baseOctave = std::max(0, m_baseOctave - 1); return; }
+    if (ImGui::IsKeyPressed(ImGuiKey_F2))    { m_baseOctave = std::min(8, m_baseOctave + 1); return; }
+    if (ImGui::IsKeyPressed(ImGuiKey_Minus)) { m_editStep = std::max(0, m_editStep - 1); return; }
+    if (ImGui::IsKeyPressed(ImGuiKey_Equal)) { m_editStep = std::min(16, m_editStep + 1); return; }
     if (ImGui::IsKeyPressed(ImGuiKey_Enter) || ImGui::IsKeyPressed(ImGuiKey_KeypadEnter))
         { m_editMode = !m_editMode; return; }
 
     if (!m_editMode) return;
+
+    // Delete key: if selection active, delete selection; otherwise clear current cell
+    if (ImGui::IsKeyPressed(ImGuiKey_Delete)) {
+        if (m_sel.active) {
+            selDelete(); return;
+        }
+        // Clear current cell with undo
+        PatternCell before;
+        pe_get_cell(m_mod, pat, m_cur.row, m_cur.channel, before);
+        pe_clear_cell(m_mod, pat, m_cur.row, m_cur.channel);
+        PatternCell after{};
+        UndoEntry e;
+        e.push_back({pat, m_cur.row, m_cur.channel, before, after});
+        pushEdit(std::move(e));
+        advanceCursor(); return;
+    }
 
     PatternCell cell;
     pe_get_cell(m_mod, pat, m_cur.row, m_cur.channel, cell);
 
     if (m_cur.col == EditCol::Note) {
         if (ImGui::IsKeyPressed(ImGuiKey_1)) {
-            cell.note = NOTE_NOTECUT;
-            pe_set_cell(m_mod, pat, m_cur.row, m_cur.channel, cell);
+            PatternCell newCell = cell; newCell.note = NOTE_NOTECUT;
+            setCell(pat, m_cur.row, m_cur.channel, newCell);
             advanceCursor(); return;
         }
         if (ImGui::IsKeyPressed(ImGuiKey_GraveAccent)) {
-            cell.note = NOTE_KEYOFF;
-            pe_set_cell(m_mod, pat, m_cur.row, m_cur.channel, cell);
-            advanceCursor(); return;
-        }
-        if (ImGui::IsKeyPressed(ImGuiKey_Delete)) {
-            pe_clear_cell(m_mod, pat, m_cur.row, m_cur.channel);
+            PatternCell newCell = cell; newCell.note = NOTE_KEYOFF;
+            setCell(pat, m_cur.row, m_cur.channel, newCell);
             advanceCursor(); return;
         }
         for (const auto& nm : kNoteKeys) {
             if (ImGui::IsKeyPressed(nm.key)) {
                 int note = (m_baseOctave + nm.semi/12) * 12 + (nm.semi % 12) + 1;
                 if (note >= NOTE_MIN && note <= NOTE_MAX) {
-                    cell.note = (uint8_t)note;
-                    pe_set_cell(m_mod, pat, m_cur.row, m_cur.channel, cell);
+                    PatternCell newCell = cell; newCell.note = (uint8_t)note;
+                    setCell(pat, m_cur.row, m_cur.channel, newCell);
                     advanceCursor();
                 }
                 return;
@@ -850,14 +1069,11 @@ void TrackerView::processInput() {
     }
 
     if (m_cur.col == EditCol::Instr) {
-        if (ImGui::IsKeyPressed(ImGuiKey_Delete)) {
-            cell.instr = 0; pe_set_cell(m_mod, pat, m_cur.row, m_cur.channel, cell);
-            advanceCursor(); return;
-        }
         for (const auto& hk : kHexKeys) {
             if (ImGui::IsKeyPressed(hk.key)) {
-                cell.instr = (uint8_t)(((cell.instr % 10) * 10 + hk.semi) % 100);
-                pe_set_cell(m_mod, pat, m_cur.row, m_cur.channel, cell);
+                PatternCell newCell = cell;
+                newCell.instr = (uint8_t)(((cell.instr % 10) * 10 + hk.semi) % 100);
+                setCell(pat, m_cur.row, m_cur.channel, newCell);
                 advanceCursor(); return;
             }
         }
@@ -865,16 +1081,12 @@ void TrackerView::processInput() {
     }
 
     if (m_cur.col == EditCol::Vol) {
-        if (ImGui::IsKeyPressed(ImGuiKey_Delete)) {
-            cell.volcmd = VOLCMD_NONE; cell.vol = 0;
-            pe_set_cell(m_mod, pat, m_cur.row, m_cur.channel, cell);
-            advanceCursor(); return;
-        }
         for (int i = 0; i < 10; i++) {
             if (ImGui::IsKeyPressed((ImGuiKey)(ImGuiKey_0 + i))) {
-                if (cell.volcmd == VOLCMD_NONE) cell.volcmd = VOLCMD_VOLUME;
-                cell.vol = (uint8_t)std::min((int)(cell.vol % 10) * 10 + i, 64);
-                pe_set_cell(m_mod, pat, m_cur.row, m_cur.channel, cell);
+                PatternCell newCell = cell;
+                if (newCell.volcmd == VOLCMD_NONE) newCell.volcmd = VOLCMD_VOLUME;
+                newCell.vol = (uint8_t)std::min((int)(cell.vol % 10) * 10 + i, 64);
+                setCell(pat, m_cur.row, m_cur.channel, newCell);
                 advanceCursor(); return;
             }
         }
@@ -882,15 +1094,10 @@ void TrackerView::processInput() {
     }
 
     if (m_cur.col == EditCol::FxCmd) {
-        if (ImGui::IsKeyPressed(ImGuiKey_Delete)) {
-            cell.command = CMD_NONE; cell.param = 0;
-            pe_set_cell(m_mod, pat, m_cur.row, m_cur.channel, cell);
-            advanceCursor(); return;
-        }
         for (int i = 0; i < 26; i++) {
             if (ImGui::IsKeyPressed((ImGuiKey)(ImGuiKey_A + i))) {
-                cell.command = (uint8_t)(i + 1);
-                pe_set_cell(m_mod, pat, m_cur.row, m_cur.channel, cell);
+                PatternCell newCell = cell; newCell.command = (uint8_t)(i + 1);
+                setCell(pat, m_cur.row, m_cur.channel, newCell);
                 advanceCursor(); return;
             }
         }
@@ -898,14 +1105,11 @@ void TrackerView::processInput() {
     }
 
     if (m_cur.col == EditCol::FxParam) {
-        if (ImGui::IsKeyPressed(ImGuiKey_Delete)) {
-            cell.param = 0; pe_set_cell(m_mod, pat, m_cur.row, m_cur.channel, cell);
-            advanceCursor(); return;
-        }
         for (const auto& hk : kHexKeys) {
             if (ImGui::IsKeyPressed(hk.key)) {
-                cell.param = (uint8_t)(((cell.param & 0x0F) << 4) | hk.semi);
-                pe_set_cell(m_mod, pat, m_cur.row, m_cur.channel, cell);
+                PatternCell newCell = cell;
+                newCell.param = (uint8_t)(((cell.param & 0x0F) << 4) | hk.semi);
+                setCell(pat, m_cur.row, m_cur.channel, newCell);
                 advanceCursor(); return;
             }
         }

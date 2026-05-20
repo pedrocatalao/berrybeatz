@@ -75,6 +75,8 @@ set(SOURCES
     assets/logo.png
     assets/AppIcon.icns
     assets/BigBlueTermPlusNerdFontMono-Regular.ttf
+    assets/Ac437_IBM_VGA_8x16.ttf
+    assets/unscii-16-full.ttf
 )
 
 add_executable(BerryBeatz MACOSX_BUNDLE
@@ -91,6 +93,8 @@ set_source_files_properties(
     assets/logo.png
     assets/AppIcon.icns
     assets/BigBlueTermPlusNerdFontMono-Regular.ttf
+    assets/Ac437_IBM_VGA_8x16.ttf
+    assets/unscii-16-full.ttf
     PROPERTIES MACOSX_PACKAGE_LOCATION Resources
 )
 

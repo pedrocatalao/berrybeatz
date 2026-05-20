@@ -98,11 +98,11 @@ int main(int argc, char* argv[])
         uiCfg.OversampleH = 2;
         uiCfg.OversampleV = 2;
 
-        // BigBlue Terminal: authentic IBM VGA/DOS bitmap font for patterns
+        // Unscii-16: Unicode bitmap font with full CP437 + extended coverage
         {
-            std::string path = bundleResource("BigBlueTermPlusNerdFontMono-Regular.ttf");
+            std::string path = bundleResource("unscii-16-full.ttf");
             if (!path.empty())
-                fontMono = io.Fonts->AddFontFromFileTTF(path.c_str(), 11.f, &pixCfg);
+                fontMono = io.Fonts->AddFontFromFileTTF(path.c_str(), 14.f, &pixCfg);
         }
 
         // Monaco: classic Mac monospace, clean retro feel for UI

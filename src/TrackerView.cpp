@@ -256,7 +256,7 @@ void TrackerView::render(float x, float y, float w, float h) {
     if (m_fontMono) ImGui::PushFont(m_fontMono);
     m_charW   = ImGui::CalcTextSize("A").x;
     m_rowNumW = m_charW * 3.0f + 2.0f;
-    m_cellW   = m_charW * 16.0f;
+    m_cellW   = m_charW * 20.0f;
     m_rowH    = ImGui::GetTextLineHeightWithSpacing();
     if (m_fontMono) ImGui::PopFont();
 
@@ -813,13 +813,6 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
         float dt = ImGui::GetIO().DeltaTime;
         newScrollY  = currentScrollY + (targetY - currentScrollY) * std::min(1.0f, 8.0f * dt);
         forceScroll = true;
-    } else if (m_editMode) {
-        float curTop = float(m_cur.row) * rowH;
-        float curBot = curTop + rowH;
-        if (curTop < currentScrollY + rowH * 2)
-            { newScrollY = curTop - rowH * 2; forceScroll = true; }
-        else if (curBot > currentScrollY + visH - rowH * 2)
-            { newScrollY = curBot - visH + rowH * 2; forceScroll = true; }
     }
 
     if (forceScroll) {
@@ -889,31 +882,34 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
             float subX[5], subW[5];
             auto recordPos = [&](int col) { subX[col] = ImGui::GetCursorScreenPos().x; };
 
-            std::string note = m_mod->format_pattern_row_channel_command(curPat, r, ch, openmpt::module::command_note);
-            std::string inst = m_mod->format_pattern_row_channel_command(curPat, r, ch, openmpt::module::command_instrument);
-            std::string vol  = m_mod->format_pattern_row_channel_command(curPat, r, ch, openmpt::module::command_volumeffect);
-            std::string fx   = m_mod->format_pattern_row_channel_command(curPat, r, ch, openmpt::module::command_effect);
-            std::string fxp  = m_mod->format_pattern_row_channel_command(curPat, r, ch, openmpt::module::command_parameter);
+            std::string note  = m_mod->format_pattern_row_channel_command(curPat, r, ch, openmpt::module::command_note);
+            std::string inst  = m_mod->format_pattern_row_channel_command(curPat, r, ch, openmpt::module::command_instrument);
+            std::string volFx = m_mod->format_pattern_row_channel_command(curPat, r, ch, openmpt::module::command_volumeffect);
+            std::string volV  = m_mod->format_pattern_row_channel_command(curPat, r, ch, openmpt::module::command_volume);
+            std::string vol   = volFx + volV;
+            std::string fx    = m_mod->format_pattern_row_channel_command(curPat, r, ch, openmpt::module::command_effect);
+            std::string fxp   = m_mod->format_pattern_row_channel_command(curPat, r, ch, openmpt::module::command_parameter);
 
             bool hasNote = !note.empty() && note != "..." && note != "---";
             bool hasInst = !inst.empty() && inst != ".." && inst != "00";
-            bool hasVol  = !vol.empty()  && vol.find_first_not_of("v.") != std::string::npos;
-            bool hasFx   = !fx.empty()   && fx  != ".";
+            bool hasVol  = !volFx.empty() && volFx != "." && volFx != "..."
+                        && !volV.empty()  && volV  != ".." && volV != ".";
+            bool hasFx   = !fx.empty()    && fx    != ".";
 
             recordPos(0);
-            ImGui::TextColored(hasNote ? kColNote : kDim, "%-3s", note.empty() ? "..." : note.c_str());
-            subW[0] = ImGui::GetItemRectSize().x + 3;
-            ImGui::SameLine(0, 3); recordPos(1);
-            ImGui::TextColored(hasInst ? kColInstr : kDim, "%2s", inst.empty() ? ".." : inst.c_str());
-            subW[1] = ImGui::GetItemRectSize().x + 3;
-            ImGui::SameLine(0, 3); recordPos(2);
-            ImGui::TextColored(hasVol ? kColVolume : kDim, "%-3s", vol.empty() ? "..." : vol.c_str());
-            subW[2] = ImGui::GetItemRectSize().x + 2;
-            ImGui::SameLine(0, 2); recordPos(3);
-            ImGui::TextColored(hasFx ? kColGlobal : kDim, "%s", fx.empty() ? "." : fx.c_str());
+            ImGui::TextColored(hasNote ? kColNote : kDim, "%-3s", hasNote ? note.c_str() : "\xc2\xb7\xc2\xb7\xc2\xb7");
+            subW[0] = ImGui::GetItemRectSize().x + 6;
+            ImGui::SameLine(0, 6); recordPos(1);
+            ImGui::TextColored(hasInst ? kColInstr : kDim, "%-2s", hasInst ? inst.c_str() : "\xc2\xb7\xc2\xb7");
+            subW[1] = ImGui::GetItemRectSize().x + 6;
+            ImGui::SameLine(0, 6); recordPos(2);
+            ImGui::TextColored(hasVol ? kColVolume : kDim, "%-3s", hasVol ? vol.c_str() : "\xc2\xb7\xc2\xb7\xc2\xb7");
+            subW[2] = ImGui::GetItemRectSize().x + 6;
+            ImGui::SameLine(0, 6); recordPos(3);
+            ImGui::TextColored(hasFx ? kColGlobal : kDim, "%s",   hasFx ? fx.c_str()  : "\xc2\xb7");
             subW[3] = ImGui::GetItemRectSize().x;
             ImGui::SameLine(0, 0); recordPos(4);
-            ImGui::TextColored(hasFx ? kColGlobal : kDim, "%-2s", fxp.empty() ? ".." : fxp.c_str());
+            ImGui::TextColored(hasFx ? kColGlobal : kDim, "%-2s", hasFx ? fxp.c_str() : "\xc2\xb7\xc2\xb7");
             subW[4] = ImGui::GetItemRectSize().x;
 
             if (isEditCell) {

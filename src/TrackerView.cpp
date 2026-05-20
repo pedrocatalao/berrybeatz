@@ -170,7 +170,6 @@ void TrackerView::render(float x, float y, float w, float h) {
     ImGui::PushStyleColor(ImGuiCol_ScrollbarGrabHovered, IM_COL32( 55, 112, 175, 230));
     ImGui::PushStyleColor(ImGuiCol_ScrollbarGrabActive,  IM_COL32( 66, 130, 205, 255));
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.f, 0.f));
-    ImGui::PushStyleVar(ImGuiStyleVar_ScrollbarSize, 8.f);
     ImGui::Begin("##pattern", nullptr, noDecoFlags);
     ImGui::PopStyleVar(1);   // WindowPadding — no longer needed after Begin
     ImGui::PopStyleColor(1); // WindowBg — no longer needed after Begin
@@ -180,7 +179,6 @@ void TrackerView::render(float x, float y, float w, float h) {
 
     drawPatternPanel(x, chanY, w, patH);
     ImGui::End();
-    ImGui::PopStyleVar(1);   // ScrollbarSize — must outlive End()
     ImGui::PopStyleColor(4); // scrollbar colors — must outlive End()
 
     // Plugin settings popup (anchored to chanstrip window for ID stability)

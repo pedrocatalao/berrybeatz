@@ -375,16 +375,15 @@ void App::drawSidebar(float x, float y, float w, float h)
     // Scrollbar style is pushed here (not on parent) and popped after EndChild
     // so it is still active when ImGui renders the scrollbar in EndChild.
     {
-        constexpr float kSbSz = 8.f;
         const float rp    = ImGui::GetStyle().WindowPadding.x;
+        const float sw    = ImGui::GetStyle().ScrollbarSize;
         const float childW = ImGui::GetContentRegionAvail().x + rp;
-        ImGui::SetNextWindowContentSize({childW - kSbSz, 0.f});
+        ImGui::SetNextWindowContentSize({childW - sw, 0.f});
         ImGui::PushStyleColor(ImGuiCol_ScrollbarBg,          IM_COL32( 12,  12,  22, 255));
         ImGui::PushStyleColor(ImGuiCol_ScrollbarGrab,        IM_COL32( 40,  85, 145, 200));
         ImGui::PushStyleColor(ImGuiCol_ScrollbarGrabHovered, IM_COL32( 55, 112, 175, 230));
         ImGui::PushStyleColor(ImGuiCol_ScrollbarGrabActive,  IM_COL32( 66, 130, 205, 255));
-        ImGui::PushStyleVar(ImGuiStyleVar_ScrollbarSize,  kSbSz);
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,  ImVec2(0.f, 0.f));
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.f, 0.f));
         ImGui::BeginChild("##sidebar_scroll", {childW, 0.f}, false, 0);
         ImGui::PopStyleVar(1);  // WindowPadding — no longer needed after Begin
     }
@@ -461,7 +460,6 @@ void App::drawSidebar(float x, float y, float w, float h)
     patSection();
 
     ImGui::EndChild();
-    ImGui::PopStyleVar(1);   // ScrollbarSize
     ImGui::PopStyleColor(4); // scrollbar colors
 
     ImGui::End();

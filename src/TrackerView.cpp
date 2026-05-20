@@ -36,7 +36,7 @@ static const ImVec4 kBgHilight   { 64/255.f,  64/255.f, 128/255.f, 1.f};
 static const ImVec4 kBgMeasure   { 46/255.f,  46/255.f,  90/255.f, 1.f};
 static const ImVec4 kColNote     {100/255.f, 210/255.f, 220/255.f, 1.f};  // soft cyan
 static const ImVec4 kColInstr    {220/255.f, 200/255.f, 110/255.f, 1.f};  // soft yellow
-static const ImVec4 kColVolume   {240/255.f, 130/255.f, 130/255.f, 1.f};  // soft pink
+static const ImVec4 kColVolume   {250/255.f, 100/255.f, 140/255.f, 1.f};  // soft pink
 static const ImVec4 kColGlobal   {120/255.f, 200/255.f, 130/255.f, 1.f};  // soft green
 static const ImVec4 kDim         { 80/255.f,  80/255.f,  80/255.f, 1.f};
 static const ImVec4 kChHeader    { 30/255.f,  30/255.f,  60/255.f, 1.f};

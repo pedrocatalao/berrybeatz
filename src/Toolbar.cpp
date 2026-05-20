@@ -401,7 +401,7 @@ float DrawToolbar(ToolbarState& state,
             glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         }, nullptr);
 
-        drawQuad(0.f, 0.f, IM_COL32(255, 255, 255, 200));
+        drawQuad(0.f, 0.f, IM_COL32(255, 255, 255, 130));
     }
 
     ImGui::End();

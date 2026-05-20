@@ -130,6 +130,7 @@ private:
 
     // Edit cursor
     EditCursor m_cur;
+    float      m_visualRow     {0.f};
     int32_t    m_baseOctave    {4};
     int32_t    m_editStep      {1};
     bool       m_editMode      {false};

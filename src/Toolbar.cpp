@@ -189,7 +189,7 @@ float DrawToolbar(ToolbarState& state,
     // ─── Seek slider ──────────────────────────────────────────────────────────
     if (!state.hasModule) ImGui::BeginDisabled();
 
-    ImGui::SetNextItemWidth(160.f);
+    ImGui::SetNextItemWidth(165.f);
     btnY();
     float seek = state.seekFrac;
     if (ImGui::SliderFloat("##seek", &seek, 0.f, 1.f, "")) {

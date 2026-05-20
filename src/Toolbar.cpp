@@ -326,7 +326,7 @@ float DrawToolbar(ToolbarState& state,
         float rowY1 = ImGui::GetWindowPos().y + knobMidY + knobSz + kPad;
         dl->ChannelsSetCurrent(0);
         dl->AddRectFilled({rowX0, rowY0}, {rowX1, rowY1},
-                          IM_COL32(28, 28, 44, 255));
+                          IM_COL32(28, 28, 44, 86));
         dl->ChannelsMerge();
     }
 

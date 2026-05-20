@@ -1,0 +1,34 @@
+#pragma once
+#include "OpenMPTInternal.h"
+#include <cstdint>
+
+namespace openmpt { class module_ext; }
+struct ImFont;
+
+class InstrumentView {
+public:
+    void setModule(openmpt::module_ext* mod, int instrCount);
+    void clearModule();
+    void setFonts(ImFont* mono, ImFont* ui);
+    void render(float x, float y, float w, float h);
+
+private:
+    void loadInstrument();
+    void saveInstrument();
+    void drawList(float x, float y, float w, float h);
+    void drawEditor(float x, float y, float w, float h);
+    void drawEnvelopeGraph(InstrumentEnvData& env, const char* typeLabel, float w, float h);
+    void drawNoteKeyboard(float w, float h);
+
+    openmpt::module_ext* m_mod{nullptr};
+    ImFont* m_fontMono{nullptr};
+    ImFont* m_fontUI{nullptr};
+    int m_instrCount{0};
+    int m_sel{1};
+    InstrumentData m_data;
+    bool m_dirty{false};
+    int m_activeEnv{0};       // 0=vol 1=pan 2=pitch
+    int m_dragNode{-1};
+    int32_t m_playChannel{-1};
+    int m_playNote{-1};
+};

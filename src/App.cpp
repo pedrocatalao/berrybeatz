@@ -774,14 +774,33 @@ void App::drawSamplesTab()
 
 void App::drawInstrumentsTab()
 {
-    if (!m_hasModule) { ImGui::TextDisabled("No module loaded."); return; }
-    std::lock_guard<std::mutex> lk(m_state.meta_mutex);
-    if (m_state.instrument_names.empty()) {
-        ImGui::TextDisabled("No instruments (sample-based module).");
+    if (!m_hasModule) {
+        ImVec2 av = ImGui::GetContentRegionAvail();
+        ImGui::SetCursorPos({av.x * 0.5f - 60.f, av.y * 0.5f - 8.f});
+        ImGui::TextDisabled("No module loaded.");
         return;
     }
-    for (int i = 0; i < (int)m_state.instrument_names.size(); ++i)
-        ImGui::Text("%3d. %s", i + 1, m_state.instrument_names[i].c_str());
+    auto* mod = m_audio.getModule();
+    if (!mod) return;
+    int nInstr;
+    {
+        std::lock_guard<std::mutex> lk(m_state.meta_mutex);
+        nInstr = m_state.num_instruments;
+    }
+    if (nInstr == 0) {
+        ImGui::TextDisabled("Sample-based module \xe2\x80\x94 no instruments.");
+        return;
+    }
+    // Lazy init when module changes
+    static openmpt::module_ext* lastMod = nullptr;
+    if (mod != lastMod) {
+        m_instrView.setFonts(m_fontMono, m_fontUI);
+        m_instrView.setModule(mod, nInstr);
+        lastMod = mod;
+    }
+    ImVec2 pos   = ImGui::GetCursorScreenPos();
+    ImVec2 avail = ImGui::GetContentRegionAvail();
+    m_instrView.render(pos.x, pos.y, avail.x, avail.y);
 }
 
 void App::drawCommentsTab()
@@ -902,6 +921,7 @@ void App::clearModule()
     m_audio.stop();
     m_audio.join();
     m_tracker.clearModule();
+    m_instrView.clearModule();
     m_state.reset();
     m_hasModule  = false;
     m_loadedPath.clear();

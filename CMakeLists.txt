@@ -68,6 +68,7 @@ set(SOURCES
     src/AudioEngine.cpp
     src/TrackerView.cpp
     src/PatternEditor.cpp
+    src/InstrumentView.cpp
     src/OpenMPTInternal.cpp
     src/OpenMPTInternalGet.cpp
     src/CocoaHelpers.mm

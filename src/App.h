@@ -4,6 +4,7 @@
 #include "ModuleState.h"
 #include "AudioEngine.h"
 #include "TrackerView.h"
+#include "InstrumentView.h"
 #include "Toolbar.h"
 #include <string>
 
@@ -38,9 +39,10 @@ private:
     void seekTo(float frac);
     void handleEdgeResize(int winW, int winH);
 
-    ModuleState   m_state;
-    AudioEngine   m_audio;
-    TrackerView   m_tracker;
+    ModuleState    m_state;
+    AudioEngine    m_audio;
+    TrackerView    m_tracker;
+    InstrumentView m_instrView;
 
     ToolbarState    m_toolbarState;
 

@@ -700,12 +700,12 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
     float visH  = avail.y - m_chanH;  // exclude frozen header row from scroll math
 
     // Fetch channel data for the frozen header row
-    std::array<ChannelVU,   MAX_CHANNELS> vu{};
-    std::array<ChannelWave, MAX_CHANNELS> wave{};
+    std::array<ChannelVU, MAX_CHANNELS> vu{};
+    WaveSnapshot masterWave{};
     {
         std::lock_guard<std::mutex> lk(m_state.vu_mutex);
-        vu   = m_state.vu;
-        wave = m_state.wave;
+        vu         = m_state.vu;
+        masterWave = m_state.masterWave;
     }
     std::vector<std::string> chNames(nch);
     {
@@ -781,23 +781,31 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
             if (m_showVU)
                 drawStereoVU(dl, p.x, vuTop, cw - 1, VU_H, vu[ch].left, vu[ch].right);
 
-            // Waveform
+            // Oscilloscope waveform
             float vuBot = vuTop + (m_showVU ? VU_H : 0.f);
-            if (m_showWave) {
+            if (m_showWave && masterWave.count > 1) {
                 float wy = vuBot;
                 dl->AddRectFilled({p.x, wy}, {p.x + cw - 1, wy + WAVE_H}, IM_COL32(8, 8, 18, 255));
-                float cy = wy + WAVE_H * 0.5f;
-                dl->AddLine({p.x, cy}, {p.x + cw - 1, cy}, IM_COL32(20, 35, 25, 255));
-                float colW = (cw - 1.f) / float(WAVE_BUF);
-                ImU32 wavCol = muted ? IM_COL32(40, 50, 40, 160) : IM_COL32(70, 210, 120, 210);
-                const auto& cwave = wave[ch];
-                for (int i = 0; i < WAVE_BUF; i++) {
-                    int   idx  = (cwave.head + i) % WAVE_BUF;
-                    float amp  = std::min(cwave.samples[idx] / 1.2f, 1.0f);
-                    float barH = amp * (WAVE_H * 0.5f - 1.0f);
-                    float px   = p.x + float(i) * colW;
-                    if (barH >= 0.5f)
-                        dl->AddRectFilled({px, cy - barH}, {px + colW - 0.3f, cy + barH}, wavCol);
+                float cy    = wy + WAVE_H * 0.5f;
+                float halfH = WAVE_H * 0.5f - 2.f;
+                // Normalize by peak so the waveform fills the display height
+                float peak = 0.f;
+                for (int i = 0; i < masterWave.count; ++i)
+                    peak = std::max(peak, std::abs(masterWave.samples[i]));
+                float norm = (peak > 0.0001f) ? halfH / std::max(peak, 0.3f) : 0.f;
+                // Fade out when channel is silent
+                float chAmp = (vu[ch].left + vu[ch].right) * 0.5f;
+                norm *= std::min(chAmp * 30.0f, 1.0f);
+                ImU32 wavCol = muted ? IM_COL32(40, 55, 45, 160) : IM_COL32(70, 215, 120, 220);
+                int   n      = masterWave.count;
+                int   step   = std::max(1, n / int(cw));
+                float xscale = (cw - 2.f) / float(n);
+                ImVec2 prev  = {p.x, cy};
+                for (int i = step; i < n; i += step) {
+                    float fx = p.x + float(i) * xscale;
+                    float fy = cy - masterWave.samples[i] * norm;
+                    dl->AddLine(prev, {fx, fy}, wavCol);
+                    prev = {fx, fy};
                 }
             }
 

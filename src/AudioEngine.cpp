@@ -161,10 +161,12 @@ int AudioEngine::paCallback(const void*, void* output,
                 for (int32_t ch = 0; ch < nch && ch < MAX_CHANNELS; ++ch) {
                     d->state->vu[ch].left  *= 0.88f;
                     d->state->vu[ch].right *= 0.88f;
-                    auto& cw = d->state->wave[ch];
-                    cw.samples[cw.head] = 0.f;
-                    cw.head = (cw.head + 1) % WAVE_BUF;
                 }
+                // Push silence into oscilloscope while paused
+                int n = std::min((int)frameCount, WAVE_BUF);
+                std::fill(d->state->masterWave.samples,
+                          d->state->masterWave.samples + n, 0.f);
+                d->state->masterWave.count = n;
             }
         }
         return d->stop->load() ? paAbort : paContinue;
@@ -253,7 +255,7 @@ int AudioEngine::paCallback(const void*, void* output,
     d->state->position_seconds.store(d->mod->get_position_seconds());
     d->state->bpm            .store(d->mod->get_current_estimated_bpm());
 
-    // Per-channel VU with decay + waveform ring buffer
+    // Per-channel VU with decay + master oscilloscope snapshot
     int32_t nch = d->state->num_channels.load();
     if (nch > 0) {
         std::lock_guard<std::mutex> lk(d->state->vu_mutex);
@@ -262,10 +264,11 @@ int AudioEngine::paCallback(const void*, void* output,
             float rawR = d->mod->get_current_channel_vu_right(ch);
             d->state->vu[ch].left  = d->state->vu[ch].left  * 0.8f + rawL * 0.2f;
             d->state->vu[ch].right = d->state->vu[ch].right * 0.8f + rawR * 0.2f;
-            auto& cw = d->state->wave[ch];
-            cw.samples[cw.head] = (rawL + rawR) * 0.5f;
-            cw.head = (cw.head + 1) % WAVE_BUF;
         }
+        // Snapshot actual signed audio samples for oscilloscope display
+        int n = (int)std::min(count, (size_t)WAVE_BUF);
+        std::copy(d->left.begin(), d->left.begin() + n, d->state->masterWave.samples);
+        d->state->masterWave.count = n;
     }
 
     // Master VU (peak of interleaved buffer)

@@ -899,13 +899,13 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
             // VU
             float vuTop = p.y + CHANNAME_H;
             if (m_showVU)
-                drawStereoVU(dl, p.x, vuTop, cw - 1, VU_H, vu[ch].left, vu[ch].right);
+                drawStereoVU(dl, p.x + 1, vuTop, cw - 2, VU_H, vu[ch].left, vu[ch].right);
 
             // Oscilloscope waveform
             float vuBot = vuTop + (m_showVU ? VU_H : 0.f);
             if (m_showWave && channelWave[ch].count > 1) {
                 float wy    = vuBot;
-                dl->AddRectFilled({p.x, wy}, {p.x + cw - 1, wy + WAVE_H}, IM_COL32(20, 20, 33, 255));
+                dl->AddRectFilled({p.x + 1, wy}, {p.x + cw - 1, wy + WAVE_H}, IM_COL32(20, 20, 33, 255));
                 float cy    = wy + WAVE_H * 0.5f;
                 float halfH = WAVE_H * 0.5f - 2.f;
 
@@ -936,7 +936,7 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
 
                 ImU32 wavCol = muted ? IM_COL32(80, 80, 80, 120) : IM_COL32(190, 190, 200, 220);
                 float xscale = (cw - 2.f) / float(displayN);
-                ImVec2 prev  = {p.x, cy - channelWave[ch].samples[start] * norm};
+                ImVec2 prev  = {p.x + 1, cy - channelWave[ch].samples[start] * norm};
                 for (int i = 1; i < displayN; ++i) {
                     float fx = p.x + float(i) * xscale;
                     float fy = cy - channelWave[ch].samples[start + i] * norm;
@@ -948,7 +948,7 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
             // Plugin row
             float plugTop = vuBot + (m_showWave ? WAVE_H : 0.f);
             if (m_showPluginRow) {
-                dl->AddRectFilled({p.x, plugTop}, {p.x + cw - 1, plugTop + PLUGIN_H},
+                dl->AddRectFilled({p.x + 1, plugTop}, {p.x + cw - 1, plugTop + PLUGIN_H},
                                   IM_COL32(20, 20, 35, 255));
                 dl->AddText({p.x + 2, plugTop + 1}, IM_COL32(60, 60, 80, 255), "–");
                 ImGui::SetCursorScreenPos({p.x, plugTop});

@@ -874,7 +874,7 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
             // Background + divider
             ImU32 hdrCol = muted ? IM_COL32(20,20,30,255) : IM_COL32(30,30,60,255);
             float padX   = ImGui::GetStyle().CellPadding.x;
-            float hdrTop = p.y - ImGui::GetStyle().CellPadding.y;
+            float hdrTop = p.y;
             float hdrBot = hdrTop + m_chanH + 4.f;
             dl->AddRectFilled(p, {p.x + cw - 1, p.y + CHANNAME_H}, hdrCol);
             // Fill left and right padding gutters with the same dark blue as pattern rows
@@ -1011,11 +1011,6 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
         bool isMeasure = (r % rpm == 0);
         bool isBeat    = (r % rpb == 0) && !isMeasure;
 
-        if (isMeasure)
-            ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, ImGui::ColorConvertFloat4ToU32(kBgMeasure));
-        else if (isBeat)
-            ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, ImGui::ColorConvertFloat4ToU32(kBgHilight));
-
         if (!isCur) {
             ImU32 rowNumBg = isMeasure ? ImGui::ColorConvertFloat4ToU32(kBgMeasure)
                            : isBeat    ? ImGui::ColorConvertFloat4ToU32(kBgHilight)
@@ -1024,18 +1019,36 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
         }
 
         ImGui::TableNextColumn();
-        if (isCur) {
+        {
             ImDrawList* dl  = ImGui::GetWindowDrawList();
             ImRect      icr = ImGui::GetCurrentWindow()->InnerClipRect;
             float       pad = ImGui::GetStyle().CellPadding.y;
             float       rT  = ImGui::GetCursorScreenPos().y - pad;
             float       rH  = ImGui::GetTextLineHeight() + 2.f * pad;
-            dl->PushClipRect(icr.Min, icr.Max, false);
-            dl->AddRectFilledMultiColor(
-                {icr.Min.x, rT}, {icr.Max.x, rT + rH},
-                IM_COL32(40, 85, 145, 128), IM_COL32(40, 85, 145, 220),
-                IM_COL32(40, 85, 145, 255), IM_COL32(40, 85, 145, 255));
-            dl->PopClipRect();
+            // Right edge: stop at the last channel column, not the full clip rect
+            float chansRight = (m_colStep > 0.f && m_tableOriginX > 0.f)
+                ? m_tableOriginX - m_hscroll + nch * m_colStep
+                : icr.Max.x;
+            chansRight = std::min(chansRight, icr.Max.x);
+            if (isCur || isMeasure || isBeat) {
+                // Expand X to all channels but keep current Y clip (excludes frozen header)
+                ImVec2 cMin = dl->GetClipRectMin();
+                ImVec2 cMax = dl->GetClipRectMax();
+                dl->PushClipRect({icr.Min.x, cMin.y}, {chansRight, cMax.y}, false);
+                if (isCur) {
+                    dl->AddRectFilledMultiColor(
+                        {icr.Min.x, rT}, {chansRight, rT + rH},
+                        IM_COL32(40, 85, 145, 128), IM_COL32(40, 85, 145, 220),
+                        IM_COL32(40, 85, 145, 255), IM_COL32(40, 85, 145, 255));
+                } else if (isMeasure) {
+                    dl->AddRectFilled({icr.Min.x, rT}, {chansRight, rT + rH},
+                        ImGui::ColorConvertFloat4ToU32(kBgMeasure));
+                } else {
+                    dl->AddRectFilled({icr.Min.x, rT}, {chansRight, rT + rH},
+                        ImGui::ColorConvertFloat4ToU32(kBgHilight));
+                }
+                dl->PopClipRect();
+            }
         }
         ImGui::TextColored(isCur ? kTextCurRow : (isBeat||isMeasure ? kTextNormal : kDim), "%3d", r);
 

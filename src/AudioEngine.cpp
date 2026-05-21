@@ -29,6 +29,7 @@ struct PaCallbackData {
     std::atomic<int32_t>* pat_play_startrow {nullptr};
     std::atomic<bool>*    pat_play_loop     {nullptr};
     std::atomic<bool>*    pat_play_single   {nullptr};
+    std::atomic<bool>*    preview_mode      {nullptr};
 
     // Pattern play in-progress state (callback-thread only)
     bool    inPatternPlay   {false};
@@ -115,6 +116,25 @@ void AudioEngine::rewind() {
 }
 
 void AudioEngine::setPaused(bool p)         { m_paused.store(p); }
+
+void AudioEngine::startPreview() {
+    if (!m_mod) return;
+    m_previewMode.store(true);
+    if (!isRunning()) {
+        if (m_thread.joinable()) m_thread.join();
+        m_stop.store(false);
+        m_paused.store(true);   // start paused so normal song playback doesn't begin
+        m_thread = std::thread(&AudioEngine::run, this);
+    }
+    // If already running (paused or playing), previewMode flag is enough.
+    // Playing: read() already called, notes play normally.
+    // Paused:  callback will now enter the preview branch.
+}
+
+void AudioEngine::stopPreview() {
+    m_previewMode.store(false);
+}
+
 void AudioEngine::seekSeconds(double s)     { m_seek.store(s); }
 void AudioEngine::seekToOrder(int32_t o)    { m_seek_order.store(o); }
 void AudioEngine::selectSubsong(int32_t i)  { m_subsong.store(i); }
@@ -150,18 +170,61 @@ int AudioEngine::paCallback(const void*, void* output,
     auto* d   = static_cast<PaCallbackData*>(userData);
     float* out = static_cast<float*>(output);
 
-    if (d->stop->load() || d->paused->load()) {
+    if (d->stop->load()) {
         std::memset(out, 0, frameCount * 2 * sizeof(float));
-        if (d->paused->load()) {
-            d->state->master_vu_left .store(0.f);
-            d->state->master_vu_right.store(0.f);
-            {
-                std::lock_guard<std::mutex> lk(d->state->vu_mutex);
-                d->state->vu.fill({});
-                d->state->masterWave = {};
+        return paAbort;
+    }
+
+    bool paused  = d->paused->load();
+    bool preview = d->preview_mode && d->preview_mode->load();
+
+    if (paused && !preview) {
+        std::memset(out, 0, frameCount * 2 * sizeof(float));
+        d->state->master_vu_left .store(0.f);
+        d->state->master_vu_right.store(0.f);
+        {
+            std::lock_guard<std::mutex> lk(d->state->vu_mutex);
+            d->state->vu.fill({});
+            d->state->masterWave = {};
+        }
+        return paContinue;
+    }
+
+    if (paused && preview) {
+        // Note-preview mode: mute all song channels so only play_note()
+        // interactive channels contribute to the output.
+        int nc = std::min(d->state->num_channels.load(), (int32_t)MAX_CHANNELS);
+        auto* ia = static_cast<openmpt::ext::interactive*>(
+            d->mod->get_interface(openmpt::ext::interactive_id));
+        if (ia) {
+            for (int ch = 0; ch < nc; ++ch)
+                ia->set_channel_mute_status(ch, true);
+        }
+
+        if (d->left.size()  < frameCount) d->left.resize(frameCount);
+        if (d->right.size() < frameCount) d->right.resize(frameCount);
+
+        size_t count = d->mod->read(SAMPLE_RATE, frameCount,
+                                    d->left.data(), d->right.data());
+
+        if (ia) {
+            for (int ch = 0; ch < nc; ++ch) {
+                bool userMuted = (d->appliedMuteMask >> ch) & 1;
+                ia->set_channel_mute_status(ch, userMuted);
             }
         }
-        return d->stop->load() ? paAbort : paContinue;
+
+        if (count == 0)
+            d->mod->set_position_seconds(0.0);  // loop if module ends during preview
+
+        for (size_t i = 0; i < count; ++i) {
+            out[i * 2]     = d->left[i];
+            out[i * 2 + 1] = d->right[i];
+        }
+        if (count < frameCount)
+            std::memset(out + count * 2, 0, (frameCount - count) * 2 * sizeof(float));
+
+        return paContinue;
     }
 
     // Apply pending channel mute changes via the interactive extension (same thread as read())
@@ -293,6 +356,7 @@ void AudioEngine::run() {
     cbData.pat_play_startrow = &m_patPlayStartRow;
     cbData.pat_play_loop     = &m_patPlayLoop;
     cbData.pat_play_single   = &m_patPlaySingle;
+    cbData.preview_mode      = &m_previewMode;
 
     Pa_Initialize();
 

@@ -689,19 +689,44 @@ void InstrumentView::drawNoteKeyboard(float w, float h) {
 
     ImVec2 origin = ImGui::GetCursorScreenPos();
     ImDrawList* dl = ImGui::GetWindowDrawList();
-
-    // Reserve space
-    ImGui::InvisibleButton("##keyboard", {w, h});
-    bool mouseDown     = ImGui::IsMouseDown(ImGuiMouseButton_Left);
-    bool mouseReleased = ImGui::IsMouseReleased(ImGuiMouseButton_Left);
     ImVec2 mp = ImGui::GetIO().MousePos;
 
-    // get interactive interface
+    // Reserve space — use item-level state so interaction is scoped to this widget
+    ImGui::InvisibleButton("##keyboard", {w, h});
+    bool kbActive      = ImGui::IsItemActive();
+    bool kbDeactivated = ImGui::IsItemDeactivated();
+
     auto* ia = m_mod ? static_cast<openmpt::ext::interactive*>(
         m_mod->get_interface(openmpt::ext::interactive_id)) : nullptr;
 
-    // For detecting which key is pressed this frame
+    // Determine which key is under the cursor (black keys take priority over white)
+    // Only while the button is held so we don't trigger on unrelated clicks.
     int hitNote = -1;
+    if (kbActive) {
+        // Black keys first (they sit on top visually)
+        int wi = 0;
+        for (int note = kNoteFirst; note <= kNoteLast && hitNote < 0; ++note) {
+            int semi = (note - 1) % 12;
+            if (!kIsBlack[semi]) { ++wi; continue; }
+            float kx = origin.x + ((wi - 1) + kBlackOffset[semi]) * whiteW - blackW * 0.5f + 7.f;
+            float ky = origin.y;
+            if (mp.x >= kx && mp.x < kx + blackW && mp.y >= ky && mp.y < ky + blackH)
+                hitNote = note;
+        }
+        // White keys fallback
+        if (hitNote < 0) {
+            int wi2 = 0;
+            for (int note = kNoteFirst; note <= kNoteLast && hitNote < 0; ++note) {
+                int semi = (note - 1) % 12;
+                if (kIsBlack[semi]) continue;
+                float kx = origin.x + wi2 * whiteW;
+                if (mp.x >= kx && mp.x < kx + whiteW - 1.f &&
+                    mp.y >= origin.y && mp.y < origin.y + whiteH)
+                    hitNote = note;
+                ++wi2;
+            }
+        }
+    }
 
     // ── First pass: white keys ────────────────────────────────────────────────
     int whiteIndex = 0;
@@ -711,44 +736,37 @@ void InstrumentView::drawNoteKeyboard(float w, float h) {
 
         float kx = origin.x + whiteIndex * whiteW;
         float ky = origin.y;
-        ImVec2 kMin = {kx,         ky};
+        ImVec2 kMin = {kx,               ky};
         ImVec2 kMax = {kx + whiteW - 1.f, ky + whiteH};
 
+        bool isHit = (note == hitNote);
+        bool isPlay = (note == m_playNote && m_playChannel >= 0);
         bool hov = (mp.x >= kMin.x && mp.x < kMax.x && mp.y >= kMin.y && mp.y < kMax.y);
-        bool pressed = hov && mouseDown;
 
-        ImU32 col = pressed ? IM_COL32(180, 220, 255, 255)
-                  : hov     ? IM_COL32(210, 230, 255, 255)
-                            : IM_COL32(230, 230, 240, 255);
+        ImU32 col = (isHit || isPlay) ? IM_COL32(180, 220, 255, 255)
+                  : hov               ? IM_COL32(210, 230, 255, 255)
+                                      : IM_COL32(230, 230, 240, 255);
 
-        // Tint if has a sample assigned
         uint16_t smp = m_data.keyboard[note - 1];
-        if (smp != 0 && !pressed && !hov)
+        if (smp != 0 && !isHit && !isPlay && !hov)
             col = IM_COL32(180, 220, 200, 255);
 
         dl->AddRectFilled(kMin, kMax, col);
         dl->AddRect(kMin, kMax, IM_COL32(80, 80, 100, 255), 0.f, 0, 0.5f);
 
-        // Middle C dot (note 61 = C-5)
-        if (note == 61) {
-            float dotX = kx + whiteW * 0.5f;
-            float dotY = ky + whiteH - 10.f;
-            dl->AddCircleFilled({dotX, dotY}, 3.f, IM_COL32(0, 160, 255, 200));
+        if (note == 61) { // middle C dot
+            dl->AddCircleFilled({kx + whiteW * 0.5f, ky + whiteH - 10.f},
+                                3.f, IM_COL32(0, 160, 255, 200));
         }
 
-        // Sample number text if assigned
         if (smp != 0 && m_fontMono) {
-            char sbuf[8];
-            snprintf(sbuf, sizeof(sbuf), "%d", (int)smp);
+            char sbuf[8]; snprintf(sbuf, sizeof(sbuf), "%d", (int)smp);
             ImVec2 tsz = m_fontMono->CalcTextSizeA(8.f, FLT_MAX, 0.f, sbuf);
             if (tsz.x < whiteW - 2.f)
                 dl->AddText(m_fontMono, 8.f,
                     {kx + (whiteW - tsz.x) * 0.5f, ky + whiteH - tsz.y - 2.f},
                     IM_COL32(0, 60, 0, 200), sbuf);
         }
-
-        if (hov && mouseDown) hitNote = note;
-
         ++whiteIndex;
     }
 
@@ -758,50 +776,45 @@ void InstrumentView::drawNoteKeyboard(float w, float h) {
         int semi = (note - 1) % 12;
         if (!kIsBlack[semi]) { ++whiteIndex; continue; }
 
-        // The white key to the left
-        int prevWhiteIdx = whiteIndex - 1;  // actually the current accumulated white index
-        // Black key x: right portion of previous white key
-        float kx = origin.x + (prevWhiteIdx + kBlackOffset[semi]) * whiteW - blackW * 0.5f + 7.f;
+        float kx = origin.x + ((whiteIndex - 1) + kBlackOffset[semi]) * whiteW - blackW * 0.5f + 7.f;
         float ky = origin.y;
-        ImVec2 kMin = {kx,            ky};
-        ImVec2 kMax = {kx + blackW,   ky + blackH};
+        ImVec2 kMin = {kx,          ky};
+        ImVec2 kMax = {kx + blackW, ky + blackH};
 
+        bool isHit = (note == hitNote);
+        bool isPlay = (note == m_playNote && m_playChannel >= 0);
         bool hov = (mp.x >= kMin.x && mp.x < kMax.x && mp.y >= kMin.y && mp.y < kMax.y);
-        bool pressed = hov && mouseDown;
 
-        ImU32 col = pressed ? IM_COL32(80, 120, 180, 255)
-                  : hov     ? IM_COL32(60, 80, 120, 255)
-                            : IM_COL32(30, 30, 40, 255);
+        ImU32 col = (isHit || isPlay) ? IM_COL32(80, 120, 180, 255)
+                  : hov               ? IM_COL32(60, 80, 120, 255)
+                                      : IM_COL32(30, 30, 40, 255);
 
         uint16_t smp = m_data.keyboard[note - 1];
-        if (smp != 0 && !pressed && !hov)
+        if (smp != 0 && !isHit && !isPlay && !hov)
             col = IM_COL32(20, 60, 40, 255);
 
         dl->AddRectFilled(kMin, kMax, col);
         dl->AddRect(kMin, kMax, IM_COL32(0, 0, 0, 255), 0.f, 0, 0.5f);
 
         if (smp != 0 && m_fontMono) {
-            char sbuf[8];
-            snprintf(sbuf, sizeof(sbuf), "%d", (int)smp);
+            char sbuf[8]; snprintf(sbuf, sizeof(sbuf), "%d", (int)smp);
             ImVec2 tsz = m_fontMono->CalcTextSizeA(8.f, FLT_MAX, 0.f, sbuf);
             if (tsz.x < blackW - 1.f)
                 dl->AddText(m_fontMono, 8.f,
                     {kx + (blackW - tsz.x) * 0.5f, ky + blackH - tsz.y - 1.f},
                     IM_COL32(180, 220, 180, 200), sbuf);
         }
-
-        if (hov && mouseDown) hitNote = note;
     }
 
     // ── Note play / stop logic ────────────────────────────────────────────────
     if (ia) {
         if (hitNote > 0 && hitNote != m_playNote) {
-            // Stop previous note if any
             if (m_playChannel >= 0) ia->stop_note(m_playChannel);
-            // Start new note: instrument is 1-based, note is 1-based
+            if (onNeedAudio) onNeedAudio();
             m_playChannel = ia->play_note(m_sel, hitNote, 0.85, 0.5);
             m_playNote    = hitNote;
-        } else if (hitNote < 0 && mouseReleased && m_playChannel >= 0) {
+        }
+        if (kbDeactivated && m_playChannel >= 0) {
             ia->stop_note(m_playChannel);
             m_playChannel = -1;
             m_playNote    = -1;

@@ -28,6 +28,11 @@ public:
     void    setPaused(bool paused);
     bool    isPaused() const { return m_paused.load(); }
 
+    // Note-preview mode: runs the audio loop with song channels muted so only
+    // play_note() interactive channels are audible. Safe to call when stopped.
+    void    startPreview();
+    void    stopPreview();
+
     void    seekSeconds(double seconds);
     void    seekToOrder(int32_t order);
     void    selectSubsong(int32_t index);
@@ -71,4 +76,6 @@ private:
     std::atomic<int32_t>     m_patPlayStartRow {0};
     std::atomic<bool>        m_patPlayLoop     {false};
     std::atomic<bool>        m_patPlaySingle   {false};
+
+    std::atomic<bool>        m_previewMode     {false};
 };

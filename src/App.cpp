@@ -796,6 +796,10 @@ void App::drawInstrumentsTab()
     if (mod != lastMod) {
         m_instrView.setFonts(m_fontMono, m_fontUI);
         m_instrView.setModule(mod, nInstr);
+        m_instrView.onNeedAudio = [this]() {
+            if (!m_hasModule) return;
+            m_audio.startPreview();
+        };
         lastMod = mod;
     }
     ImVec2 pos   = ImGui::GetCursorScreenPos();
@@ -930,6 +934,7 @@ void App::clearModule()
 void App::startPlayback()
 {
     if (!m_hasModule || m_audio.isRunning()) return;
+    m_audio.stopPreview();
     m_audio.setPaused(false);
     m_audio.start();
 }
@@ -937,6 +942,7 @@ void App::startPlayback()
 void App::stopPlayback()
 {
     if (!m_audio.isRunning()) return;
+    m_audio.stopPreview();
     m_audio.stop();
     m_audio.join();
 }
@@ -947,6 +953,7 @@ void App::togglePlayPause()
     if (!m_audio.isRunning()) {
         startPlayback();
     } else if (m_audio.isPaused()) {
+        m_audio.stopPreview();
         m_audio.setPaused(false);
     } else {
         m_audio.setPaused(true);
@@ -956,6 +963,7 @@ void App::togglePlayPause()
 void App::playFromStart()
 {
     if (!m_hasModule) return;
+    m_audio.stopPreview();
     m_audio.rewind();
     m_audio.start();
 }

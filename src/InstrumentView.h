@@ -1,6 +1,7 @@
 #pragma once
 #include "OpenMPTInternal.h"
 #include <cstdint>
+#include <functional>
 
 namespace openmpt { class module_ext; }
 struct ImFont;
@@ -11,6 +12,9 @@ public:
     void clearModule();
     void setFonts(ImFont* mono, ImFont* ui);
     void render(float x, float y, float w, float h);
+
+    // Called when a note preview starts — wire this to ensure the audio engine is running.
+    std::function<void()> onNeedAudio;
 
 private:
     void loadInstrument();

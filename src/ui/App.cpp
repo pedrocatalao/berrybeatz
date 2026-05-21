@@ -9,6 +9,7 @@
 #include <cmath>
 #include <algorithm>
 #include <cstdio>
+#include <unordered_set>
 
 // ─── Constructor / Destructor ─────────────────────────────────────────────────
 
@@ -456,6 +457,15 @@ void App::drawSidebar(float x, float y, float w, float h)
             patNames = m_state.pattern_names;
         }
 
+        // Build set of patterns actually referenced in the order list
+        std::unordered_set<int> usedPats;
+        if (auto* mod = m_audio.getModule()) {
+            for (int o = 0; o < numOrd; ++o) {
+                int p = mod->get_order_pattern(o);
+                if (p >= 0) usedPats.insert(p);
+            }
+        }
+
         char header[64];
         snprintf(header, sizeof(header), "Patterns (%d)##hdr", numPat);
 
@@ -466,13 +476,17 @@ void App::drawSidebar(float x, float y, float w, float h)
         int clicked = -1;
         if (ImGui::TreeNodeEx(header, nodeFlags)) {
             for (int i = 0; i < numPat; ++i) {
+                bool used = usedPats.count(i) > 0;
                 ImGui::PushID(i + 10000);
                 char row[256];
                 const std::string& name = (i < (int)patNames.size()) ? patNames[i] : "";
                 snprintf(row, sizeof(row), "%3d  %s", i,
                          name.empty() ? "---" : name.c_str());
-                if (ImGui::Selectable(row, false, 0, {0.f, 0.f}))
+                if (!used) ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(180, 180, 200, 200));
+                if (ImGui::Selectable(row, false,
+                        used ? 0 : ImGuiSelectableFlags_Disabled, {0.f, 0.f}))
                     clicked = i;
+                if (!used) ImGui::PopStyleColor();
                 ImGui::PopID();
             }
             ImGui::TreePop();

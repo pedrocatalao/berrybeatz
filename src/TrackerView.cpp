@@ -833,7 +833,7 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
 
     ImGui::PushStyleColor(ImGuiCol_TableBorderStrong, IM_COL32(0, 0, 0, 0));
     ImGui::PushStyleColor(ImGuiCol_TableBorderLight,  IM_COL32(0, 0, 0, 0));
-    ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2(2.f, ImGui::GetStyle().CellPadding.y));
+    ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2(0.f, ImGui::GetStyle().CellPadding.y));
     bool tableOpen = ImGui::BeginTable("##pat", totalCols, tFlags, avail);
     if (!tableOpen) { ImGui::PopStyleColor(2); return; }
 

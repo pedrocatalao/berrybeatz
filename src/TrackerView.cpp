@@ -833,6 +833,7 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
 
     ImGui::PushStyleColor(ImGuiCol_TableBorderStrong, IM_COL32(0, 0, 0, 0));
     ImGui::PushStyleColor(ImGuiCol_TableBorderLight,  IM_COL32(0, 0, 0, 0));
+    ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2(2.f, ImGui::GetStyle().CellPadding.y));
     bool tableOpen = ImGui::BeginTable("##pat", totalCols, tFlags, avail);
     if (!tableOpen) { ImGui::PopStyleColor(2); return; }
 
@@ -873,9 +874,10 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
             // Background + divider
             ImU32 hdrCol = muted ? IM_COL32(20,20,30,255) : IM_COL32(30,30,60,255);
             dl->AddRectFilled(p, {p.x + cw - 1, p.y + CHANNAME_H}, hdrCol);
-            dl->AddLine({p.x + cw - 1, p.y - ImGui::GetStyle().CellPadding.y},
-                        {p.x + cw - 1, p.y - ImGui::GetStyle().CellPadding.y + m_chanH + 4.f},
-                        IM_COL32(46, 46, 92, 200));
+            float hdrTop = p.y - ImGui::GetStyle().CellPadding.y;
+            float hdrBot = hdrTop + m_chanH + 4.f;
+            dl->AddLine({p.x,        hdrTop}, {p.x,        hdrBot}, IM_COL32(46, 46, 92, 200));
+            dl->AddLine({p.x + cw - 1, hdrTop}, {p.x + cw - 1, hdrBot}, IM_COL32(46, 46, 92, 200));
 
             // Channel name, centred
             float textH = ImGui::GetTextLineHeight();
@@ -1036,15 +1038,18 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
         for (int ch = 0; ch < nch; ch++) {
             ImGui::TableNextColumn();
 
-            // Channel divider line — spans exactly one row height, tiles cleanly
+            // Channel divider lines — right edge (original) + mirrored left edge + gap fill
             {
                 ImVec2 cp   = ImGui::GetCursorScreenPos();
-                float  pad  = ImGui::GetStyle().CellPadding.y;
-                float  rowH = ImGui::GetTextLineHeight() + 2.f * pad;
-                ImGui::GetWindowDrawList()->AddLine(
-                    {cp.x + m_cellW - 1, cp.y - pad},
-                    {cp.x + m_cellW - 1, cp.y - pad + rowH},
-                    IM_COL32(46, 46, 92, 200));
+                float  padX = ImGui::GetStyle().CellPadding.x;
+                float  padY = ImGui::GetStyle().CellPadding.y;
+                float  rowH = ImGui::GetTextLineHeight() + 2.f * padY;
+                float  top  = cp.y - padY;
+                ImDrawList* sdl = ImGui::GetWindowDrawList();
+                sdl->AddRectFilled({cp.x - padX, top}, {cp.x,               top + rowH}, IM_COL32(46, 46, 92, 200));
+                sdl->AddRectFilled({cp.x + m_cellW, top}, {cp.x + m_cellW + padX, top + rowH}, IM_COL32(46, 46, 92, 200));
+                sdl->AddLine({cp.x,               top}, {cp.x,               top + rowH}, IM_COL32(46, 46, 92, 200));
+                sdl->AddLine({cp.x + m_cellW - 1, top}, {cp.x + m_cellW - 1, top + rowH}, IM_COL32(46, 46, 92, 200));
             }
 
             // Measure actual cell origins from the first two rendered cells.
@@ -1076,7 +1081,7 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
             float cellY = 0.f;
             auto recordPos = [&](int col) {
                 ImVec2 cp = ImGui::GetCursorScreenPos();
-                subX[col] = cp.x;
+                subX[col] = cp.x + 1.f;
                 if (col == 0) cellY = cp.y;
             };
 
@@ -1094,6 +1099,10 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
                         && !volV.empty()  && volV  != ".." && volV != ".";
             bool hasFx   = !fx.empty()    && fx    != ".";
 
+            {
+                ImVec2 cur = ImGui::GetCursorScreenPos();
+                ImGui::SetCursorScreenPos({cur.x + 4.f, cur.y});
+            }
             recordPos(0);
             ImGui::TextColored(hasNote ? kColNote : kDim, "%-3s", hasNote ? note.c_str() : "\xc2\xb7\xc2\xb7\xc2\xb7");
             subW[0] = ImGui::GetItemRectSize().x + 6;
@@ -1170,6 +1179,7 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
     clipper.End();
     if (m_fontMono) ImGui::PopFont();
     ImGui::EndTable();
+    ImGui::PopStyleVar();
     ImGui::PopStyleColor(2);
 
 }

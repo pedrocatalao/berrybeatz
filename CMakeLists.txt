@@ -27,7 +27,7 @@ if(NOT MPG123_FOUND)
 endif()
 
 # libopenmpt (built from sibling repo)
-set(OPENMPT_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../openmpt")
+set(OPENMPT_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/vendor/openmpt")
 set(OPENMPT_LIB "${OPENMPT_ROOT}/bin/libopenmpt.a")
 
 if(NOT EXISTS "${OPENMPT_LIB}")

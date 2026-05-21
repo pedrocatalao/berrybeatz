@@ -64,32 +64,6 @@ static constexpr float PLUGIN_H   = 14.0f;
 
 TrackerView::TrackerView(ModuleState& state) : m_state(state) {}
 
-// ── Undo / Redo ───────────────────────────────────────────────────────────────
-
-void TrackerView::pushEdit(UndoEntry e) {
-    m_redoStack.clear();
-    m_undoStack.push_back(std::move(e));
-    if ((int)m_undoStack.size() > kMaxUndo)
-        m_undoStack.pop_front();
-}
-
-void TrackerView::doUndo() {
-    if (m_undoStack.empty() || !m_mod) return;
-    UndoEntry e = std::move(m_undoStack.back());
-    m_undoStack.pop_back();
-    for (auto& c : e)
-        pe_set_cell(m_mod, c.pat, c.row, c.ch, c.before);
-    m_redoStack.push_back(std::move(e));
-}
-
-void TrackerView::doRedo() {
-    if (m_redoStack.empty() || !m_mod) return;
-    UndoEntry e = std::move(m_redoStack.back());
-    m_redoStack.pop_back();
-    for (auto& c : e)
-        pe_set_cell(m_mod, c.pat, c.row, c.ch, c.after);
-    m_undoStack.push_back(std::move(e));
-}
 
 // Helper: perform a single-cell edit with undo tracking
 void TrackerView::setCell(int32_t pat, int32_t row, int32_t ch, const PatternCell& cell) {
@@ -98,7 +72,7 @@ void TrackerView::setCell(int32_t pat, int32_t row, int32_t ch, const PatternCel
     pe_set_cell(m_mod, pat, row, ch, cell);
     UndoEntry e;
     e.push_back({pat, row, ch, before, cell});
-    pushEdit(std::move(e));
+    m_undo.push(std::move(e));
 }
 
 // ── Block operations ──────────────────────────────────────────────────────────
@@ -134,7 +108,7 @@ void TrackerView::selPaste() {
             e.push_back({pat, dr, dc, before, m_clip.cells[r][c]});
         }
     }
-    if (!e.empty()) pushEdit(std::move(e));
+    if (!e.empty()) m_undo.push(std::move(e));
 }
 
 void TrackerView::selDelete() {
@@ -152,7 +126,7 @@ void TrackerView::selDelete() {
             e.push_back({pat, r, c, before, kEmpty});
         }
     }
-    if (!e.empty()) pushEdit(std::move(e));
+    if (!e.empty()) m_undo.push(std::move(e));
 }
 
 void TrackerView::insertRow() {
@@ -176,7 +150,7 @@ void TrackerView::insertRow() {
     for (auto& ce : e) {
         pe_get_cell(m_mod, pat, ce.row, ce.ch, ce.after);
     }
-    pushEdit(std::move(e));
+    m_undo.push(std::move(e));
 }
 
 void TrackerView::deleteRow() {
@@ -200,7 +174,7 @@ void TrackerView::deleteRow() {
     for (auto& ce : e) {
         pe_get_cell(m_mod, pat, ce.row, ce.ch, ce.after);
     }
-    pushEdit(std::move(e));
+    m_undo.push(std::move(e));
 }
 
 // ── Toolbar helpers ───────────────────────────────────────────────────────────
@@ -438,7 +412,7 @@ void TrackerView::drawPatternToolbar3(float /*x*/, float /*y*/, float /*w*/) {
         return r;
     };
 
-    if (actBtn("Undo##undo", has && !m_undoStack.empty())) { doUndo(); } tip("Undo");
+    if (actBtn("Undo##undo", has && m_undo.canUndo())) { m_undo.undo(m_mod); } tip("Undo");
     ImGui::SameLine();
     if (actBtn("Props##props",  has)) {} tip("Pattern properties");
     ImGui::SameLine();
@@ -1231,10 +1205,10 @@ void TrackerView::processInput() {
     // ── Ctrl shortcuts (Undo/Redo/Copy/Paste/Cut) ─────────────────────────────
     if (ctrl) {
         if (ImGui::IsKeyPressed(ImGuiKey_Z)) {
-            if (shift) doRedo(); else doUndo();
+            if (shift) m_undo.redo(m_mod); else m_undo.undo(m_mod);
             return;
         }
-        if (ImGui::IsKeyPressed(ImGuiKey_Y)) { doRedo(); return; }
+        if (ImGui::IsKeyPressed(ImGuiKey_Y)) { m_undo.redo(m_mod); return; }
         if (ImGui::IsKeyPressed(ImGuiKey_C)) { selCopy(); return; }
         if (ImGui::IsKeyPressed(ImGuiKey_X)) { selCopy(); selDelete(); return; }
         if (ImGui::IsKeyPressed(ImGuiKey_V)) { selPaste(); return; }
@@ -1327,7 +1301,7 @@ void TrackerView::processInput() {
         PatternCell after{};
         UndoEntry e;
         e.push_back({pat, m_cur.row, m_cur.channel, before, after});
-        pushEdit(std::move(e));
+        m_undo.push(std::move(e));
         advanceCursor(); return;
     }
 

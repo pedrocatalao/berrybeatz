@@ -1,10 +1,10 @@
 #pragma once
 #include <functional>
 #include <cstdint>
-#include <deque>
 #include <vector>
 #include "ModuleState.h"
 #include "PatternEditor.h"
+#include "UndoManager.h"
 
 struct ImFont;
 struct ImDrawList;
@@ -42,13 +42,6 @@ struct PatSel {
     int32_t chMax()  const { return std::max(chAnchor,  chCursor);  }
 };
 
-// Single cell edit record for undo
-struct CellEdit {
-    int32_t     pat, row, ch;
-    PatternCell before, after;
-};
-using UndoEntry = std::vector<CellEdit>;
-
 // Clipboard data
 struct ClipData {
     std::vector<std::vector<PatternCell>> cells; // [row][ch]
@@ -62,7 +55,7 @@ public:
     ~TrackerView() = default;
 
     void setModule(openmpt::module_ext* mod) { m_mod = mod; }
-    void clearModule() { m_mod = nullptr; m_undoStack.clear(); m_redoStack.clear(); m_sel.active = false; }
+    void clearModule() { m_mod = nullptr; m_undo.clear(); m_sel.active = false; }
     void setFonts(ImFont* mono, ImFont* ui) { m_fontMono = mono; m_fontUI = ui; }
 
     int  baseOctave() const   { return m_baseOctave; }
@@ -94,10 +87,6 @@ private:
     void advanceCursor();
     void clampCursor();
 
-    // Undo / redo
-    void pushEdit(UndoEntry e);
-    void doUndo();
-    void doRedo();
 
     // Block operations
     void selCopy();
@@ -140,10 +129,7 @@ private:
     // Block selection
     PatSel m_sel;
 
-    // Undo / redo stacks
-    std::deque<UndoEntry> m_undoStack;
-    std::deque<UndoEntry> m_redoStack;
-    static constexpr int  kMaxUndo = 64;
+    UndoManager m_undo;
 
     // Clipboard
     ClipData m_clip;

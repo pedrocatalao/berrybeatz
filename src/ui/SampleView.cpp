@@ -207,7 +207,7 @@ void SampleView::drawEditor(float x, float y, float w, float h) {
         {
             int gv = (int)m_data.globalVol;
             ImGui::BeginGroup();
-            if (KnobWidget("##kSGVol", &gv, 0, 64))
+            if (KnobEdit("##kSGVol", &gv, 0, 64))
                 { m_data.globalVol = (uint16_t)gv; m_dirty = true; }
             float lw = ImGui::CalcTextSize("G.Vol").x;
             ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (36.f - lw) * 0.5f);
@@ -220,31 +220,31 @@ void SampleView::drawEditor(float x, float y, float w, float h) {
         {
             int vol = (int)m_data.volume;
             ImGui::BeginGroup();
-            if (KnobWidget("##kSVol", &vol, 0, 256))
+            if (KnobEdit("##kSVol", &vol, 0, 256))
                 { m_data.volume = (uint16_t)vol; m_dirty = true; }
             float lw = ImGui::CalcTextSize("Volume").x;
             ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (36.f - lw) * 0.5f);
             ImGui::TextColored(kDim, "Volume");
             ImGui::EndGroup();
+            ImGui::SameLine(0, 12);
+        }
+
+        // Pan knob (bipolar, center=128)
+        {
+            int pv = (int)m_data.pan;
+            ImGui::BeginGroup();
+            if (KnobEdit("##kSPan", &pv, 0, 256, /*bipolar=*/true)) {
+                m_data.pan        = (uint16_t)pv;
+                m_data.panEnabled = true;
+                m_dirty           = true;
+            }
+            float lw = ImGui::CalcTextSize("Pan").x;
+            ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (36.f - lw) * 0.5f);
+            ImGui::TextColored(kDim, "Pan");
+            ImGui::EndGroup();
         }
 
         ImGui::Spacing();
-
-        // Panning: checkbox + slider
-        {
-            bool panEn = m_data.panEnabled;
-            if (ImGui::Checkbox("##spanEn", &panEn))
-                { m_data.panEnabled = panEn; m_dirty = true; }
-            ImGui::SameLine(0, 4);
-            ImGui::TextColored(kDim, "Pan");
-            ImGui::SameLine(0, 8);
-            int pv = (int)m_data.pan;
-            if (!m_data.panEnabled) ImGui::BeginDisabled();
-            ImGui::SetNextItemWidth(80.f);
-            if (ImGui::SliderInt("##span", &pv, 0, 256))
-                { m_data.pan = (uint16_t)pv; m_dirty = true; }
-            if (!m_data.panEnabled) ImGui::EndDisabled();
-        }
 
         // Fine Tune
         {

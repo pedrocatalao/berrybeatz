@@ -37,7 +37,8 @@ inline bool KnobWidget(const char* id,
                        int         vmin,
                        int         vmax,
                        bool*       editRequested = nullptr,
-                       bool        hideValue     = false)
+                       bool        hideValue     = false,
+                       bool        bipolar       = false)
 {
     ImGui::PushID(id);
 
@@ -125,30 +126,38 @@ inline bool KnobWidget(const char* id,
     float t = (vmax > vmin)
               ? (float)(*value - vmin) / (float)(vmax - vmin)
               : 0.f;
-    float angEnd = ANG_START + t * SWEEP;
-    if (angEnd > ANG_START) {
-        // Normal arc first
-        dl->PathArcTo(center, trackR, ANG_START, angEnd, 32);
+
+    const float ANG_CENTER = ANG_START + SWEEP * 0.5f;  // 12 o'clock
+    float arcA, arcB;
+    if (bipolar) {
+        arcA = (t >= 0.5f) ? ANG_CENTER : ANG_START + t * SWEEP;
+        arcB = (t >= 0.5f) ? ANG_START + t * SWEEP : ANG_CENTER;
+    } else {
+        arcA = ANG_START;
+        arcB = ANG_START + t * SWEEP;
+    }
+
+    auto drawArc = [&](float a, float b) {
+        if (b <= a) return;
+        dl->PathArcTo(center, trackR, a, b, 32);
         dl->PathStroke(IM_COL32(0, 180, 210, 100), false, 2.5f);
 
-        // Glow on top — additive, high enough alpha to show on dark body
         dl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {
             glBlendFunc(GL_SRC_ALPHA, GL_ONE);
         }, nullptr);
-        dl->PathArcTo(center, trackR, ANG_START, angEnd, 32);
+        dl->PathArcTo(center, trackR, a, b, 32);
         dl->PathStroke(IM_COL32(0, 220, 255,   3), false, 22.0f);
-        dl->PathArcTo(center, trackR, ANG_START, angEnd, 32);
+        dl->PathArcTo(center, trackR, a, b, 32);
         dl->PathStroke(IM_COL32(0, 220, 255,   6), false, 15.0f);
-        dl->PathArcTo(center, trackR, ANG_START, angEnd, 32);
+        dl->PathArcTo(center, trackR, a, b, 32);
         dl->PathStroke(IM_COL32(0, 220, 255,  10), false, 10.0f);
-        dl->PathArcTo(center, trackR, ANG_START, angEnd, 32);
+        dl->PathArcTo(center, trackR, a, b, 32);
         dl->PathStroke(IM_COL32(0, 220, 255,  18), false,  6.0f);
-        dl->PathArcTo(center, trackR, ANG_START, angEnd, 32);
+        dl->PathArcTo(center, trackR, a, b, 32);
         dl->PathStroke(IM_COL32(0, 220, 255,  28), false,  3.0f);
 
-        // Round caps at both arc endpoints (flat butt caps leave glow gaps)
-        float sx = center.x + trackR * cosf(ANG_START), sy = center.y + trackR * sinf(ANG_START);
-        float ex = center.x + trackR * cosf(angEnd),    ey = center.y + trackR * sinf(angEnd);
+        float sx = center.x + trackR * cosf(a), sy = center.y + trackR * sinf(a);
+        float ex = center.x + trackR * cosf(b), ey = center.y + trackR * sinf(b);
         for (auto [cx2, cy2] : {std::pair{sx,sy}, std::pair{ex,ey}}) {
             dl->AddCircleFilled({cx2, cy2}, 11.0f, IM_COL32(0, 220, 255,   3));
             dl->AddCircleFilled({cx2, cy2},  8.0f, IM_COL32(0, 220, 255,   6));
@@ -158,12 +167,28 @@ inline bool KnobWidget(const char* id,
         dl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {
             glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         }, nullptr);
+    };
+    drawArc(arcA, arcB);
+
+    // Bipolar: small center tick at 12 o'clock
+    if (bipolar) {
+        float tx0 = center.x + (trackR - 3.f) * cosf(ANG_CENTER);
+        float ty0 = center.y + (trackR - 3.f) * sinf(ANG_CENTER);
+        float tx1 = center.x + (trackR + 3.f) * cosf(ANG_CENTER);
+        float ty1 = center.y + (trackR + 3.f) * sinf(ANG_CENTER);
+        dl->AddLine({tx0, ty0}, {tx1, ty1}, IM_COL32(120, 120, 180, 200), 1.5f);
     }
 
     // Value text centered in the knob (suppressed when caller renders an edit field)
     if (!hideValue) {
         char buf[16];
-        snprintf(buf, sizeof(buf), "%d", *value);
+        if (bipolar) {
+            int offset = *value - (vmin + vmax) / 2;
+            snprintf(buf, sizeof(buf), "%+d", offset);
+            if (offset == 0) snprintf(buf, sizeof(buf), "0");
+        } else {
+            snprintf(buf, sizeof(buf), "%d", *value);
+        }
         ImVec2 textSz = ImGui::CalcTextSize(buf);
         dl->AddText(
             ImVec2(center.x - textSz.x * 0.5f, center.y - textSz.y * 0.5f),
@@ -173,5 +198,79 @@ inline bool KnobWidget(const char* id,
     }
 
     ImGui::PopID();
+    return changed;
+}
+
+// KnobEdit — KnobWidget with click-to-type inline editing (same pattern as toolbar knobs).
+// Bipolar knobs show and accept the offset from center in the edit field.
+inline bool KnobEdit(const char* id, int* value, int vmin, int vmax, bool bipolar = false)
+{
+    static ImGuiID s_activeID = 0;
+    static int     s_editVal  = 0;
+    static bool    s_doFocus  = false;
+
+    // Compute the same widget ID that KnobWidget's InvisibleButton will use
+    ImGui::PushID(id);
+    ImGuiID wid = ImGui::GetID("knob");
+    ImGui::PopID();
+
+    bool   editing = (s_activeID == wid);
+    ImVec2 sp      = ImGui::GetCursorScreenPos();
+    const float SIZE = 36.f;
+
+    bool editReq = false;
+    bool changed = KnobWidget(id, value, vmin, vmax, &editReq, editing, bipolar);
+
+    if (editReq) {
+        s_activeID = wid;
+        s_editVal  = bipolar ? (*value - (vmin + vmax) / 2) : *value;
+        s_doFocus  = true;
+    }
+
+    if (editing) {
+        char ibuf[16];
+        snprintf(ibuf, sizeof(ibuf), "%d", s_editVal);
+        ImVec2 textSz = ImGui::CalcTextSize(ibuf);
+        const float iw = textSz.x + ImGui::GetTextLineHeight();
+
+        // Mirror the toolbar: place the input where the text starts when centered in the knob,
+        // so the text inside the field lands exactly at the knob's center.
+        float editX = sp.x + (SIZE - textSz.x) * 0.5f;
+        float editY = sp.y + (SIZE - textSz.y) * 0.5f;
+        ImGui::SetCursorScreenPos({editX, editY});
+        ImGui::SetNextItemWidth(iw);
+        if (s_doFocus) { ImGui::SetKeyboardFocusHere(); s_doFocus = false; }
+
+        ImGui::PushStyleColor(ImGuiCol_FrameBg,        IM_COL32(0, 0, 0, 0));
+        ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, IM_COL32(0, 0, 0, 0));
+        ImGui::PushStyleColor(ImGuiCol_FrameBgActive,  IM_COL32(0, 0, 0, 0));
+        ImGui::PushStyleColor(ImGuiCol_Text,           IM_COL32(208, 208, 80, 255));
+        ImGui::PushStyleColor(ImGuiCol_Border,         IM_COL32(0, 0, 0, 0));
+        ImGui::PushStyleColor(ImGuiCol_NavHighlight,   IM_COL32(0, 0, 0, 0));
+        ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0.f);
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,    ImVec2(0.f, 0.f));
+
+        ImGui::PushID(id);
+        if (ImGui::InputInt("##ke", &s_editVal, 0, 0,
+                ImGuiInputTextFlags_EnterReturnsTrue |
+                ImGuiInputTextFlags_AutoSelectAll)) {
+            int finalVal = bipolar ? ((vmin + vmax) / 2 + s_editVal) : s_editVal;
+            finalVal = finalVal < vmin ? vmin : (finalVal > vmax ? vmax : finalVal);
+            *value   = finalVal;
+            changed  = true;
+            s_activeID = 0;
+        }
+        if (ImGui::IsKeyPressed(ImGuiKey_Escape, false))
+            s_activeID = 0;
+        ImGui::PopID();
+
+        ImGui::PopStyleVar(2);
+        ImGui::PopStyleColor(6);
+
+        // Restore cursor past the knob so surrounding layout (SameLine etc.) is correct
+        ImGui::SetCursorScreenPos(sp);
+        ImGui::Dummy({SIZE, SIZE});
+    }
+
     return changed;
 }

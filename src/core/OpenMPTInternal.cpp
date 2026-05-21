@@ -277,7 +277,10 @@ int32_t bb_play_sample(openmpt::module_ext* mod, int sampleIndex, int note, doub
     chn.pModInstrument  = nullptr;
     chn.nFadeOutVol     = 0x10000;
     sf.NoteChange(chn, note, false, true, true);
-    chn.nPan    = std::max(0, std::min(256, (int)(panning * 128.0 + 128.0)));
+    if (chn.pModSample->uFlags[OpenMPT::CHN_PANNING])
+        chn.nPan = chn.pModSample->nPan;
+    else
+        chn.nPan = std::max(0, std::min(256, (int)(panning * 128.0 + 128.0)));
     chn.nVolume = std::max(0, std::min(256, (int)(volume  * 256.0)));
 
     // Remove from mix list so the channel is picked up cleanly next read()

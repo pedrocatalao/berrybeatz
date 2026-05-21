@@ -212,7 +212,7 @@ void InstrumentView::drawEditor(float x, float y, float w, float h) {
         {
             int gv = (int)m_data.globalVol;
             ImGui::BeginGroup();
-            if (KnobWidget("##kGVol", &gv, 0, 64))
+            if (KnobEdit("##kGVol", &gv, 0, 64))
                 { m_data.globalVol = (uint16_t)gv; m_dirty = true; }
             float lw = ImGui::CalcTextSize("G.Vol").x;
             ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (36.f - lw) * 0.5f);
@@ -225,7 +225,7 @@ void InstrumentView::drawEditor(float x, float y, float w, float h) {
         {
             int fo = (int)m_data.fadeOut;
             ImGui::BeginGroup();
-            if (KnobWidget("##kFade", &fo, 0, 8192))
+            if (KnobEdit("##kFade", &fo, 0, 8192))
                 { m_data.fadeOut = (uint16_t)fo; m_dirty = true; }
             float lw = ImGui::CalcTextSize("Fade").x;
             ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (36.f - lw) * 0.5f);
@@ -248,21 +248,19 @@ void InstrumentView::drawEditor(float x, float y, float w, float h) {
         ImGui::TextColored(kDim, "PANNING");
         ImGui::Spacing();
 
-        // Panning enabled checkbox + knob
+        // Pan knob (bipolar, center=128)
         {
-            bool panEn = m_data.panEnabled;
-            if (ImGui::Checkbox("##panen", &panEn))
-                { m_data.panEnabled = panEn; m_dirty = true; }
-            ImGui::SameLine(0, 4);
-            ImGui::TextColored(kDim, "Pan");
-            ImGui::SameLine(0, 8);
-
             int pv = (int)m_data.pan;
-            bool disabled = !m_data.panEnabled;
-            if (disabled) ImGui::BeginDisabled();
-            if (KnobWidget("##kPan", &pv, 0, 256))
-                { m_data.pan = (uint16_t)pv; m_dirty = true; }
-            if (disabled) ImGui::EndDisabled();
+            ImGui::BeginGroup();
+            if (KnobEdit("##kPan", &pv, 0, 256, /*bipolar=*/true)) {
+                m_data.pan        = (uint16_t)pv;
+                m_data.panEnabled = true;
+                m_dirty           = true;
+            }
+            float lw = ImGui::CalcTextSize("Pan").x;
+            ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (36.f - lw) * 0.5f);
+            ImGui::TextColored(kDim, "Pan");
+            ImGui::EndGroup();
         }
 
         ImGui::Spacing();

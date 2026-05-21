@@ -66,6 +66,7 @@ set(SOURCES
     # core — platform-independent logic
     src/core/AudioEngine.cpp
     src/core/PatternEditor.cpp
+    src/core/Settings.cpp
     src/core/UndoManager.cpp
     src/core/OpenMPTInternal.cpp
     src/core/OpenMPTInternalGet.cpp
@@ -74,10 +75,12 @@ set(SOURCES
     src/ui/GeneralView.cpp
     src/ui/InstrumentView.cpp
     src/ui/SampleView.cpp
+    src/ui/SettingsView.cpp
     src/ui/Toolbar.cpp
     src/ui/TrackerView.cpp
     src/ui/PatternInput.cpp
     # platform — macOS-specific
+    src/platform/MidiDevices.mm
     src/platform/WindowChrome.cpp
     src/platform/CocoaHelpers.mm
     src/platform/Logo.mm
@@ -96,8 +99,11 @@ add_executable(BerryBeatz MACOSX_BUNDLE
 )
 
 # Mark the Objective-C++ sources explicitly
-set_source_files_properties(src/platform/CocoaHelpers.mm src/platform/Logo.mm PROPERTIES
-    LANGUAGE OBJCXX
+set_source_files_properties(
+    src/platform/MidiDevices.mm
+    src/platform/CocoaHelpers.mm
+    src/platform/Logo.mm
+    PROPERTIES LANGUAGE OBJCXX
 )
 
 # Bundle the logo into Resources/

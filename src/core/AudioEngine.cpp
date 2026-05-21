@@ -24,6 +24,7 @@ struct PaCallbackData {
     std::vector<float>    left;
     std::vector<float>    right;
     uint64_t              appliedMuteMask{0};
+    int                   sampleRate{48000};
 
     // Pattern play trigger pointers (owned by AudioEngine)
     std::atomic<int32_t>* pat_play_order    {nullptr};
@@ -49,11 +50,14 @@ struct PaCallbackData {
 };
 
 AudioEngine::AudioEngine(ModuleState& state)
-    : m_state(state) {}
+    : m_state(state) {
+    Pa_Initialize();
+}
 
 AudioEngine::~AudioEngine() {
     stop();
     join();
+    Pa_Terminate();
 }
 
 bool AudioEngine::loadFile(const std::string& path) {
@@ -142,6 +146,24 @@ void AudioEngine::selectSubsong(int32_t i)  { m_subsong.store(i); }
 int32_t AudioEngine::subsongCount() const   { return m_mod ? m_mod->get_num_subsongs() : 0; }
 openmpt::module_ext* AudioEngine::getModule() const { return m_mod.get(); }
 
+void AudioEngine::setAudioConfig(int deviceIndex, int sampleRate)
+{
+    m_deviceIndex = deviceIndex;
+    m_samplerate  = sampleRate;
+}
+
+std::vector<AudioDeviceInfo> AudioEngine::getDevices() const
+{
+    std::vector<AudioDeviceInfo> result;
+    int n = Pa_GetDeviceCount();
+    for (int i = 0; i < n; ++i) {
+        const PaDeviceInfo* info = Pa_GetDeviceInfo(i);
+        if (!info || info->maxOutputChannels < 2) continue;
+        result.push_back({i, info->name, info->maxOutputChannels, info->defaultSampleRate});
+    }
+    return result;
+}
+
 void AudioEngine::playPatternFrom(int32_t order, int32_t startRow, bool loop) {
     if (!m_mod) return;
     m_patPlayLoop  .store(loop);
@@ -205,7 +227,7 @@ int AudioEngine::paCallback(const void*, void* output,
         if (d->left.size()  < frameCount) d->left.resize(frameCount);
         if (d->right.size() < frameCount) d->right.resize(frameCount);
 
-        size_t count = d->mod->read(SAMPLE_RATE, frameCount,
+        size_t count = d->mod->read(d->sampleRate, frameCount,
                                     d->left.data(), d->right.data());
 
         if (ia) {
@@ -393,14 +415,28 @@ void AudioEngine::run() {
     cbData.pat_play_single   = &m_patPlaySingle;
     cbData.preview_mode      = &m_previewMode;
 
-    Pa_Initialize();
+    cbData.sampleRate = m_samplerate;
 
     PaStream* stream = nullptr;
-    PaError err = Pa_OpenDefaultStream(&stream, 0, 2, paFloat32,
-                                       SAMPLE_RATE, FRAMES_BLOCK,
-                                       paCallback, &cbData);
+    PaError   err    = paNoError;
+
+    auto tryOpen = [&](PaDeviceIndex dev) -> PaError {
+        const PaDeviceInfo* info = Pa_GetDeviceInfo(dev);
+        PaStreamParameters params{};
+        params.device                    = dev;
+        params.channelCount              = 2;
+        params.sampleFormat              = paFloat32;
+        params.suggestedLatency          = info ? info->defaultLowOutputLatency : 0.020;
+        params.hostApiSpecificStreamInfo = nullptr;
+        return Pa_OpenStream(&stream, nullptr, &params,
+                             m_samplerate, FRAMES_BLOCK, paClipOff, paCallback, &cbData);
+    };
+    if (m_deviceIndex >= 0)
+        err = tryOpen((PaDeviceIndex)m_deviceIndex);
+    if (m_deviceIndex < 0 || err != paNoError)
+        err = tryOpen(Pa_GetDefaultOutputDevice());
+
     if (err != paNoError) {
-        Pa_Terminate();
         m_state.is_playing.store(false);
         m_running.store(false);
         if (onLoadFailed) onLoadFailed(std::string("PortAudio: ") + Pa_GetErrorText(err));
@@ -423,7 +459,6 @@ void AudioEngine::run() {
     }
 
     Pa_CloseStream(stream);
-    Pa_Terminate();
 
     m_state.is_playing.store(false);
     m_running.store(false);

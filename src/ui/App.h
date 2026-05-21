@@ -9,6 +9,8 @@
 #include "SampleView.h"
 #include "Toolbar.h"
 #include "WindowChrome.h"
+#include "SettingsView.h"
+#include "Settings.h"
 #include <string>
 
 struct ImFont;
@@ -50,6 +52,8 @@ private:
 
     ToolbarState   m_toolbarState;
     WindowChrome   m_chrome;
+    SettingsView   m_settingsView;
+    Settings       m_settings;
 
     GLFWwindow* m_glfwWindow {nullptr};
     ImFont*     m_fontMono   {nullptr};

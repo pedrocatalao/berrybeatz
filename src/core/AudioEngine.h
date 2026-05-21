@@ -5,11 +5,19 @@
 #include <functional>
 #include <memory>
 #include <atomic>
+#include <vector>
 
 namespace openmpt { class module; class module_ext; }
 struct PaStreamCallbackTimeInfo;
 typedef unsigned long PaStreamCallbackFlags;
 typedef void PaStream;
+
+struct AudioDeviceInfo {
+    int         index;
+    std::string name;
+    int         maxOutputChannels;
+    double      defaultSampleRate;
+};
 
 class AudioEngine {
 public:
@@ -40,6 +48,10 @@ public:
 
     openmpt::module_ext* getModule() const;
 
+    // Audio device configuration (takes effect on next start())
+    void setAudioConfig(int deviceIndex, int sampleRate);
+    std::vector<AudioDeviceInfo> getDevices() const;
+
     // Pattern-specific playback
     void    playPatternFrom(int32_t order, int32_t startRow, bool loop);
     void    playRow(int32_t order, int32_t row);
@@ -69,7 +81,8 @@ private:
     std::atomic<double>      m_seek       {-1.0};
     std::atomic<int32_t>     m_seek_order {-1};
     std::atomic<int32_t>     m_subsong    {-2};   // -2 = no change
-    int32_t                  m_samplerate {48000};
+    int32_t                  m_samplerate  {48000};
+    int                      m_deviceIndex {-1};
 
     // Pattern play — written by UI thread, read+consumed by callback
     std::atomic<int32_t>     m_patPlayOrder    {-1}; // -1 = idle, >=0 = trigger

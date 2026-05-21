@@ -38,6 +38,9 @@ struct ToolbarState {
     float  speakerConeW   {0.f};
     float  speakerConeH   {0.f};
 
+    // Settings
+    std::function<void()>      onSetup;
+
     // File / transport actions
     std::function<void()>      onNew;
     std::function<void()>      onOpen;

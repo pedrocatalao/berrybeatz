@@ -190,6 +190,9 @@ float DrawToolbar(ToolbarState& state,
         ImGui::SameLine(0.f, 3.f);
         ImGui::SetCursorPosY(by);
         if (ImGui::Button("Save")) { if (state.onSave) state.onSave(); }
+        ImGui::SameLine(0.f, 3.f);
+        ImGui::SetCursorPosY(by);
+        if (ImGui::Button("Cfg"))  { if (state.onSetup) state.onSetup(); }
 
         // Window drag is handled in the GLFW mouse button callback (main.cpp),
         // which fires from inside GLFW's mouseDown: delegate — the only context

@@ -1,6 +1,7 @@
 #include "App.h"
 #include "CocoaHelpers.h"
 #include "Logo.h"
+#include "MidiDevices.h"
 #include "OpenMPTInternal.h"
 #include "imgui.h"
 #include <GLFW/glfw3.h>
@@ -19,6 +20,10 @@ App::App() : m_audio(m_state), m_tracker(m_state), m_generalView(m_state)
     m_toolbarState.onWindowMinimize   = [this]() { glfwIconifyWindow(m_glfwWindow); };
     m_toolbarState.onWindowMaximize   = [this]() { m_chrome.toggleMaximize(); };
     m_toolbarState.onWindowFullscreen = [this]() { m_chrome.toggleFullscreen(); };
+
+    m_toolbarState.onSetup = [this]() {
+        m_settingsView.open(m_settings, m_audio.getDevices(), enumerateMidiSources());
+    };
 
     m_toolbarState.onNew  = [this]() { clearModule(); };
     m_toolbarState.onOpen = [this]() { openFileDialog(); };
@@ -72,6 +77,23 @@ App::App() : m_audio(m_state), m_tracker(m_state), m_generalView(m_state)
     m_audio.onSongFinished = [this]() {
         // Called from audio thread — just note playback ended naturally
         (void)this;
+    };
+
+    // ── Settings ──────────────────────────────────────────────────────────
+    m_settings.load(Settings::defaultPath());
+    m_audio.setAudioConfig(m_settings.audioDeviceIndex, m_settings.sampleRate);
+
+    m_settingsView.onApply = [this](const Settings& s) {
+        bool audioChanged = (s.audioDeviceIndex != m_settings.audioDeviceIndex ||
+                             s.sampleRate       != m_settings.sampleRate);
+        m_settings = s;
+        m_settings.save(Settings::defaultPath());
+        m_audio.setAudioConfig(s.audioDeviceIndex, s.sampleRate);
+        if (audioChanged && m_audio.isRunning()) {
+            m_audio.stop();
+            m_audio.join();
+            m_audio.start();
+        }
     };
 
     // ── TrackerView callbacks ──────────────────────────────────────────────
@@ -265,6 +287,8 @@ void App::render(int winW, int winH)
 
         ImGui::End();
     }
+
+    m_settingsView.draw();
 
     ImGui::PopFont();
 }

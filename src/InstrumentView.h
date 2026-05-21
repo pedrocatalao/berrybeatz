@@ -11,6 +11,8 @@ public:
     void setModule(openmpt::module_ext* mod, int instrCount);
     void clearModule();
     void setFonts(ImFont* mono, ImFont* ui);
+    void setSelection(int idx);   // 1-based; clamps to valid range
+    int  getSelection() const { return m_sel; }
     void render(float x, float y, float w, float h);
 
     // Called when a note preview starts — wire this to ensure the audio engine is running.
@@ -19,7 +21,6 @@ public:
 private:
     void loadInstrument();
     void saveInstrument();
-    void drawList(float x, float y, float w, float h);
     void drawEditor(float x, float y, float w, float h);
     void drawEnvelopeGraph(InstrumentEnvData& env, const char* typeLabel, float w, float h);
     void drawNoteKeyboard(float w, float h);

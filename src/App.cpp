@@ -399,7 +399,8 @@ void App::drawSidebar(float x, float y, float w, float h)
     // Returns the index that was clicked, or -1.
     auto section = [&](const char* label,
                         const std::vector<std::string>& names,
-                        int tabSwitch) -> int
+                        int tabSwitch,
+                        int activeSel = -1) -> int
     {
         char header[64];
         snprintf(header, sizeof(header), "%s (%d)##hdr", label, (int)names.size());
@@ -415,7 +416,8 @@ void App::drawSidebar(float x, float y, float w, float h)
                 char row[256];
                 snprintf(row, sizeof(row), "%3d  %s", i + 1,
                          names[i].empty() ? "---" : names[i].c_str());
-                if (ImGui::Selectable(row, false, 0, {0.f, 0.f})) {
+                bool isActive = (i + 1 == activeSel);
+                if (ImGui::Selectable(row, isActive, 0, {0.f, 0.f})) {
                     clicked = i;
                     m_activeTab = tabSwitch;
                 }
@@ -460,8 +462,11 @@ void App::drawSidebar(float x, float y, float w, float h)
         sampleNames = m_state.sample_names;
     }
 
-    if (!instrNames.empty())
-        section("Instruments", instrNames, 3);
+    if (!instrNames.empty()) {
+        int clicked = section("Instruments", instrNames, 3, m_instrView.getSelection());
+        if (clicked >= 0)
+            m_instrView.setSelection(clicked + 1);
+    }
 
     section("Samples", sampleNames, 2);
     patSection();

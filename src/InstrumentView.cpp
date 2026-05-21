@@ -72,78 +72,21 @@ void InstrumentView::saveInstrument() {
 
 // ─── Top-level render ────────────────────────────────────────────────────────
 
+void InstrumentView::setSelection(int idx) {
+    if (!m_mod || m_instrCount == 0) return;
+    idx = std::max(1, std::min(idx, m_instrCount));
+    if (idx == m_sel) return;
+    if (m_dirty) saveInstrument();
+    m_sel = idx;
+    loadInstrument();
+}
+
 void InstrumentView::render(float x, float y, float w, float h) {
     if (!m_mod || m_instrCount == 0) return;
-
-    const float kListW = 200.f;
-    drawList(x, y, kListW, h);
-    drawEditor(x + kListW + 2.f, y, w - kListW - 2.f, h);
-
-    // Flush any pending edits at end-of-frame
+    drawEditor(x, y, w, h);
     if (m_dirty) saveInstrument();
 }
 
-// ─── Left: instrument list ───────────────────────────────────────────────────
-
-void InstrumentView::drawList(float x, float y, float w, float h) {
-    ImGui::SetCursorScreenPos({x, y});
-    ImGui::PushStyleColor(ImGuiCol_ChildBg, IM_COL32(20, 20, 32, 255));
-    if (ImGui::BeginChild("##instrList", {w, h}, false, ImGuiWindowFlags_NoScrollbar)) {
-        ImGui::SetScrollY(ImGui::GetScrollY()); // keep alive
-
-        const ImVec4 kDim    = {0.5f, 0.5f, 0.65f, 1.f};
-        const ImVec4 kAccent = {0.f, 0.78f, 1.f, 1.f};
-
-        // Header
-        ImGui::PushStyleColor(ImGuiCol_Text, kDim);
-        ImGui::Text(" INSTRUMENTS");
-        ImGui::PopStyleColor();
-        ImGui::Separator();
-
-        ImDrawList* dl = ImGui::GetWindowDrawList();
-        float rowH = 18.f;
-        float cx   = ImGui::GetCursorScreenPos().x;
-        float cy   = ImGui::GetCursorScreenPos().y;
-
-        for (int i = 1; i <= m_instrCount; ++i) {
-            bool sel = (i == m_sel);
-
-            // Row background
-            ImVec2 rMin = {cx, cy + (i - 1) * rowH};
-            ImVec2 rMax = {cx + w - 4.f, rMin.y + rowH};
-            if (sel)
-                dl->AddRectFilled(rMin, rMax, IM_COL32(0, 80, 120, 200));
-            else if (ImGui::IsMouseHoveringRect(rMin, rMax))
-                dl->AddRectFilled(rMin, rMax, IM_COL32(40, 40, 60, 180));
-
-            // Number badge
-            char nbuf[8];
-            snprintf(nbuf, sizeof(nbuf), "%3d", i);
-            dl->AddText({rMin.x + 4.f, rMin.y + 1.f},
-                        sel ? IM_COL32(0, 200, 255, 255) : IM_COL32(100, 100, 140, 255),
-                        nbuf);
-
-            // Name
-            const char* name = (i == m_sel && m_data.valid) ? m_data.name : "";
-            dl->AddText({rMin.x + 32.f, rMin.y + 1.f},
-                        sel ? IM_COL32(220, 220, 240, 255) : IM_COL32(160, 160, 180, 255),
-                        name[0] ? name : "(unnamed)");
-
-            // Click to select
-            ImGui::SetCursorScreenPos(rMin);
-            ImGui::InvisibleButton(("##irow" + std::to_string(i)).c_str(), {w - 4.f, rowH});
-            if (ImGui::IsItemClicked()) {
-                if (i != m_sel) {
-                    if (m_dirty) saveInstrument();
-                    m_sel = i;
-                    loadInstrument();
-                }
-            }
-        }
-    }
-    ImGui::EndChild();
-    ImGui::PopStyleColor();
-}
 
 // ─── Right: instrument editor ────────────────────────────────────────────────
 

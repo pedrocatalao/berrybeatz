@@ -873,10 +873,14 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
 
             // Background + divider
             ImU32 hdrCol = muted ? IM_COL32(20,20,30,255) : IM_COL32(30,30,60,255);
-            dl->AddRectFilled(p, {p.x + cw - 1, p.y + CHANNAME_H}, hdrCol);
+            float padX   = ImGui::GetStyle().CellPadding.x;
             float hdrTop = p.y - ImGui::GetStyle().CellPadding.y;
             float hdrBot = hdrTop + m_chanH + 4.f;
-            dl->AddLine({p.x,        hdrTop}, {p.x,        hdrBot}, IM_COL32(46, 46, 92, 200));
+            dl->AddRectFilled(p, {p.x + cw - 1, p.y + CHANNAME_H}, hdrCol);
+            // Fill left and right padding gutters with the same dark blue as pattern rows
+            dl->AddRectFilled({p.x - padX, hdrTop}, {p.x,          hdrBot}, IM_COL32(46, 46, 92, 200));
+            dl->AddRectFilled({p.x + cw,   hdrTop}, {p.x + cw + padX, hdrBot}, IM_COL32(46, 46, 92, 200));
+            dl->AddLine({p.x,          hdrTop}, {p.x,          hdrBot}, IM_COL32(46, 46, 92, 200));
             dl->AddLine({p.x + cw - 1, hdrTop}, {p.x + cw - 1, hdrBot}, IM_COL32(46, 46, 92, 200));
 
             // Channel name, centred

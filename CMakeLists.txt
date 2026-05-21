@@ -63,21 +63,25 @@ target_include_directories(imgui PUBLIC
 # Main app sources
 set(SOURCES
     src/main.cpp
-    src/App.cpp
-    src/GeneralView.cpp
-    src/Toolbar.cpp
-    src/AudioEngine.cpp
-    src/TrackerView.cpp
-    src/PatternEditor.cpp
-    src/InstrumentView.cpp
-    src/SampleView.cpp
-    src/UndoManager.cpp
-    src/PatternInput.cpp
-    src/WindowChrome.cpp
-    src/OpenMPTInternal.cpp
-    src/OpenMPTInternalGet.cpp
-    src/CocoaHelpers.mm
-    src/Logo.mm
+    # core — platform-independent logic
+    src/core/AudioEngine.cpp
+    src/core/PatternEditor.cpp
+    src/core/UndoManager.cpp
+    src/core/OpenMPTInternal.cpp
+    src/core/OpenMPTInternalGet.cpp
+    # ui — ImGui views and widgets
+    src/ui/App.cpp
+    src/ui/GeneralView.cpp
+    src/ui/InstrumentView.cpp
+    src/ui/SampleView.cpp
+    src/ui/Toolbar.cpp
+    src/ui/TrackerView.cpp
+    src/ui/PatternInput.cpp
+    # platform — macOS-specific
+    src/platform/WindowChrome.cpp
+    src/platform/CocoaHelpers.mm
+    src/platform/Logo.mm
+    # assets bundled into Resources/
     assets/logo.png
     assets/berrybeatz5-banner.png
     assets/speakercone.png
@@ -92,7 +96,7 @@ add_executable(BerryBeatz MACOSX_BUNDLE
 )
 
 # Mark the Objective-C++ sources explicitly
-set_source_files_properties(src/CocoaHelpers.mm src/Logo.mm PROPERTIES
+set_source_files_properties(src/platform/CocoaHelpers.mm src/platform/Logo.mm PROPERTIES
     LANGUAGE OBJCXX
 )
 
@@ -110,6 +114,9 @@ set_source_files_properties(
 
 target_include_directories(BerryBeatz PRIVATE
     src
+    src/core
+    src/ui
+    src/platform
     ${GLFW_INCLUDE_DIR}
     ${PORTAUDIO_INCLUDE_DIRS}
     ${OPENMPT_ROOT}
@@ -119,14 +126,14 @@ target_include_directories(BerryBeatz PRIVATE
 
 # OpenMPTInternal.cpp: soundlib side — needs full common/ include chain.
 # LIBOPENMPT_BUILD_TEST is defined inside the .cpp to remove MODPLUG_NO_FILESAVE.
-set_source_files_properties(src/OpenMPTInternal.cpp PROPERTIES
+set_source_files_properties(src/core/OpenMPTInternal.cpp PROPERTIES
     COMPILE_DEFINITIONS "LIBOPENMPT_BUILD"
     INCLUDE_DIRECTORIES "${OPENMPT_ROOT}/common;${OPENMPT_ROOT}/src;${OPENMPT_ROOT}"
 )
 
 # OpenMPTInternalGet.cpp: libopenmpt side — extracts CSoundFile* via internal cast.
 # Must NOT include soundlib headers (namespace conflict with libopenmpt fwd-decls).
-set_source_files_properties(src/OpenMPTInternalGet.cpp PROPERTIES
+set_source_files_properties(src/core/OpenMPTInternalGet.cpp PROPERTIES
     COMPILE_DEFINITIONS "LIBOPENMPT_BUILD"
     INCLUDE_DIRECTORIES "${OPENMPT_ROOT}/common;${OPENMPT_ROOT}/src;${OPENMPT_ROOT}"
 )

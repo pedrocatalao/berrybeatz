@@ -75,7 +75,7 @@ set(SOURCES
     src/CocoaHelpers.mm
     src/Logo.mm
     assets/logo.png
-    assets/berrybeatz4-banner.png
+    assets/berrybeatz5-banner.png
     assets/speakercone.png
     assets/AppIcon.icns
     assets/BigBlueTermPlusNerdFontMono-Regular.ttf
@@ -95,7 +95,7 @@ set_source_files_properties(src/CocoaHelpers.mm src/Logo.mm PROPERTIES
 # Bundle the logo into Resources/
 set_source_files_properties(
     assets/logo.png
-    assets/berrybeatz4-banner.png
+    assets/berrybeatz5-banner.png
     assets/speakercone.png
     assets/AppIcon.icns
     assets/BigBlueTermPlusNerdFontMono-Regular.ttf

@@ -414,10 +414,13 @@ float DrawToolbar(ToolbarState& state,
             const float coneW = state.speakerConeW * (lh / 463.f) * kConeScale;
             const float coneH = state.speakerConeH * (lh / 463.f) * kConeScale;
 
-            ImVec2 cTL = {p0.x + kConeX,         p0.y + kConeY        };
-            ImVec2 cTR = {p0.x + kConeX + coneW,  p0.y + kConeY        };
-            ImVec2 cBR = {p0.x + kConeX + coneW,  p0.y + kConeY + coneH};
-            ImVec2 cBL = {p0.x + kConeX,         p0.y + kConeY + coneH};
+            const float vuPeak = std::min((state.vuLeft + state.vuRight) * 0.5f, 1.0f);
+            const float vibX   = std::sin((float)ImGui::GetTime() * 2.f * 3.14159265f * 28.f) * vuPeak * 2.f;
+
+            ImVec2 cTL = {p0.x + kConeX + vibX,        p0.y + kConeY        };
+            ImVec2 cTR = {p0.x + kConeX + coneW + vibX, p0.y + kConeY        };
+            ImVec2 cBR = {p0.x + kConeX + coneW + vibX, p0.y + kConeY + coneH};
+            ImVec2 cBL = {p0.x + kConeX + vibX,        p0.y + kConeY + coneH};
 
             fdl->AddImageQuad(
                 (ImTextureID)(intptr_t)state.speakerConeTex,

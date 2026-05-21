@@ -58,8 +58,9 @@ public:
     void clearModule() { m_mod = nullptr; m_undo.clear(); m_sel.active = false; }
     void setFonts(ImFont* mono, ImFont* ui) { m_fontMono = mono; m_fontUI = ui; }
 
-    int  baseOctave() const   { return m_baseOctave; }
-    void setBaseOctave(int o) { m_baseOctave = std::clamp(o, 0, 8); }
+    int  baseOctave() const    { return m_baseOctave; }
+    void setBaseOctave(int o)  { m_baseOctave = std::clamp(o, 0, 8); }
+    bool getLoopPattern() const { return m_loopPattern; }
 
     // Call each frame when the patterns tab is visible.
     // (x,y,w,h) is the area allocated by the App for the pattern editor.
@@ -72,6 +73,7 @@ public:
     std::function<void(int32_t, int32_t)>       onPatternPlayRow;
     std::function<void()>                       onStopRequested;
     std::function<void()>                       onInsertPatternRequested;
+    std::function<void(bool)>                   onLoopToggled;
 
 private:
     void processInput();

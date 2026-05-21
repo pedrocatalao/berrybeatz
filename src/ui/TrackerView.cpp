@@ -289,7 +289,7 @@ void TrackerView::drawPatternToolbar3(float /*x*/, float /*y*/, float /*w*/) {
     if (actBtn("Shrink##shr",   has)) {} tip("Shrink pattern");
 
     tbSep();
-    togBtn("Loop##lp",           m_loopPattern);    tip("Loop current pattern");
+    { bool prev = m_loopPattern; togBtn("Loop##lp", m_loopPattern); if (m_loopPattern != prev && onLoopToggled) onLoopToggled(m_loopPattern); }    tip("Loop current pattern");
     ImGui::SameLine();
     togBtn("Follow##fw",         m_followSong);     tip("Follow playback cursor");
     tbSep();

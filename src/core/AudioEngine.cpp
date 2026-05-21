@@ -319,7 +319,7 @@ int AudioEngine::paCallback(const void*, void* output,
             // Stop or loop when the pattern boundary is crossed (order changed)
             if (curOrder != d->patPlayOrder) {
                 d->mod->set_position_order_row(d->patPlayOrder, d->patPlayStartRow);
-                if (!d->patPlayLoop) {
+                if (!d->pat_play_loop->load()) {
                     d->paused->store(true);
                     d->inPatternPlay = false;
                 }

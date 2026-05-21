@@ -55,6 +55,7 @@ public:
     // Pattern-specific playback
     void    playPatternFrom(int32_t order, int32_t startRow, bool loop);
     void    playRow(int32_t order, int32_t row);
+    void    setLoopPattern(bool loop) { m_patPlayLoop.store(loop); }
 
     // Callbacks (set before start(); called from audio thread)
     std::function<void(const std::string&)> onLoadFailed;

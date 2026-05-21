@@ -63,6 +63,7 @@ private:
     ImFont*     m_fontUI     {nullptr};
 
     int   m_activeTab  {0};
+    int   m_pendingTab {-1};   // programmatic switch request; -1 = none
     bool  m_tabsInited {false};
     bool  m_hasModule  {false};
 

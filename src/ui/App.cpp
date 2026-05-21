@@ -121,6 +121,7 @@ App::App() : m_audio(m_state), m_tracker(m_state), m_generalView(m_state)
     };
     m_tracker.onStopRequested = [this]() { stopPlayback(); };
     m_tracker.onInsertPatternRequested = [this]() { insertPattern(); };
+    m_tracker.onLoopToggled = [this](bool loop) { m_audio.setLoopPattern(loop); };
 
 }
 
@@ -156,8 +157,31 @@ void App::openFile(const std::string& path)
     if (m_audio.loadFile(path)) {
         m_hasModule  = true;
         m_loadedPath = path;
-        m_tracker.setModule(m_audio.getModule());
-        m_generalView.setModule(m_audio.getModule());
+        auto* mod = m_audio.getModule();
+        m_tracker.setModule(mod);
+        m_generalView.setModule(mod);
+
+        int nSamp, nInstr;
+        {
+            std::lock_guard<std::mutex> lk(m_state.meta_mutex);
+            nSamp  = m_state.num_samples;
+            nInstr = m_state.num_instruments;
+        }
+
+        m_sampleView.setFonts(m_fontMono, m_fontUI);
+        m_sampleView.setModule(mod, nSamp);
+        m_sampleView.onNeedAudio = [this]() {
+            if (!m_hasModule) return;
+            m_audio.startPreview();
+        };
+
+        m_instrView.setFonts(m_fontMono, m_fontUI);
+        m_instrView.setModule(mod, nInstr);
+        m_instrView.onNeedAudio = [this]() {
+            if (!m_hasModule) return;
+            m_audio.startPreview();
+        };
+
         m_toolbarState.tempo = (int)std::round(m_state.bpm.load());
         m_toolbarState.speed = (int)m_state.current_speed.load();
         m_toolbarState.rpb   = (int)m_state.rows_per_beat.load();
@@ -240,7 +264,7 @@ void App::render(int winW, int winH)
             bool active = (i == m_activeTab);
             ImGui::PushStyleColor(ImGuiCol_Text, active ? IM_COL32(208, 208, 224, 255)
                                                         : IM_COL32(110, 110, 130, 255));
-            ImGuiTabItemFlags flags = (!m_tabsInited && i == m_activeTab)
+            ImGuiTabItemFlags flags = (m_pendingTab == i)
                                       ? ImGuiTabItemFlags_SetSelected : 0;
             if (ImGui::BeginTabItem(tabs[i], nullptr, flags)) {
                 m_activeTab = i;
@@ -249,6 +273,7 @@ void App::render(int winW, int winH)
             ImGui::PopStyleColor();
         }
         m_tabsInited = true;
+        m_pendingTab = -1;
         ImGui::EndTabBar();
     }
     ImGui::PopStyleColor(2);
@@ -270,7 +295,10 @@ void App::render(int winW, int winH)
     float cy = contentY + kTabBarH;
     float ch = h - cy;
 
-    if (m_activeTab == 1) {
+    // Use pending tab if a sidebar click fired this frame, otherwise the confirmed active tab
+    const int displayTab = (m_pendingTab >= 0) ? m_pendingTab : m_activeTab;
+
+    if (displayTab == 1) {
         m_tracker.render(cx, cy, cw, ch);
     } else {
         ImGui::PushStyleColor(ImGuiCol_WindowBg, IM_COL32(20, 20, 32, 255));
@@ -286,7 +314,7 @@ void App::render(int winW, int winH)
         ImGui::PopStyleVar(2);
         ImGui::PopStyleColor();
 
-        switch (m_activeTab) {
+        switch (displayTab) {
         case 0: { ImVec2 pos = ImGui::GetCursorScreenPos(); ImVec2 avail = ImGui::GetContentRegionAvail(); m_generalView.render(pos.x, pos.y, avail.x, avail.y); } break;
         case 2: drawSamplesTab();      break;
         case 3: drawInstrumentsTab();  break;
@@ -406,8 +434,8 @@ void App::drawSidebar(float x, float y, float w, float h)
                          names[i].empty() ? "---" : names[i].c_str());
                 bool isActive = (i + 1 == activeSel);
                 if (ImGui::Selectable(row, isActive, 0, {0.f, 0.f})) {
-                    clicked = i;
-                    m_activeTab = tabSwitch;
+                    clicked     = i;
+                    m_pendingTab = tabSwitch;
                 }
                 ImGui::PopID();
             }
@@ -416,30 +444,40 @@ void App::drawSidebar(float x, float y, float w, float h)
         return clicked;
     };
 
-    // Patterns use 0-based numbering and a different tab index
-    auto patSection = [&]() {
-        std::lock_guard<std::mutex> lk(m_state.meta_mutex);
+    // Patterns use 0-based numbering and a different tab index.
+    // Returns the clicked pattern index, or -1.
+    auto patSection = [&]() -> int {
+        int numPat = 0, numOrd = 0;
+        std::vector<std::string> patNames;
+        {
+            std::lock_guard<std::mutex> lk(m_state.meta_mutex);
+            numPat   = m_state.num_patterns;
+            numOrd   = m_state.num_orders;
+            patNames = m_state.pattern_names;
+        }
+
         char header[64];
-        snprintf(header, sizeof(header), "Patterns (%d)##hdr", m_state.num_patterns);
+        snprintf(header, sizeof(header), "Patterns (%d)##hdr", numPat);
 
         ImGuiTreeNodeFlags nodeFlags =
             ImGuiTreeNodeFlags_DefaultOpen |
             ImGuiTreeNodeFlags_SpanAvailWidth;
 
+        int clicked = -1;
         if (ImGui::TreeNodeEx(header, nodeFlags)) {
-            for (int i = 0; i < m_state.num_patterns; ++i) {
+            for (int i = 0; i < numPat; ++i) {
                 ImGui::PushID(i + 10000);
                 char row[256];
-                const std::string& name =
-                    (i < (int)m_state.pattern_names.size()) ? m_state.pattern_names[i] : "";
+                const std::string& name = (i < (int)patNames.size()) ? patNames[i] : "";
                 snprintf(row, sizeof(row), "%3d  %s", i,
                          name.empty() ? "---" : name.c_str());
                 if (ImGui::Selectable(row, false, 0, {0.f, 0.f}))
-                    m_activeTab = 1;
+                    clicked = i;
                 ImGui::PopID();
             }
             ImGui::TreePop();
         }
+        return clicked;
     };
 
     // Render sections with brief locks to copy the name vectors
@@ -461,7 +499,23 @@ void App::drawSidebar(float x, float y, float w, float h)
         if (clicked >= 0)
             m_sampleView.setSelection(clicked + 1);
     }
-    patSection();
+    {
+        int clickedPat = patSection();
+        if (clickedPat >= 0) {
+            m_pendingTab = 1;
+            // Find the first order position that references this pattern, then play it looped
+            auto* mod = m_audio.getModule();
+            if (mod) {
+                int numOrd = m_state.num_orders;
+                int order  = -1;
+                for (int o = 0; o < numOrd; ++o) {
+                    if (mod->get_order_pattern(o) == clickedPat) { order = o; break; }
+                }
+                if (order >= 0)
+                    m_audio.playPatternFrom(order, 0, m_tracker.getLoopPattern());
+            }
+        }
+    }
 
     ImGui::EndChild();
     ImGui::PopStyleColor(4); // scrollbar colors
@@ -506,27 +560,6 @@ void App::drawSamplesTab()
         ImGui::TextDisabled("No module loaded.");
         return;
     }
-    auto* mod = m_audio.getModule();
-    if (!mod) return;
-    int nSamp;
-    {
-        std::lock_guard<std::mutex> lk(m_state.meta_mutex);
-        nSamp = m_state.num_samples;
-    }
-    if (nSamp == 0) {
-        ImGui::TextDisabled("No samples in this module.");
-        return;
-    }
-    static openmpt::module_ext* lastMod = nullptr;
-    if (mod != lastMod) {
-        m_sampleView.setFonts(m_fontMono, m_fontUI);
-        m_sampleView.setModule(mod, nSamp);
-        m_sampleView.onNeedAudio = [this]() {
-            if (!m_hasModule) return;
-            m_audio.startPreview();
-        };
-        lastMod = mod;
-    }
     m_sampleView.setBaseOctave(m_toolbarState.octave);
     ImVec2 pos   = ImGui::GetCursorScreenPos();
     ImVec2 avail = ImGui::GetContentRegionAvail();
@@ -540,28 +573,6 @@ void App::drawInstrumentsTab()
         ImGui::SetCursorPos({av.x * 0.5f - 60.f, av.y * 0.5f - 8.f});
         ImGui::TextDisabled("No module loaded.");
         return;
-    }
-    auto* mod = m_audio.getModule();
-    if (!mod) return;
-    int nInstr;
-    {
-        std::lock_guard<std::mutex> lk(m_state.meta_mutex);
-        nInstr = m_state.num_instruments;
-    }
-    if (nInstr == 0) {
-        ImGui::TextDisabled("Sample-based module \xe2\x80\x94 no instruments.");
-        return;
-    }
-    // Lazy init when module changes
-    static openmpt::module_ext* lastMod = nullptr;
-    if (mod != lastMod) {
-        m_instrView.setFonts(m_fontMono, m_fontUI);
-        m_instrView.setModule(mod, nInstr);
-        m_instrView.onNeedAudio = [this]() {
-            if (!m_hasModule) return;
-            m_audio.startPreview();
-        };
-        lastMod = mod;
     }
     m_instrView.setBaseOctave(m_toolbarState.octave);
     ImVec2 pos   = ImGui::GetCursorScreenPos();

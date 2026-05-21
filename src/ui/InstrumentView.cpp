@@ -56,6 +56,32 @@ void InstrumentView::clearModule() {
     m_data        = InstrumentData{};
 }
 
+void InstrumentView::midiNoteOn(int midiNote, int vel)
+{
+    if (!m_mod || midiNote < 0 || midiNote > 127) return;
+    auto* ia = static_cast<openmpt::ext::interactive*>(
+        m_mod->get_interface(openmpt::ext::interactive_id));
+    if (!ia) return;
+    if (m_kbChannels[midiNote] >= 0) {
+        ia->stop_note(m_kbChannels[midiNote]);
+        m_kbChannels[midiNote] = -1;
+    }
+    double v = vel / 127.0;
+    int opnote = midiNote + 1;  // libopenmpt is 1-based
+    m_kbChannels[midiNote] = ia->play_note(m_sel, opnote, v, 0.5);
+    if (onNeedAudio) onNeedAudio();
+}
+
+void InstrumentView::midiNoteOff(int midiNote)
+{
+    if (!m_mod || midiNote < 0 || midiNote > 127) return;
+    if (m_kbChannels[midiNote] < 0) return;
+    auto* ia = static_cast<openmpt::ext::interactive*>(
+        m_mod->get_interface(openmpt::ext::interactive_id));
+    if (ia) ia->stop_note(m_kbChannels[midiNote]);
+    m_kbChannels[midiNote] = -1;
+}
+
 void InstrumentView::setFonts(ImFont* mono, ImFont* ui) {
     m_fontMono = mono;
     m_fontUI   = ui;

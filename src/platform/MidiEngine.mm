@@ -48,6 +48,7 @@ void MidiEngine::setSource(int sourceIndex)
     }
     std::lock_guard<std::mutex> lk(m_mutex);
     m_queue.clear();
+    m_noteQueue.clear();
 }
 
 std::vector<CCEvent> MidiEngine::poll()
@@ -58,10 +59,24 @@ std::vector<CCEvent> MidiEngine::poll()
     return result;
 }
 
-void MidiEngine::enqueue(int cc, int value)
+std::vector<NoteEvent> MidiEngine::pollNotes()
+{
+    std::lock_guard<std::mutex> lk(m_mutex);
+    std::vector<NoteEvent> result;
+    result.swap(m_noteQueue);
+    return result;
+}
+
+void MidiEngine::enqueueCC(int cc, int value)
 {
     std::lock_guard<std::mutex> lk(m_mutex);
     m_queue.push_back({cc, value});
+}
+
+void MidiEngine::enqueueNote(int note, int vel)
+{
+    std::lock_guard<std::mutex> lk(m_mutex);
+    m_noteQueue.push_back({note, vel});
 }
 
 void MidiEngine::readProc(const void* pktlistVoid, void* refCon, void*)
@@ -74,17 +89,24 @@ void MidiEngine::readProc(const void* pktlistVoid, void* refCon, void*)
         for (UInt16 j = 0; j < pkt->length; ) {
             uint8_t status = pkt->data[j];
             uint8_t type   = status & 0xF0;
-            if (type == 0xB0 && j + 2 < pkt->length) {     // Control Change
-                self->enqueue(pkt->data[j+1] & 0x7F, pkt->data[j+2] & 0x7F);
+            if (type == 0xB0 && j + 2 < pkt->length) {         // Control Change
+                self->enqueueCC(pkt->data[j+1] & 0x7F, pkt->data[j+2] & 0x7F);
                 j += 3;
-            } else if ((type == 0x80 || type == 0x90 ||     // Note On/Off
-                        type == 0xA0 || type == 0xE0) &&    // Aftertouch / Pitch Bend
+            } else if (type == 0x90 && j + 2 < pkt->length) {  // Note On
+                int note = pkt->data[j+1] & 0x7F;
+                int vel  = pkt->data[j+2] & 0x7F;
+                self->enqueueNote(note, vel);                   // vel==0 acts as note off
+                j += 3;
+            } else if (type == 0x80 && j + 2 < pkt->length) {  // Note Off
+                self->enqueueNote(pkt->data[j+1] & 0x7F, 0);
+                j += 3;
+            } else if ((type == 0xA0 || type == 0xE0) &&        // Aftertouch / Pitch Bend
                        j + 2 < pkt->length) {
                 j += 3;
-            } else if ((type == 0xC0 || type == 0xD0) &&   // Program / Channel Pressure
+            } else if ((type == 0xC0 || type == 0xD0) &&        // Program / Channel Pressure
                        j + 1 < pkt->length) {
                 j += 2;
-            } else if (status == 0xF0) {                    // SysEx — skip rest
+            } else if (status == 0xF0) {                        // SysEx — skip rest
                 break;
             } else {
                 ++j;

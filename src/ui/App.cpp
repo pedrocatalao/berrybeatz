@@ -306,6 +306,16 @@ void App::render(int winW, int winH)
             for (auto& e : events)
                 dispatchMidiCC(e.cc, e.value);
         }
+
+        for (auto& n : m_midi.pollNotes()) {
+            if (n.vel > 0) {
+                if (m_activeTab == 2) m_sampleView.midiNoteOn(n.note, n.vel);
+                if (m_activeTab == 3) m_instrView.midiNoteOn(n.note, n.vel);
+            } else {
+                if (m_activeTab == 2) m_sampleView.midiNoteOff(n.note);
+                if (m_activeTab == 3) m_instrView.midiNoteOff(n.note);
+            }
+        }
     }
 
     m_settingsView.draw();

@@ -15,6 +15,8 @@ public:
     void setSelection(int idx);   // 1-based
     int  getSelection() const { return m_sel; }
     void setBaseOctave(int o)  { m_baseOctave = o; }
+    void midiNoteOn(int midiNote, int vel);
+    void midiNoteOff(int midiNote);
     void render(float x, float y, float w, float h);
 
     std::function<void()> onNeedAudio;

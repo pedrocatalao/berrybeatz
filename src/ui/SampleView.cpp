@@ -149,9 +149,7 @@ void SampleView::drawEditor(float x, float y, float w, float h) {
         // Number badge
         char nbuf[8];
         snprintf(nbuf, sizeof(nbuf), "[%02d]", m_sel);
-        if (m_fontMono) ImGui::PushFont(m_fontMono);
-        ImGui::TextColored({0.f, 0.71f, 1.f, 1.f}, "%s", nbuf);
-        if (m_fontMono) ImGui::PopFont();
+        ImGui::TextColored({0.f, 0.78f, 1.f, 1.f}, "%s", nbuf);
         ImGui::SameLine(0, 8);
 
         // Filename (read-only, dimmed, right-aligned — estimate its width first)
@@ -177,18 +175,19 @@ void SampleView::drawEditor(float x, float y, float w, float h) {
     }
 
     ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
 
     // ── Row 2: Info bar ───────────────────────────────────────────────────────
     {
-        // C-5 frequency for display
         char infobuf[128];
         snprintf(infobuf, sizeof(infobuf),
-                 "Length: %u | %s | %s | C-5: %u Hz",
+                 "Length: %u  |  %s  |  %s  |  C-5: %u Hz",
                  m_data.length,
                  m_data.isStereo ? "Stereo" : "Mono",
                  m_data.is16bit  ? "16-bit" : "8-bit",
                  m_data.c5speed);
-        ImGui::TextDisabled("%s", infobuf);
+        ImGui::TextColored(kDim, "%s", infobuf);
     }
 
     ImGui::Spacing();
@@ -357,23 +356,22 @@ void SampleView::drawEditor(float x, float y, float w, float h) {
     ImGui::Spacing();
 
     // ── Waveform display ──────────────────────────────────────────────────────
-    const float kKbdH    = 80.f;
-    const float kSpacing = 4.f;
-    ImVec2 avail = ImGui::GetContentRegionAvail();
-    float waveH  = avail.y - kKbdH - kSpacing * 2.f;
-    if (waveH < 20.f) waveH = 20.f;
+    constexpr float kWaveH = 140.f;
+    constexpr float kKbdH  = 120.f;
 
     ImGui::PushStyleColor(ImGuiCol_ChildBg, IM_COL32(10, 10, 18, 255));
-    if (ImGui::BeginChild("##wave", {avail.x, waveH}, false)) {
-        drawWaveform(avail.x, waveH);
+    if (ImGui::BeginChild("##wave", {cw, kWaveH}, false)) {
+        drawWaveform(cw, kWaveH);
     }
     ImGui::EndChild();
     ImGui::PopStyleColor();
 
     ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
 
     // ── Keyboard ──────────────────────────────────────────────────────────────
-    drawNoteKeyboard(avail.x, kKbdH);
+    drawNoteKeyboard(cw, kKbdH);
 
     ImGui::EndChild();
     ImGui::PopStyleColor();
@@ -449,8 +447,8 @@ void SampleView::drawNoteKeyboard(float w, float h) {
 
     float whiteW = w / (float)kWhiteCount;
     float whiteH = h;
-    float blackW = whiteW * 0.6f;
-    float blackH = h * 0.6f;
+    float blackW = whiteW * 0.65f;
+    float blackH = h * 0.60f;
 
     static const bool  kIsBlack[12]    = {false,true,false,true,false,false,true,false,true,false,true,false};
     static const float kBlackOffset[12]= {0,0.66f,0,0.66f,0,0,0.66f,0,0.66f,0,0.66f,0};

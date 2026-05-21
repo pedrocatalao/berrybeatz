@@ -34,7 +34,7 @@ if(NOT EXISTS "${OPENMPT_LIB}")
     message(FATAL_ERROR
         "libopenmpt.a not found at ${OPENMPT_LIB}\n"
         "Build it first:\n"
-        "  cd ${OPENMPT_ROOT} && make CONFIG=clang DYNLINK=0 NO_OPENMPT123=1 NO_EXAMPLES=1 NO_TESTS=1"
+        "  cd ${OPENMPT_ROOT} && make CONFIG=clang SHARED_LIB=0 NO_SHARED_LINKER_FLAG=1 bin/libopenmpt.a"
     )
 endif()
 

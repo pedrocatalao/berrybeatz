@@ -72,6 +72,7 @@ set(SOURCES
     src/InstrumentView.cpp
     src/SampleView.cpp
     src/UndoManager.cpp
+    src/PatternInput.cpp
     src/OpenMPTInternal.cpp
     src/OpenMPTInternalGet.cpp
     src/CocoaHelpers.mm

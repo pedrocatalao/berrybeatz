@@ -73,6 +73,7 @@ set(SOURCES
     src/SampleView.cpp
     src/UndoManager.cpp
     src/PatternInput.cpp
+    src/WindowChrome.cpp
     src/OpenMPTInternal.cpp
     src/OpenMPTInternalGet.cpp
     src/CocoaHelpers.mm

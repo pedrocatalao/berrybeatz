@@ -8,6 +8,7 @@
 #include "InstrumentView.h"
 #include "SampleView.h"
 #include "Toolbar.h"
+#include "WindowChrome.h"
 #include <string>
 
 struct ImFont;
@@ -21,6 +22,7 @@ public:
     void setFonts(ImFont* mono, ImFont* ui);
     void setGLFWWindow(GLFWwindow* w);
     void openFile(const std::string& path);
+    void tickChrome() { m_chrome.tick(); }  // call before ImGui::NewFrame each frame
     void render(int winW, int winH);
 
 private:
@@ -38,7 +40,6 @@ private:
     void togglePlayPause();
     void playFromStart();
     void seekTo(float frac);
-    void handleEdgeResize(int winW, int winH);
 
     ModuleState    m_state;
     AudioEngine    m_audio;
@@ -47,7 +48,8 @@ private:
     InstrumentView m_instrView;
     SampleView     m_sampleView;
 
-    ToolbarState    m_toolbarState;
+    ToolbarState   m_toolbarState;
+    WindowChrome   m_chrome;
 
     GLFWwindow* m_glfwWindow {nullptr};
     ImFont*     m_fontMono   {nullptr};
@@ -59,12 +61,6 @@ private:
 
     float m_sidebarW {260.f};
 
-    bool m_isMaximized  {false};
-    int  m_restoreX {0}, m_restoreY {0}, m_restoreW {1280}, m_restoreH {800};
-
-    bool m_isFullscreen {false};
-    int  m_fsRestoreX {0}, m_fsRestoreY {0}, m_fsRestoreW {1280}, m_fsRestoreH {800};
-
     GLuint m_logoTex {0};
     float  m_logoW   {0.f};
     float  m_logoH   {0.f};
@@ -72,11 +68,6 @@ private:
     GLuint m_speakerConeTex {0};
     float  m_speakerConeW   {0.f};
     float  m_speakerConeH   {0.f};
-
-    enum class ResizeEdge { None, Right, Bottom, BottomRight };
-    ResizeEdge m_resizeEdge {ResizeEdge::None};
-    int m_rsMouseX {0}, m_rsMouseY {0};
-    int m_rsWinW   {0}, m_rsWinH   {0};
 
     static constexpr float kToolbarH  = 78.f;
     static constexpr float kTabBarH   = 26.f;

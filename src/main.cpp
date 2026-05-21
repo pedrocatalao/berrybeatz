@@ -159,6 +159,10 @@ int main(int argc, char* argv[])
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
 
+        // Handle edge resize before ImGui::NewFrame so io.DisplaySize is
+        // correct for this frame (avoids one-frame content-scaling artifact).
+        app->tickChrome();
+
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();

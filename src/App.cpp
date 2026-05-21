@@ -15,78 +15,10 @@ App::App() : m_audio(m_state), m_tracker(m_state), m_generalView(m_state)
 {
     // ── Toolbar callbacks ──────────────────────────────────────────────────
     // ── Window control callbacks ───────────────────────────────────────────
-    m_toolbarState.onWindowClose    = [this]() { glfwSetWindowShouldClose(m_glfwWindow, 1); };
-    m_toolbarState.onWindowMinimize = [this]() { glfwIconifyWindow(m_glfwWindow); };
-    m_toolbarState.onWindowMaximize = [this]() {
-        // glfwMaximizeWindow / GLFW_MAXIMIZED don't work for borderless windows
-        // on macOS (zoom: is a no-op without NSWindowStyleMaskResizable).
-        // Track state ourselves and fill the monitor work area instead.
-        if (m_isMaximized) {
-            glfwSetWindowPos (m_glfwWindow, m_restoreX, m_restoreY);
-            glfwSetWindowSize(m_glfwWindow, m_restoreW, m_restoreH);
-            m_isMaximized = false;
-        } else {
-            glfwGetWindowPos (m_glfwWindow, &m_restoreX, &m_restoreY);
-            glfwGetWindowSize(m_glfwWindow, &m_restoreW, &m_restoreH);
-
-            // Find which monitor the window centre is on
-            int wcx = m_restoreX + m_restoreW / 2;
-            int wcy = m_restoreY + m_restoreH / 2;
-            int mcount = 0;
-            GLFWmonitor** monitors = glfwGetMonitors(&mcount);
-            GLFWmonitor* target = glfwGetPrimaryMonitor();
-            for (int i = 0; i < mcount; ++i) {
-                int mx, my;
-                glfwGetMonitorPos(monitors[i], &mx, &my);
-                const GLFWvidmode* vm = glfwGetVideoMode(monitors[i]);
-                if (wcx >= mx && wcx < mx + vm->width &&
-                    wcy >= my && wcy < my + vm->height) {
-                    target = monitors[i];
-                    break;
-                }
-            }
-
-            int ax, ay, aw, ah;
-            glfwGetMonitorWorkarea(target, &ax, &ay, &aw, &ah);
-            glfwSetWindowPos (m_glfwWindow, ax, ay);
-            glfwSetWindowSize(m_glfwWindow, aw, ah);
-            m_isMaximized = true;
-        }
-    };
-
-    m_toolbarState.onWindowFullscreen = [this]() {
-        if (m_isFullscreen) {
-            glfwSetWindowMonitor(m_glfwWindow, nullptr,
-                                 m_fsRestoreX, m_fsRestoreY,
-                                 m_fsRestoreW, m_fsRestoreH, 0);
-            m_isFullscreen = false;
-        } else {
-            glfwGetWindowPos (m_glfwWindow, &m_fsRestoreX, &m_fsRestoreY);
-            glfwGetWindowSize(m_glfwWindow, &m_fsRestoreW, &m_fsRestoreH);
-
-            int wcx = m_fsRestoreX + m_fsRestoreW / 2;
-            int wcy = m_fsRestoreY + m_fsRestoreH / 2;
-            int mcount = 0;
-            GLFWmonitor** monitors = glfwGetMonitors(&mcount);
-            GLFWmonitor* target = glfwGetPrimaryMonitor();
-            for (int i = 0; i < mcount; ++i) {
-                int mx, my;
-                glfwGetMonitorPos(monitors[i], &mx, &my);
-                const GLFWvidmode* vm = glfwGetVideoMode(monitors[i]);
-                if (wcx >= mx && wcx < mx + vm->width &&
-                    wcy >= my && wcy < my + vm->height) {
-                    target = monitors[i];
-                    break;
-                }
-            }
-
-            const GLFWvidmode* vm = glfwGetVideoMode(target);
-            glfwSetWindowMonitor(m_glfwWindow, target,
-                                 0, 0, vm->width, vm->height, vm->refreshRate);
-            m_isFullscreen = true;
-            m_isMaximized  = false;
-        }
-    };
+    m_toolbarState.onWindowClose      = [this]() { glfwSetWindowShouldClose(m_glfwWindow, 1); };
+    m_toolbarState.onWindowMinimize   = [this]() { glfwIconifyWindow(m_glfwWindow); };
+    m_toolbarState.onWindowMaximize   = [this]() { m_chrome.toggleMaximize(); };
+    m_toolbarState.onWindowFullscreen = [this]() { m_chrome.toggleFullscreen(); };
 
     m_toolbarState.onNew  = [this]() { clearModule(); };
     m_toolbarState.onOpen = [this]() { openFileDialog(); };
@@ -175,6 +107,7 @@ App::~App()
 void App::setGLFWWindow(GLFWwindow* w)
 {
     m_glfwWindow = w;
+    m_chrome.setWindow(w);
     m_logoTex        = loadLogoTexture(m_logoW, m_logoH);
     m_speakerConeTex = loadSpeakerConeTexture(m_speakerConeW, m_speakerConeH);
 }
@@ -334,7 +267,6 @@ void App::render(int winW, int winH)
     }
 
     ImGui::PopFont();
-    handleEdgeResize(winW, winH);
 }
 
 // ─── Sidebar (module tree) ────────────────────────────────────────────────────
@@ -595,71 +527,6 @@ void App::drawCommentsTab()
     // Reset on module change would clear msgLoaded — handled in clearModule()
     ImGui::InputTextMultiline("##msg", msg.data(), msg.size() + 1,
                               {-1.f, -1.f}, ImGuiInputTextFlags_ReadOnly);
-}
-
-// ─── Edge resize (GLFW-based, bypasses ImGui z-order) ────────────────────────
-
-void App::handleEdgeResize(int winW, int winH)
-{
-    if (!m_glfwWindow) return;
-
-    const int kE = 6;   // edge grab pixels
-    const int kC = 14;  // corner grab size
-
-    double mx, my;
-    glfwGetCursorPos(m_glfwWindow, &mx, &my);
-    int ix = (int)mx, iy = (int)my;
-
-    bool nearRight  = (ix >= winW - kE);
-    bool nearBottom = (iy >= winH - kE);
-    bool nearCorner = (ix >= winW - kC && iy >= winH - kC);
-
-    int lmb = glfwGetMouseButton(m_glfwWindow, GLFW_MOUSE_BUTTON_LEFT);
-
-    if (m_resizeEdge == ResizeEdge::None) {
-        // Show cursor hint when hovering an edge
-        if (nearCorner)
-            ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNWSE);
-        else if (nearRight)
-            ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
-        else if (nearBottom)
-            ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNS);
-
-        // Capture drag start
-        if (lmb == GLFW_PRESS && (nearRight || nearBottom)) {
-            int wx, wy;
-            glfwGetWindowPos(m_glfwWindow, &wx, &wy);
-            m_rsMouseX = wx + ix;
-            m_rsMouseY = wy + iy;
-            glfwGetWindowSize(m_glfwWindow, &m_rsWinW, &m_rsWinH);
-
-            if (nearCorner)     m_resizeEdge = ResizeEdge::BottomRight;
-            else if (nearRight) m_resizeEdge = ResizeEdge::Right;
-            else                m_resizeEdge = ResizeEdge::Bottom;
-        }
-    } else {
-        if (lmb == GLFW_PRESS) {
-            // Keep cursor while dragging
-            if      (m_resizeEdge == ResizeEdge::Right)       ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
-            else if (m_resizeEdge == ResizeEdge::Bottom)      ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNS);
-            else                                              ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNWSE);
-
-            int wx, wy;
-            glfwGetWindowPos(m_glfwWindow, &wx, &wy);
-            int dx = (wx + ix) - m_rsMouseX;
-            int dy = (wy + iy) - m_rsMouseY;
-
-            int newW = m_rsWinW, newH = m_rsWinH;
-            if (m_resizeEdge == ResizeEdge::Right || m_resizeEdge == ResizeEdge::BottomRight)
-                newW = std::max(400, m_rsWinW + dx);
-            if (m_resizeEdge == ResizeEdge::Bottom || m_resizeEdge == ResizeEdge::BottomRight)
-                newH = std::max(300, m_rsWinH + dy);
-
-            glfwSetWindowSize(m_glfwWindow, newW, newH);
-        } else {
-            m_resizeEdge = ResizeEdge::None;
-        }
-    }
 }
 
 // ─── Operations ───────────────────────────────────────────────────────────────

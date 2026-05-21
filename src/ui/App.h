@@ -11,6 +11,7 @@
 #include "WindowChrome.h"
 #include "SettingsView.h"
 #include "Settings.h"
+#include "MidiEngine.h"
 #include <string>
 
 struct ImFont;
@@ -42,6 +43,7 @@ private:
     void togglePlayPause();
     void playFromStart();
     void seekTo(float frac);
+    void dispatchMidiCC(int cc, int value);
 
     ModuleState    m_state;
     AudioEngine    m_audio;
@@ -54,6 +56,7 @@ private:
     WindowChrome   m_chrome;
     SettingsView   m_settingsView;
     Settings       m_settings;
+    MidiEngine     m_midi;
 
     GLFWwindow* m_glfwWindow {nullptr};
     ImFont*     m_fontMono   {nullptr};

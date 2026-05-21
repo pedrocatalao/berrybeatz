@@ -81,6 +81,7 @@ set(SOURCES
     src/ui/PatternInput.cpp
     # platform — macOS-specific
     src/platform/MidiDevices.mm
+    src/platform/MidiEngine.mm
     src/platform/WindowChrome.cpp
     src/platform/CocoaHelpers.mm
     src/platform/Logo.mm
@@ -101,6 +102,7 @@ add_executable(BerryBeatz MACOSX_BUNDLE
 # Mark the Objective-C++ sources explicitly
 set_source_files_properties(
     src/platform/MidiDevices.mm
+    src/platform/MidiEngine.mm
     src/platform/CocoaHelpers.mm
     src/platform/Logo.mm
     PROPERTIES LANGUAGE OBJCXX

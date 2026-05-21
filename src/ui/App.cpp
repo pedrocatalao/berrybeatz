@@ -82,10 +82,16 @@ App::App() : m_audio(m_state), m_tracker(m_state), m_generalView(m_state)
     // ── Settings ──────────────────────────────────────────────────────────
     m_settings.load(Settings::defaultPath());
     m_audio.setAudioConfig(m_settings.audioDeviceIndex, m_settings.sampleRate);
+    m_midi.setSource(m_settings.midiInputIndex);
+
+    m_settingsView.onMidiSourceChange = [this](int idx) {
+        m_midi.setSource(idx);
+    };
 
     m_settingsView.onApply = [this](const Settings& s) {
         bool audioChanged = (s.audioDeviceIndex != m_settings.audioDeviceIndex ||
                              s.sampleRate       != m_settings.sampleRate);
+        bool midiChanged  = (s.midiInputIndex   != m_settings.midiInputIndex);
         m_settings = s;
         m_settings.save(Settings::defaultPath());
         m_audio.setAudioConfig(s.audioDeviceIndex, s.sampleRate);
@@ -94,6 +100,8 @@ App::App() : m_audio(m_state), m_tracker(m_state), m_generalView(m_state)
             m_audio.join();
             m_audio.start();
         }
+        if (midiChanged)
+            m_midi.setSource(s.midiInputIndex);
     };
 
     // ── TrackerView callbacks ──────────────────────────────────────────────
@@ -286,6 +294,18 @@ void App::render(int winW, int winH)
         }
 
         ImGui::End();
+    }
+
+    // ── MIDI ──────────────────────────────────────────────────────────────
+    {
+        auto events = m_midi.poll();
+        if (m_settingsView.isLearning()) {
+            if (!events.empty())
+                m_settingsView.feedMidiCC(events.front().cc);
+        } else {
+            for (auto& e : events)
+                dispatchMidiCC(e.cc, e.value);
+        }
     }
 
     m_settingsView.draw();
@@ -633,6 +653,35 @@ void App::playFromStart()
     m_audio.stopPreview();
     m_audio.rewind();
     m_audio.start();
+}
+
+void App::dispatchMidiCC(int cc, int value)
+{
+    // Map 0-127 linearly onto the knob's range
+    auto scale = [value](int lo, int hi) {
+        return lo + (int)std::round((double)value / 127.0 * (hi - lo));
+    };
+    const auto& m = m_settings.midiCC;
+    if (m.oct >= 0 && cc == m.oct) {
+        m_toolbarState.octave = scale(0, 8);
+        if (m_toolbarState.onOctaveChange) m_toolbarState.onOctaveChange(m_toolbarState.octave);
+    }
+    if (m.bpm >= 0 && cc == m.bpm) {
+        m_toolbarState.tempo = scale(32, 512);
+        if (m_toolbarState.onTempoChange) m_toolbarState.onTempoChange(m_toolbarState.tempo);
+    }
+    if (m.spd >= 0 && cc == m.spd) {
+        m_toolbarState.speed = scale(1, 32);
+        if (m_toolbarState.onSpeedChange) m_toolbarState.onSpeedChange(m_toolbarState.speed);
+    }
+    if (m.rpb >= 0 && cc == m.rpb) {
+        m_toolbarState.rpb = scale(1, 32);
+        if (m_toolbarState.onRPBChange) m_toolbarState.onRPBChange(m_toolbarState.rpb);
+    }
+    if (m.vol >= 0 && cc == m.vol) {
+        m_toolbarState.globalVol = scale(0, 256);
+        if (m_toolbarState.onGlobalVolChange) m_toolbarState.onGlobalVolChange(m_toolbarState.globalVol);
+    }
 }
 
 void App::seekTo(float frac)

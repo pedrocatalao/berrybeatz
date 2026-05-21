@@ -2,7 +2,6 @@
 #include <fstream>
 #include <filesystem>
 #include <cstdlib>
-#include <stdexcept>
 
 std::string Settings::defaultPath()
 {
@@ -29,6 +28,11 @@ void Settings::load(const std::string& path)
             else if (key == "midiInput")      midiInputIndex   = std::stoi(val);
             else if (key == "followPlayback") followPlayback   = (val == "1");
             else if (key == "wrapCursor")     wrapCursor       = (val == "1");
+            else if (key == "ccOct")          midiCC.oct       = std::stoi(val);
+            else if (key == "ccBpm")          midiCC.bpm       = std::stoi(val);
+            else if (key == "ccSpd")          midiCC.spd       = std::stoi(val);
+            else if (key == "ccRpb")          midiCC.rpb       = std::stoi(val);
+            else if (key == "ccVol")          midiCC.vol       = std::stoi(val);
         } catch (const std::exception&) {}
     }
 }
@@ -42,4 +46,9 @@ void Settings::save(const std::string& path) const
     f << "midiInput="      << midiInputIndex           << "\n";
     f << "followPlayback=" << (followPlayback ? "1" : "0") << "\n";
     f << "wrapCursor="     << (wrapCursor    ? "1" : "0") << "\n";
+    f << "ccOct="          << midiCC.oct << "\n";
+    f << "ccBpm="          << midiCC.bpm << "\n";
+    f << "ccSpd="          << midiCC.spd << "\n";
+    f << "ccRpb="          << midiCC.rpb << "\n";
+    f << "ccVol="          << midiCC.vol << "\n";
 }

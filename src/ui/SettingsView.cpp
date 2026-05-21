@@ -17,8 +17,9 @@ void SettingsView::open(const Settings& current,
     for (int i = 0; i < (int)m_midiDevs.size(); ++i)
         if (m_midiDevs[i].index == current.midiInputIndex) { m_midiDevSel = i + 1; break; }
 
-    m_open       = true;
-    m_shouldOpen = true;
+    m_open        = true;
+    m_shouldOpen  = true;
+    m_learnTarget = -1;
 }
 
 void SettingsView::draw()
@@ -138,9 +139,27 @@ void SettingsView::drawAudioTab()
     ImGui::TextDisabled("Changes take effect when playback is next started.");
 }
 
+bool SettingsView::isLearning() const { return m_learnTarget >= 0; }
+
+void SettingsView::feedMidiCC(int cc)
+{
+    if (m_learnTarget < 0) return;
+    int* targets[] = {
+        &m_pending.midiCC.oct,
+        &m_pending.midiCC.bpm,
+        &m_pending.midiCC.spd,
+        &m_pending.midiCC.rpb,
+        &m_pending.midiCC.vol,
+    };
+    *targets[m_learnTarget] = cc;
+    m_learnTarget = -1;
+}
+
 void SettingsView::drawMidiTab()
 {
     ImGui::Spacing();
+
+    // ── Device picker ──────────────────────────────────────────────────────
     ImGui::TextUnformatted("MIDI Input");
     ImGui::SetNextItemWidth(-1.f);
 
@@ -152,21 +171,88 @@ void SettingsView::drawMidiTab()
         if (ImGui::Selectable("(None)", m_midiDevSel == 0)) {
             m_midiDevSel = 0;
             m_pending.midiInputIndex = -1;
+            if (onMidiSourceChange) onMidiSourceChange(-1);
         }
         for (int i = 0; i < (int)m_midiDevs.size(); ++i) {
             bool sel = (m_midiDevSel == i + 1);
             if (ImGui::Selectable(m_midiDevs[i].name.c_str(), sel)) {
                 m_midiDevSel = i + 1;
                 m_pending.midiInputIndex = m_midiDevs[i].index;
+                if (onMidiSourceChange) onMidiSourceChange(m_midiDevs[i].index);
             }
             if (sel) ImGui::SetItemDefaultFocus();
         }
         ImGui::EndCombo();
     }
-
-    if (m_midiDevs.empty()) {
-        ImGui::Spacing();
+    if (m_midiDevs.empty())
         ImGui::TextDisabled("No MIDI sources found.");
+
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    // ── CC assignment table ────────────────────────────────────────────────
+    ImGui::TextUnformatted("Knob Assignments");
+    ImGui::Spacing();
+
+    struct Row { const char* name; int* cc; int target; };
+    Row rows[] = {
+        {"Octave", &m_pending.midiCC.oct, 0},
+        {"BPM",    &m_pending.midiCC.bpm, 1},
+        {"Speed",  &m_pending.midiCC.spd, 2},
+        {"RPB",    &m_pending.midiCC.rpb, 3},
+        {"Volume", &m_pending.midiCC.vol, 4},
+    };
+
+    ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, {6.f, 4.f});
+    if (ImGui::BeginTable("##ccmap", 3, ImGuiTableFlags_BordersInnerH)) {
+        ImGui::TableSetupColumn("Knob",   ImGuiTableColumnFlags_WidthFixed,   80.f);
+        ImGui::TableSetupColumn("CC",     ImGuiTableColumnFlags_WidthFixed,   60.f);
+        ImGui::TableSetupColumn("Action", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableHeadersRow();
+
+        for (auto& row : rows) {
+            ImGui::TableNextRow();
+            ImGui::TableSetColumnIndex(0);
+            ImGui::TextUnformatted(row.name);
+
+            ImGui::TableSetColumnIndex(1);
+            if (*row.cc >= 0) {
+                ImGui::Text("%d", *row.cc);
+            } else {
+                ImGui::TextDisabled("\xe2\x80\x93");  // –
+            }
+
+            ImGui::TableSetColumnIndex(2);
+            ImGui::PushID(row.target);
+
+            bool learning = (m_learnTarget == row.target);
+            if (learning) {
+                ImGui::PushStyleColor(ImGuiCol_Button,        IM_COL32(160, 30, 30, 255));
+                ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(190, 50, 50, 255));
+            }
+            if (ImGui::SmallButton(learning ? "Waiting..." : "Learn")) {
+                m_learnTarget = learning ? -1 : row.target;
+            }
+            if (learning) ImGui::PopStyleColor(2);
+
+            if (*row.cc >= 0) {
+                ImGui::SameLine();
+                if (ImGui::SmallButton("Clear")) {
+                    *row.cc = -1;
+                    if (m_learnTarget == row.target) m_learnTarget = -1;
+                }
+            }
+
+            ImGui::PopID();
+        }
+        ImGui::EndTable();
+    }
+    ImGui::PopStyleVar();
+
+    if (m_learnTarget >= 0) {
+        ImGui::Spacing();
+        ImGui::TextColored({1.f, 0.6f, 0.3f, 1.f}, "Move a knob on your controller...");
     }
 }
 

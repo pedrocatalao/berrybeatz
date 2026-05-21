@@ -32,14 +32,19 @@ void InstrumentView::setModule(openmpt::module_ext* mod, int instrCount) {
     m_dragNode   = -1;
     m_playChannel = -1;
     m_playNote    = -1;
+    std::fill(m_kbChannels, m_kbChannels + 128, -1);
     if (m_mod && m_instrCount > 0) loadInstrument();
 }
 
 void InstrumentView::clearModule() {
-    if (m_mod && m_playChannel >= 0) {
+    if (m_mod) {
         auto* ia = static_cast<openmpt::ext::interactive*>(
             m_mod->get_interface(openmpt::ext::interactive_id));
-        if (ia) ia->stop_note(m_playChannel);
+        if (ia) {
+            if (m_playChannel >= 0) ia->stop_note(m_playChannel);
+            for (int i = 0; i < 128; ++i)
+                if (m_kbChannels[i] >= 0) ia->stop_note(m_kbChannels[i]);
+        }
     }
     m_mod         = nullptr;
     m_instrCount  = 0;
@@ -682,13 +687,14 @@ void InstrumentView::drawNoteKeyboard(float w, float h) {
         ImVec2 kMin = {kx,               ky};
         ImVec2 kMax = {kx + whiteW - 1.f, ky + whiteH};
 
-        bool isHit = (note == hitNote);
+        bool isHit  = (note == hitNote);
         bool isPlay = (note == m_playNote && m_playChannel >= 0);
-        bool hov = (mp.x >= kMin.x && mp.x < kMax.x && mp.y >= kMin.y && mp.y < kMax.y);
+        bool isKb   = (note >= 1 && note <= 128 && m_kbChannels[note-1] >= 0);
+        bool hov    = (mp.x >= kMin.x && mp.x < kMax.x && mp.y >= kMin.y && mp.y < kMax.y);
 
-        ImU32 col = (isHit || isPlay) ? IM_COL32(180, 220, 255, 255)
-                  : hov               ? IM_COL32(210, 230, 255, 255)
-                                      : IM_COL32(230, 230, 240, 255);
+        ImU32 col = (isHit || isPlay || isKb) ? IM_COL32(180, 220, 255, 255)
+                  : hov                        ? IM_COL32(210, 230, 255, 255)
+                                               : IM_COL32(230, 230, 240, 255);
 
         uint16_t smp = m_data.keyboard[note - 1];
         if (smp != 0 && !isHit && !isPlay && !hov)
@@ -700,6 +706,22 @@ void InstrumentView::drawNoteKeyboard(float w, float h) {
         if (note == 61) { // middle C dot
             dl->AddCircleFilled({kx + whiteW * 0.5f, ky + whiteH - 10.f},
                                 3.f, IM_COL32(0, 160, 255, 200));
+        }
+
+        // Computer keyboard shortcut label
+        {
+            static const char* kLo[] = {"Z","","X","","C","V","","B","","N","","M"};
+            static const char* kHi[] = {"Q","","W","","E","R","","T","","Y","","U"};
+            int rel = (note - 1) - m_baseOctave * 12;
+            const char* lbl = nullptr;
+            if (rel >= 0  && rel < 12 && kLo[rel][0]) lbl = kLo[rel];
+            if (rel >= 12 && rel < 24 && kHi[rel-12][0]) lbl = kHi[rel-12];
+            if (lbl && m_fontMono) {
+                ImVec2 tsz = m_fontMono->CalcTextSizeA(8.f, FLT_MAX, 0.f, lbl);
+                dl->AddText(m_fontMono, 8.f,
+                    {kx + (whiteW - tsz.x) * 0.5f, ky + 3.f},
+                    IM_COL32(80, 80, 110, 200), lbl);
+            }
         }
 
         if (smp != 0 && m_fontMono) {
@@ -724,20 +746,37 @@ void InstrumentView::drawNoteKeyboard(float w, float h) {
         ImVec2 kMin = {kx,          ky};
         ImVec2 kMax = {kx + blackW, ky + blackH};
 
-        bool isHit = (note == hitNote);
+        bool isHit  = (note == hitNote);
         bool isPlay = (note == m_playNote && m_playChannel >= 0);
-        bool hov = (mp.x >= kMin.x && mp.x < kMax.x && mp.y >= kMin.y && mp.y < kMax.y);
+        bool isKb   = (note >= 1 && note <= 128 && m_kbChannels[note-1] >= 0);
+        bool hov    = (mp.x >= kMin.x && mp.x < kMax.x && mp.y >= kMin.y && mp.y < kMax.y);
 
-        ImU32 col = (isHit || isPlay) ? IM_COL32(80, 120, 180, 255)
-                  : hov               ? IM_COL32(60, 80, 120, 255)
-                                      : IM_COL32(30, 30, 40, 255);
+        ImU32 col = (isHit || isPlay || isKb) ? IM_COL32(80, 120, 180, 255)
+                  : hov                        ? IM_COL32(60, 80, 120, 255)
+                                               : IM_COL32(30, 30, 40, 255);
 
         uint16_t smp = m_data.keyboard[note - 1];
-        if (smp != 0 && !isHit && !isPlay && !hov)
+        if (smp != 0 && !isHit && !isPlay && !isKb && !hov)
             col = IM_COL32(20, 60, 40, 255);
 
         dl->AddRectFilled(kMin, kMax, col);
         dl->AddRect(kMin, kMax, IM_COL32(0, 0, 0, 255), 0.f, 0, 0.5f);
+
+        // Key label + sample number
+        {
+            static const char* kLo[] = {"","S","","D","","","G","","H","","J",""};
+            static const char* kHi[] = {"","2","","3","","","5","","6","","7",""};
+            int rel = (note - 1) - m_baseOctave * 12;
+            const char* lbl = nullptr;
+            if (rel >= 0  && rel < 12 && kLo[rel][0]) lbl = kLo[rel];
+            if (rel >= 12 && rel < 24 && kHi[rel-12][0]) lbl = kHi[rel-12];
+            if (lbl && m_fontMono) {
+                ImVec2 tsz = m_fontMono->CalcTextSizeA(7.f, FLT_MAX, 0.f, lbl);
+                dl->AddText(m_fontMono, 7.f,
+                    {kx + (blackW - tsz.x) * 0.5f, ky + 2.f},
+                    IM_COL32(180, 180, 210, 200), lbl);
+            }
+        }
 
         if (smp != 0 && m_fontMono) {
             char sbuf[8]; snprintf(sbuf, sizeof(sbuf), "%d", (int)smp);
@@ -749,7 +788,7 @@ void InstrumentView::drawNoteKeyboard(float w, float h) {
         }
     }
 
-    // ── Note play / stop logic ────────────────────────────────────────────────
+    // ── Mouse play / stop logic ───────────────────────────────────────────────
     if (ia) {
         if (hitNote > 0 && hitNote != m_playNote) {
             if (m_playChannel >= 0) ia->stop_note(m_playChannel);
@@ -761,6 +800,31 @@ void InstrumentView::drawNoteKeyboard(float w, float h) {
             ia->stop_note(m_playChannel);
             m_playChannel = -1;
             m_playNote    = -1;
+        }
+    }
+
+    // ── Computer keyboard play / stop logic ───────────────────────────────────
+    if (ia && !ImGui::GetIO().WantTextInput) {
+        struct NoteKey { ImGuiKey key; int semi; };
+        static constexpr NoteKey kKeys[] = {
+            {ImGuiKey_Z,0},{ImGuiKey_S,1},{ImGuiKey_X,2},{ImGuiKey_D,3},
+            {ImGuiKey_C,4},{ImGuiKey_V,5},{ImGuiKey_G,6},{ImGuiKey_B,7},
+            {ImGuiKey_H,8},{ImGuiKey_N,9},{ImGuiKey_J,10},{ImGuiKey_M,11},
+            {ImGuiKey_Q,12},{ImGuiKey_2,13},{ImGuiKey_W,14},{ImGuiKey_3,15},
+            {ImGuiKey_E,16},{ImGuiKey_R,17},{ImGuiKey_5,18},{ImGuiKey_T,19},
+            {ImGuiKey_6,20},{ImGuiKey_Y,21},{ImGuiKey_7,22},{ImGuiKey_U,23},
+        };
+        for (auto& k : kKeys) {
+            int note = m_baseOctave * 12 + k.semi + 1;
+            if (note < 1 || note > 128) continue;
+            if (ImGui::IsKeyPressed(k.key, false) && m_kbChannels[note-1] < 0) {
+                if (onNeedAudio) onNeedAudio();
+                m_kbChannels[note-1] = ia->play_note(m_sel, note, 0.85, 0.5);
+            }
+            if (ImGui::IsKeyReleased(k.key) && m_kbChannels[note-1] >= 0) {
+                ia->stop_note(m_kbChannels[note-1]);
+                m_kbChannels[note-1] = -1;
+            }
         }
     }
 }

@@ -14,6 +14,7 @@ public:
     void setFonts(ImFont* mono, ImFont* ui);
     void setSelection(int idx);   // 1-based
     int  getSelection() const { return m_sel; }
+    void setBaseOctave(int o)  { m_baseOctave = o; }
     void render(float x, float y, float w, float h);
 
     std::function<void()> onNeedAudio;
@@ -34,6 +35,8 @@ private:
     bool m_dirty{false};
     int32_t m_playChannel{-1};
     int m_playNote{-1};
+    int m_baseOctave{4};
+    int m_kbChannels[128];   // per-note play channel; -1 = not playing
     std::vector<float> m_waveMin, m_waveMax;
     int m_waveLen{0};
 };

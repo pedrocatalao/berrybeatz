@@ -517,6 +517,7 @@ void App::drawSamplesTab()
         };
         lastMod = mod;
     }
+    m_sampleView.setBaseOctave(m_toolbarState.octave);
     ImVec2 pos   = ImGui::GetCursorScreenPos();
     ImVec2 avail = ImGui::GetContentRegionAvail();
     m_sampleView.render(pos.x, pos.y, avail.x, avail.y);
@@ -552,6 +553,7 @@ void App::drawInstrumentsTab()
         };
         lastMod = mod;
     }
+    m_instrView.setBaseOctave(m_toolbarState.octave);
     ImVec2 pos   = ImGui::GetCursorScreenPos();
     ImVec2 avail = ImGui::GetContentRegionAvail();
     m_instrView.render(pos.x, pos.y, avail.x, avail.y);

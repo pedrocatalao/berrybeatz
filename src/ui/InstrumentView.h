@@ -13,6 +13,7 @@ public:
     void setFonts(ImFont* mono, ImFont* ui);
     void setSelection(int idx);   // 1-based; clamps to valid range
     int  getSelection() const { return m_sel; }
+    void setBaseOctave(int o)  { m_baseOctave = o; }
     void render(float x, float y, float w, float h);
 
     // Called when a note preview starts — wire this to ensure the audio engine is running.
@@ -36,4 +37,6 @@ private:
     int m_dragNode{-1};
     int32_t m_playChannel{-1};
     int m_playNote{-1};
+    int m_baseOctave{4};
+    int m_kbChannels[128];   // per-note play channel; -1 = not playing
 };

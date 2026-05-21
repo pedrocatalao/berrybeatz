@@ -348,8 +348,8 @@ int AudioEngine::paCallback(const void*, void* output,
         for (int32_t ch = 0; ch < nch && ch < MAX_CHANNELS; ++ch) {
             float rawL = d->mod->get_current_channel_vu_left(ch);
             float rawR = d->mod->get_current_channel_vu_right(ch);
-            d->state->vu[ch].left  = d->state->vu[ch].left  * 0.8f + rawL * 0.2f;
-            d->state->vu[ch].right = d->state->vu[ch].right * 0.8f + rawR * 0.2f;
+            d->state->vu[ch].left  = std::max(rawL, d->state->vu[ch].left  * 0.88f);
+            d->state->vu[ch].right = std::max(rawR, d->state->vu[ch].right * 0.88f);
 
             int wn = std::min(chanCnt[ch], WAVE_BUF);
             std::copy(chanBuf + ch * FRAMES_BLOCK, chanBuf + ch * FRAMES_BLOCK + wn,

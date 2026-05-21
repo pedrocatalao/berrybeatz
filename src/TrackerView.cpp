@@ -1027,7 +1027,7 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
             dl->PushClipRect(icr.Min, icr.Max, false);
             dl->AddRectFilledMultiColor(
                 {icr.Min.x, rT}, {icr.Max.x, rT + rH},
-                IM_COL32(40, 85, 145, 128), IM_COL32(40, 85, 145, 205),
+                IM_COL32(40, 85, 145, 128), IM_COL32(40, 85, 145, 220),
                 IM_COL32(40, 85, 145, 255), IM_COL32(40, 85, 145, 255));
             dl->PopClipRect();
         }
@@ -1132,8 +1132,8 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
                     glBlendFunc(GL_SRC_ALPHA, GL_ONE);
                 }, nullptr);
                 auto addGlowText = [&](float gx, const ImVec4& c, const char* txt) {
-                    uint8_t a1 = isCur ? 30 : 20;
-                    uint8_t a2 = isCur ? 10 : 10;
+                    uint8_t a1 = isCur ? 25 : 15;
+                    uint8_t a2 = isCur ? 8 : 7;
                     uint8_t a3 = isCur ? 5 :  0;
                     ImU32 gc1 = IM_COL32((uint8_t)(c.x*255.f),(uint8_t)(c.y*255.f),(uint8_t)(c.z*255.f), a1);
                     ImU32 gc2 = IM_COL32((uint8_t)(c.x*255.f),(uint8_t)(c.y*255.f),(uint8_t)(c.z*255.f), a2);

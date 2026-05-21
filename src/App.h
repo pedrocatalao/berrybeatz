@@ -4,6 +4,7 @@
 #include "ModuleState.h"
 #include "AudioEngine.h"
 #include "TrackerView.h"
+#include "GeneralView.h"
 #include "InstrumentView.h"
 #include "SampleView.h"
 #include "Toolbar.h"
@@ -25,7 +26,6 @@ public:
 private:
     void syncToolbarState();
     void drawSidebar(float x, float y, float w, float h);
-    void drawGeneralTab();
     void drawSamplesTab();
     void drawInstrumentsTab();
     void drawCommentsTab();
@@ -43,6 +43,7 @@ private:
     ModuleState    m_state;
     AudioEngine    m_audio;
     TrackerView    m_tracker;
+    GeneralView    m_generalView;
     InstrumentView m_instrView;
     SampleView     m_sampleView;
 

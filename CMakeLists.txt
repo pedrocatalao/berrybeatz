@@ -64,6 +64,7 @@ target_include_directories(imgui PUBLIC
 set(SOURCES
     src/main.cpp
     src/App.cpp
+    src/GeneralView.cpp
     src/Toolbar.cpp
     src/AudioEngine.cpp
     src/TrackerView.cpp

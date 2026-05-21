@@ -76,6 +76,7 @@ set(SOURCES
     src/Logo.mm
     assets/logo.png
     assets/berrybeatz4-banner.png
+    assets/speakercone.png
     assets/AppIcon.icns
     assets/BigBlueTermPlusNerdFontMono-Regular.ttf
     assets/Ac437_IBM_VGA_8x16.ttf
@@ -95,6 +96,7 @@ set_source_files_properties(src/CocoaHelpers.mm src/Logo.mm PROPERTIES
 set_source_files_properties(
     assets/logo.png
     assets/berrybeatz4-banner.png
+    assets/speakercone.png
     assets/AppIcon.icns
     assets/BigBlueTermPlusNerdFontMono-Regular.ttf
     assets/Ac437_IBM_VGA_8x16.ttf

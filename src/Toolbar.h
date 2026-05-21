@@ -33,6 +33,11 @@ struct ToolbarState {
     float  logoW   {0.f};
     float  logoH   {0.f};
 
+    // Speaker cone overlay (rendered on top of the logo's cone position)
+    GLuint speakerConeTex {0};
+    float  speakerConeW   {0.f};
+    float  speakerConeH   {0.f};
+
     // File / transport actions
     std::function<void()>      onNew;
     std::function<void()>      onOpen;

@@ -371,8 +371,8 @@ float DrawToolbar(ToolbarState& state,
             fdl->AddImageQuad(
                 (ImTextureID)(intptr_t)state.logoTex,
                 {p0.x + ox,      p0.y + oy            },
-                {p0.x + lw + ox, p0.y - 4.f + oy      },
-                {p0.x + lw + ox, p0.y + lh + 2.f + oy },
+                {p0.x + lw + ox, p0.y + oy      },
+                {p0.x + lw + ox, p0.y + lh + oy },
                 {p0.x + ox,      p0.y + lh + oy        },
                 {0.f, 0.f}, {1.f, 0.f}, {1.f, 1.f}, {0.f, 1.f},
                 col);
@@ -402,6 +402,29 @@ float DrawToolbar(ToolbarState& state,
         }, nullptr);
 
         drawQuad(0.f, 0.f, IM_COL32(255, 255, 255, 130));
+
+        // ── Speaker-cone overlay ──────────────────────────────────────────────
+        // Position and size in screen pixels, relative to the logo rect's top-left (p0).
+        // Adjust kConeX / kConeY to move; kConeScale to resize.
+        static constexpr float kConeX     = 231.f;  // screen px from p0.x
+        static constexpr float kConeY     =  38.f;  // screen px from p0.y
+        static constexpr float kConeScale =   1.0f; // size multiplier
+
+        if (state.speakerConeTex) {
+            const float coneW = state.speakerConeW * (lh / 463.f) * kConeScale;
+            const float coneH = state.speakerConeH * (lh / 463.f) * kConeScale;
+
+            ImVec2 cTL = {p0.x + kConeX,         p0.y + kConeY        };
+            ImVec2 cTR = {p0.x + kConeX + coneW,  p0.y + kConeY        };
+            ImVec2 cBR = {p0.x + kConeX + coneW,  p0.y + kConeY + coneH};
+            ImVec2 cBL = {p0.x + kConeX,         p0.y + kConeY + coneH};
+
+            fdl->AddImageQuad(
+                (ImTextureID)(intptr_t)state.speakerConeTex,
+                cTL, cTR, cBR, cBL,
+                {0.f,0.f}, {1.f,0.f}, {1.f,1.f}, {0.f,1.f},
+                IM_COL32(255, 255, 255, 255));
+        }
     }
 
     ImGui::End();

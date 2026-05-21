@@ -4,11 +4,11 @@
 #include <vector>
 #include "Logo.h"
 
-GLuint loadLogoTexture(float& outW, float& outH)
+static GLuint loadPNGTexture(NSString* resource, float& outW, float& outH)
 {
     outW = outH = 0.f;
     @autoreleasepool {
-        NSString* path = [[NSBundle mainBundle] pathForResource:@"berrybeatz4-banner" ofType:@"png"];
+        NSString* path = [[NSBundle mainBundle] pathForResource:resource ofType:@"png"];
         if (!path) return 0;
 
         NSImage* nsImg = [[NSImage alloc] initWithContentsOfFile:path];
@@ -46,4 +46,14 @@ GLuint loadLogoTexture(float& outW, float& outH)
         outH = (float)h;
         return tex;
     }
+}
+
+GLuint loadLogoTexture(float& outW, float& outH)
+{
+    return loadPNGTexture(@"berrybeatz4-banner", outW, outH);
+}
+
+GLuint loadSpeakerConeTexture(float& outW, float& outH)
+{
+    return loadPNGTexture(@"speakercone", outW, outH);
 }

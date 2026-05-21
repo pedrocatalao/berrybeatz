@@ -68,6 +68,10 @@ private:
     float  m_logoW   {0.f};
     float  m_logoH   {0.f};
 
+    GLuint m_speakerConeTex {0};
+    float  m_speakerConeW   {0.f};
+    float  m_speakerConeH   {0.f};
+
     enum class ResizeEdge { None, Right, Bottom, BottomRight };
     ResizeEdge m_resizeEdge {ResizeEdge::None};
     int m_rsMouseX {0}, m_rsMouseY {0};

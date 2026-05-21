@@ -167,7 +167,8 @@ App::~App()
 {
     m_audio.stop();
     m_audio.join();
-    if (m_logoTex) glDeleteTextures(1, &m_logoTex);
+    if (m_logoTex)        glDeleteTextures(1, &m_logoTex);
+    if (m_speakerConeTex) glDeleteTextures(1, &m_speakerConeTex);
 }
 
 // ─── Public API ───────────────────────────────────────────────────────────────
@@ -175,7 +176,8 @@ App::~App()
 void App::setGLFWWindow(GLFWwindow* w)
 {
     m_glfwWindow = w;
-    m_logoTex = loadLogoTexture(m_logoW, m_logoH);
+    m_logoTex        = loadLogoTexture(m_logoW, m_logoH);
+    m_speakerConeTex = loadSpeakerConeTexture(m_speakerConeW, m_speakerConeH);
 }
 
 void App::setFonts(ImFont* mono, ImFont* ui)
@@ -485,9 +487,12 @@ void App::drawSidebar(float x, float y, float w, float h)
 
 void App::syncToolbarState()
 {
-    m_toolbarState.logoTex = m_logoTex;
-    m_toolbarState.logoW   = m_logoW;
-    m_toolbarState.logoH   = m_logoH;
+    m_toolbarState.logoTex       = m_logoTex;
+    m_toolbarState.logoW         = m_logoW;
+    m_toolbarState.logoH         = m_logoH;
+    m_toolbarState.speakerConeTex = m_speakerConeTex;
+    m_toolbarState.speakerConeW   = m_speakerConeW;
+    m_toolbarState.speakerConeH   = m_speakerConeH;
     m_toolbarState.hasModule = m_hasModule;
     m_toolbarState.isPlaying = m_state.is_playing.load();
     m_toolbarState.isPaused  = m_audio.isPaused();

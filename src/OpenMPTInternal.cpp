@@ -17,6 +17,8 @@
 
 #include <fstream>
 #include <string>
+#include <cstring>
+#include <cmath>
 
 // Provided by OpenMPTInternalGet.cpp — extracts CSoundFile* via libopenmpt
 // internal cast (kept in a separate TU to avoid header namespace conflict).
@@ -324,4 +326,32 @@ void bb_build_sample_waveform(openmpt::module_ext* mod, int sampleIndex,
         waveMax[b] = mx;
     }
     outLen = W;
+}
+
+void bb_setup_channel_capture(openmpt::module_ext* mod, int nChannels) {
+    if (!mod || nChannels <= 0) return;
+    auto& sf = getSF(mod);
+    sf.m_bbNumChannels    = static_cast<OpenMPT::CHANNELINDEX>(
+                                std::min(nChannels, (int)OpenMPT::CSoundFile::BB_MAX_CHANNELS));
+    sf.m_bbCaptureEnabled = true;
+}
+
+void bb_capture_channel_waves(openmpt::module_ext* mod,
+                               float* samplesOut, int32_t* countsOut,
+                               int nChannels, int perChannel) {
+    if (!mod || !samplesOut || !countsOut || nChannels <= 0 || perChannel <= 0) return;
+    auto& sf = getSF(mod);
+
+    // mixsample_t == float in this build; buffer is interleaved stereo (L R L R …)
+    // Apply the same global-volume factor that ProcessGlobalVolume will apply to the
+    // master output, so per-channel scale matches what d->left[] contains.
+    const float scale = sf.m_bbGlobalVolScale;
+    int n = std::min(perChannel, (int)MIXBUFFERSIZE);
+    for (int ch = 0; ch < nChannels; ++ch) {
+        const OpenMPT::mixsample_t* src = sf.m_bbChannelBuf + ch * MIXBUFFERSIZE * 2;
+        float* out = samplesOut + ch * perChannel;
+        for (int s = 0; s < n; ++s)
+            out[s] = src[s * 2] * scale;   // left channel, scaled to output amplitude
+        countsOut[ch] = n;
+    }
 }

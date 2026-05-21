@@ -93,3 +93,12 @@ bool       bb_set_sample_data(openmpt::module_ext* mod, int sampleIndex, const S
 int32_t    bb_play_sample(openmpt::module_ext* mod, int sampleIndex, int note, double volume, double panning);
 // Fills waveMin[width] and waveMax[width] with normalized [-1,1] sample data. outLen set to width on success.
 void       bb_build_sample_waveform(openmpt::module_ext* mod, int sampleIndex, std::vector<float>& waveMin, std::vector<float>& waveMax, int& outLen, int width = 1024);
+
+// Call BEFORE read() to arm per-channel capture.
+void bb_setup_channel_capture(openmpt::module_ext* mod, int nChannels);
+
+// Call AFTER read() to collect captured per-channel audio.
+// samplesOut: flat [nChannels * perChannel] floats (left channel, amplitude-correct).
+void bb_capture_channel_waves(openmpt::module_ext* mod,
+                               float* samplesOut, int32_t* countsOut,
+                               int nChannels, int perChannel);

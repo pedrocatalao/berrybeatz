@@ -813,12 +813,12 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
     float visH  = avail.y - m_chanH;  // exclude frozen header row from scroll math
 
     // Fetch channel data for the frozen header row
-    std::array<ChannelVU, MAX_CHANNELS> vu{};
-    WaveSnapshot masterWave{};
+    std::array<ChannelVU,    MAX_CHANNELS> vu{};
+    std::array<WaveSnapshot, MAX_CHANNELS> channelWave{};
     {
         std::lock_guard<std::mutex> lk(m_state.vu_mutex);
-        vu         = m_state.vu;
-        masterWave = m_state.masterWave;
+        vu          = m_state.vu;
+        channelWave = m_state.channelWave;
     }
     std::vector<std::string> chNames(nch);
     {
@@ -897,7 +897,7 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
 
             // Oscilloscope waveform
             float vuBot = vuTop + (m_showVU ? VU_H : 0.f);
-            if (m_showWave && masterWave.count > 1) {
+            if (m_showWave && channelWave[ch].count > 1) {
                 float wy    = vuBot;
                 dl->AddRectFilled({p.x, wy}, {p.x + cw - 1, wy + WAVE_H}, IM_COL32(20, 20, 33, 255));
                 float cy    = wy + WAVE_H * 0.5f;
@@ -905,7 +905,7 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
 
                 // Show only a portion of the buffer so individual waves are visible
                 static constexpr int kDisplaySamples = 160;
-                int total = masterWave.count;
+                int total = channelWave[ch].count;
                 int displayN = std::min(total, kDisplaySamples);
 
                 // Oscilloscope trigger: find first upward zero crossing in the
@@ -913,7 +913,7 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
                 int start = 0;
                 int searchEnd = total - displayN;
                 for (int i = 1; i < searchEnd; ++i) {
-                    if (masterWave.samples[i - 1] <= 0.f && masterWave.samples[i] > 0.f) {
+                    if (channelWave[ch].samples[i - 1] <= 0.f && channelWave[ch].samples[i] > 0.f) {
                         start = i;
                         break;
                     }
@@ -922,7 +922,7 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
                 // Normalize by peak, partial floor so quiet signals stay readable
                 float peak = 0.f;
                 for (int i = start; i < start + displayN; ++i)
-                    peak = std::max(peak, std::abs(masterWave.samples[i]));
+                    peak = std::max(peak, std::abs(channelWave[ch].samples[i]));
                 float norm = (peak > 0.0001f) ? halfH / std::max(peak, 0.3f) : 0.f;
                 // Fade when channel is silent
                 float chAmp = (vu[ch].left + vu[ch].right) * 0.5f;
@@ -930,10 +930,10 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
 
                 ImU32 wavCol = muted ? IM_COL32(80, 80, 80, 120) : IM_COL32(190, 190, 200, 220);
                 float xscale = (cw - 2.f) / float(displayN);
-                ImVec2 prev  = {p.x, cy - masterWave.samples[start] * norm};
+                ImVec2 prev  = {p.x, cy - channelWave[ch].samples[start] * norm};
                 for (int i = 1; i < displayN; ++i) {
                     float fx = p.x + float(i) * xscale;
-                    float fy = cy - masterWave.samples[start + i] * norm;
+                    float fy = cy - channelWave[ch].samples[start + i] * norm;
                     dl->AddLine(prev, {fx, fy}, wavCol);
                     prev = {fx, fy};
                 }

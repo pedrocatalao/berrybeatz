@@ -41,9 +41,10 @@ struct ModuleState {
     // Channel mute mask — UI writes atomically, audio thread applies (bit N = ch N muted)
     std::atomic<uint64_t> channel_mute_mask{0};
 
-    // Per-channel VU + master oscilloscope snapshot (audio thread writes under vu_mutex)
+    // Per-channel VU + oscilloscope snapshots (audio thread writes under vu_mutex)
     std::mutex vu_mutex;
-    std::array<ChannelVU, MAX_CHANNELS> vu{};
+    std::array<ChannelVU,    MAX_CHANNELS> vu{};
+    std::array<WaveSnapshot, MAX_CHANNELS> channelWave{};
     WaveSnapshot masterWave{};
 
     // Module metadata (written once on load)
@@ -77,6 +78,7 @@ struct ModuleState {
         {
             std::lock_guard<std::mutex> lk(vu_mutex);
             vu.fill({});
+            channelWave.fill({});
             masterWave = {};
         }
         {

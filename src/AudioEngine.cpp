@@ -1,4 +1,5 @@
 #include "AudioEngine.h"
+#include "OpenMPTInternal.h"
 #include <libopenmpt/libopenmpt_ext.hpp>
 #include <portaudio.h>
 #include <fstream>
@@ -265,6 +266,10 @@ int AudioEngine::paCallback(const void*, void* output,
     if (d->left.size()  < frameCount) d->left.resize(frameCount);
     if (d->right.size() < frameCount) d->right.resize(frameCount);
 
+    int32_t nchForCapture = d->state->num_channels.load();
+    if (nchForCapture > 0)
+        bb_setup_channel_capture(d->mod, nchForCapture);
+
     size_t count = d->mod->read(SAMPLE_RATE, frameCount,
                                 d->left.data(), d->right.data());
 
@@ -310,17 +315,47 @@ int AudioEngine::paCallback(const void*, void* output,
     d->state->position_seconds.store(d->mod->get_position_seconds());
     d->state->bpm            .store(d->mod->get_current_estimated_bpm());
 
-    // Per-channel VU with decay + master oscilloscope snapshot
+    // Per-channel VU + waveform captures + master oscilloscope snapshot
     int32_t nch = d->state->num_channels.load();
     if (nch > 0) {
+        static thread_local float   chanBuf[MAX_CHANNELS * WAVE_BUF];
+        static thread_local int32_t chanCnt[MAX_CHANNELS];
+        bb_capture_channel_waves(d->mod, chanBuf, chanCnt, nch, FRAMES_BLOCK);
+
+        // Scale per-channel captures to match actual output amplitude.
+        // All post-processing (global volume, DSP, reverb) applies a uniform transform to
+        // MixSoundBuffer. Each channel's fraction of the total is preserved, so:
+        //   channelOut[ch][s] = d->left[s] * (rawCapture[ch][s] / sumCapture[s])
+        // This is exact for linear mixing with no guessing about internal scale factors.
+        {
+            int ns = chanCnt[0];
+            for (int s = 0; s < ns; ++s) {
+                float total = 0.f;
+                for (int ch = 0; ch < nch; ++ch)
+                    total += chanBuf[ch * FRAMES_BLOCK + s];
+                if (std::abs(total) > 1e-9f) {
+                    float out = d->left[s];
+                    for (int ch = 0; ch < nch; ++ch)
+                        chanBuf[ch * FRAMES_BLOCK + s] = out * chanBuf[ch * FRAMES_BLOCK + s] / total;
+                } else {
+                    for (int ch = 0; ch < nch; ++ch)
+                        chanBuf[ch * FRAMES_BLOCK + s] = 0.f;
+                }
+            }
+        }
+
         std::lock_guard<std::mutex> lk(d->state->vu_mutex);
         for (int32_t ch = 0; ch < nch && ch < MAX_CHANNELS; ++ch) {
             float rawL = d->mod->get_current_channel_vu_left(ch);
             float rawR = d->mod->get_current_channel_vu_right(ch);
             d->state->vu[ch].left  = d->state->vu[ch].left  * 0.8f + rawL * 0.2f;
             d->state->vu[ch].right = d->state->vu[ch].right * 0.8f + rawR * 0.2f;
+
+            int wn = std::min(chanCnt[ch], WAVE_BUF);
+            std::copy(chanBuf + ch * FRAMES_BLOCK, chanBuf + ch * FRAMES_BLOCK + wn,
+                      d->state->channelWave[ch].samples);
+            d->state->channelWave[ch].count = wn;
         }
-        // Snapshot actual signed audio samples for oscilloscope display
         int n = (int)std::min(count, (size_t)WAVE_BUF);
         std::copy(d->left.begin(), d->left.begin() + n, d->state->masterWave.samples);
         d->state->masterWave.count = n;

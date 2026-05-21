@@ -56,3 +56,40 @@ InstrumentData bb_get_instrument_data(openmpt::module_ext* mod, int instrIndex);
 bool           bb_set_instrument_data(openmpt::module_ext* mod, int instrIndex, const InstrumentData& data);
 int            bb_instrument_count(openmpt::module_ext* mod);
 int            bb_sample_count(openmpt::module_ext* mod);
+
+// ─── Sample data POD struct ───────────────────────────────────────────────────
+
+struct SampleData {
+    char     name[32]{};
+    char     filename[32]{};
+    uint32_t length{0};
+    uint32_t loopStart{0};
+    uint32_t loopEnd{0};
+    uint32_t sustainStart{0};
+    uint32_t sustainEnd{0};
+    uint32_t c5speed{8363};
+    uint16_t volume{256};
+    uint16_t globalVol{64};
+    uint16_t pan{128};
+    bool     panEnabled{false};
+    int8_t   relativeTone{0};
+    int8_t   fineTune{0};
+    uint8_t  vibType{0};
+    uint8_t  vibSweep{0};
+    uint8_t  vibDepth{0};
+    uint8_t  vibRate{0};
+    uint8_t  loopType{0};        // 0=none, 1=forward, 2=pingpong
+    uint8_t  sustainLoopType{0}; // 0=none, 1=forward, 2=pingpong
+    bool     is16bit{false};
+    bool     isStereo{false};
+    bool     hasData{false};
+    bool     valid{false};
+};
+
+// sampleIndex is 1-based
+SampleData bb_get_sample_data(openmpt::module_ext* mod, int sampleIndex);
+bool       bb_set_sample_data(openmpt::module_ext* mod, int sampleIndex, const SampleData& data);
+// note is OpenMPT 1-based (1=C-0, 61=C-5=middle C). Returns channel index or -1.
+int32_t    bb_play_sample(openmpt::module_ext* mod, int sampleIndex, int note, double volume, double panning);
+// Fills waveMin[width] and waveMax[width] with normalized [-1,1] sample data. outLen set to width on success.
+void       bb_build_sample_waveform(openmpt::module_ext* mod, int sampleIndex, std::vector<float>& waveMin, std::vector<float>& waveMax, int& outLen, int width = 1024);

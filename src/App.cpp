@@ -468,7 +468,11 @@ void App::drawSidebar(float x, float y, float w, float h)
             m_instrView.setSelection(clicked + 1);
     }
 
-    section("Samples", sampleNames, 2);
+    {
+        int clicked = section("Samples", sampleNames, 2, m_sampleView.getSelection());
+        if (clicked >= 0)
+            m_sampleView.setSelection(clicked + 1);
+    }
     patSection();
 
     ImGui::EndChild();
@@ -771,10 +775,36 @@ void App::drawGeneralTab()
 
 void App::drawSamplesTab()
 {
-    if (!m_hasModule) { ImGui::TextDisabled("No module loaded."); return; }
-    std::lock_guard<std::mutex> lk(m_state.meta_mutex);
-    for (int i = 0; i < (int)m_state.sample_names.size(); ++i)
-        ImGui::Text("%3d. %s", i + 1, m_state.sample_names[i].c_str());
+    if (!m_hasModule) {
+        ImVec2 av = ImGui::GetContentRegionAvail();
+        ImGui::SetCursorPos({av.x * 0.5f - 60.f, av.y * 0.5f - 8.f});
+        ImGui::TextDisabled("No module loaded.");
+        return;
+    }
+    auto* mod = m_audio.getModule();
+    if (!mod) return;
+    int nSamp;
+    {
+        std::lock_guard<std::mutex> lk(m_state.meta_mutex);
+        nSamp = m_state.num_samples;
+    }
+    if (nSamp == 0) {
+        ImGui::TextDisabled("No samples in this module.");
+        return;
+    }
+    static openmpt::module_ext* lastMod = nullptr;
+    if (mod != lastMod) {
+        m_sampleView.setFonts(m_fontMono, m_fontUI);
+        m_sampleView.setModule(mod, nSamp);
+        m_sampleView.onNeedAudio = [this]() {
+            if (!m_hasModule) return;
+            m_audio.startPreview();
+        };
+        lastMod = mod;
+    }
+    ImVec2 pos   = ImGui::GetCursorScreenPos();
+    ImVec2 avail = ImGui::GetContentRegionAvail();
+    m_sampleView.render(pos.x, pos.y, avail.x, avail.y);
 }
 
 void App::drawInstrumentsTab()
@@ -931,6 +961,7 @@ void App::clearModule()
     m_audio.join();
     m_tracker.clearModule();
     m_instrView.clearModule();
+    m_sampleView.clearModule();
     m_state.reset();
     m_hasModule  = false;
     m_loadedPath.clear();

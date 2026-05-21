@@ -5,6 +5,7 @@
 #include "AudioEngine.h"
 #include "TrackerView.h"
 #include "InstrumentView.h"
+#include "SampleView.h"
 #include "Toolbar.h"
 #include <string>
 
@@ -43,6 +44,7 @@ private:
     AudioEngine    m_audio;
     TrackerView    m_tracker;
     InstrumentView m_instrView;
+    SampleView     m_sampleView;
 
     ToolbarState    m_toolbarState;
 

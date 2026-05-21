@@ -69,6 +69,7 @@ set(SOURCES
     src/TrackerView.cpp
     src/PatternEditor.cpp
     src/InstrumentView.cpp
+    src/SampleView.cpp
     src/OpenMPTInternal.cpp
     src/OpenMPTInternalGet.cpp
     src/CocoaHelpers.mm

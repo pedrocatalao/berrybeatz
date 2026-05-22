@@ -210,10 +210,11 @@ void InstrumentView::drawEditor(float x, float y, float w, float h) {
     ImGui::Separator();
     ImGui::Spacing();
 
-    // ── C. Volume + Panning (two columns) ────────────────────────────────────
-    if (ImGui::BeginTable("##volpan", 2, ImGuiTableFlags_None, {cw, 0.f})) {
+    // ── C. Volume + Panning + Filter (three columns) ─────────────────────────
+    if (ImGui::BeginTable("##volpan", 3, ImGuiTableFlags_None, {cw, 0.f})) {
         ImGui::TableSetupColumn("##vc", ImGuiTableColumnFlags_WidthStretch);
         ImGui::TableSetupColumn("##pc", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableSetupColumn("##fc", ImGuiTableColumnFlags_WidthStretch);
         ImGui::TableNextRow();
 
         // ── Volume column ──────────────────────────────────────────────────
@@ -301,15 +302,8 @@ void InstrumentView::drawEditor(float x, float y, float w, float h) {
             ImGui::TextUnformatted(ppcbuf);
         }
 
-        ImGui::EndTable();
-    }
-
-    ImGui::Spacing();
-    ImGui::Separator();
-    ImGui::Spacing();
-
-    // ── D. Filter ─────────────────────────────────────────────────────────────
-    {
+        // ── Filter column ──────────────────────────────────────────────────
+        ImGui::TableSetColumnIndex(2);
         ImGui::TextColored(kDim, "FILTER");
         ImGui::Spacing();
 
@@ -319,9 +313,9 @@ void InstrumentView::drawEditor(float x, float y, float w, float h) {
             if (ImGui::Checkbox("##cuten", &ce))
                 { m_data.cutoffEnabled = ce; m_dirty = true; }
             ImGui::SameLine(0, 4);
-            ImGui::TextColored(kDim, "Cutoff:"); ImGui::SameLine(0, 4);
+            ImGui::TextColored(kDim, "Cutoff"); ImGui::SameLine(0, 4);
             int cv = (int)m_data.cutoff;
-            ImGui::SetNextItemWidth(120.f);
+            ImGui::SetNextItemWidth(-1.f);
             if (ImGui::SliderInt("##cut", &cv, 0, 127))
                 { m_data.cutoff = (uint8_t)cv; m_dirty = true; }
         }
@@ -331,9 +325,9 @@ void InstrumentView::drawEditor(float x, float y, float w, float h) {
             if (ImGui::Checkbox("##resen", &re))
                 { m_data.resonanceEnabled = re; m_dirty = true; }
             ImGui::SameLine(0, 4);
-            ImGui::TextColored(kDim, "Resonance:"); ImGui::SameLine(0, 4);
+            ImGui::TextColored(kDim, "Res"); ImGui::SameLine(0, 4);
             int rv = (int)m_data.resonance;
-            ImGui::SetNextItemWidth(120.f);
+            ImGui::SetNextItemWidth(-1.f);
             if (ImGui::SliderInt("##res", &rv, 0, 127))
                 { m_data.resonance = (uint8_t)rv; m_dirty = true; }
         }
@@ -341,26 +335,25 @@ void InstrumentView::drawEditor(float x, float y, float w, float h) {
         {
             int cs = (int)m_data.cutSwing;
             ImGui::TextColored(kDim, "Cut Swing"); ImGui::SameLine(0, 4);
-            ImGui::SetNextItemWidth(80.f);
+            ImGui::SetNextItemWidth(-1.f);
             if (ImGui::SliderInt("##csw", &cs, 0, 64))
                 { m_data.cutSwing = (uint8_t)cs; m_dirty = true; }
-            ImGui::SameLine(0, 12);
+        }
+        {
             int rs = (int)m_data.resSwing;
             ImGui::TextColored(kDim, "Res Swing"); ImGui::SameLine(0, 4);
-            ImGui::SetNextItemWidth(80.f);
+            ImGui::SetNextItemWidth(-1.f);
             if (ImGui::SliderInt("##rsw", &rs, 0, 64))
                 { m_data.resSwing = (uint8_t)rs; m_dirty = true; }
         }
         // Filter mode
         {
-            // Unchanged=0xFF, LowPass=0, HighPass=1
-            // Map to combo index: 0=Unchanged, 1=LowPass, 2=HighPass
             const char* fmitems[] = {"Unchanged","Low Pass","High Pass"};
             int fmCombo = (m_data.filterMode == 0xFF) ? 0
                         : (m_data.filterMode == 0)    ? 1
                                                        : 2;
-            ImGui::TextColored(kDim, "Filter Mode:"); ImGui::SameLine(0, 4);
-            ImGui::SetNextItemWidth(110.f);
+            ImGui::TextColored(kDim, "Mode"); ImGui::SameLine(0, 4);
+            ImGui::SetNextItemWidth(-1.f);
             if (ImGui::Combo("##fmode", &fmCombo, fmitems, 3)) {
                 m_data.filterMode = (fmCombo == 0) ? 0xFF
                                   : (fmCombo == 1) ? 0
@@ -368,6 +361,8 @@ void InstrumentView::drawEditor(float x, float y, float w, float h) {
                 m_dirty = true;
             }
         }
+
+        ImGui::EndTable();
     }
 
     ImGui::Spacing();

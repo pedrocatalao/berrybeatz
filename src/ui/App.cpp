@@ -430,19 +430,26 @@ void App::drawSidebar(float x, float y, float w, float h)
             ImGuiTreeNodeFlags_DefaultOpen |
             ImGuiTreeNodeFlags_SpanAvailWidth;
 
+        const bool navKey = ImGui::IsKeyPressed(ImGuiKey_UpArrow,   true)
+                         || ImGui::IsKeyPressed(ImGuiKey_DownArrow, true);
         if (ImGui::TreeNodeEx(header, nodeFlags)) {
+            ImGui::PushStyleColor(ImGuiCol_NavHighlight, IM_COL32(0, 0, 0, 0));
             for (int i = 0; i < (int)names.size(); ++i) {
                 ImGui::PushID(i);
                 char row[256];
                 snprintf(row, sizeof(row), "%3d  %s", i + 1,
                          names[i].empty() ? "---" : names[i].c_str());
                 bool isActive = (i + 1 == activeSel);
-                if (ImGui::Selectable(row, isActive, 0, {0.f, 0.f})) {
-                    clicked     = i;
+                if (ImGui::Selectable(row, isActive, 0, {0.f, 0.f}))
+                    clicked = i;
+                if (ImGui::IsItemFocused() && navKey)
+                    clicked = i;
+                if (clicked == i) {
                     m_pendingTab = tabSwitch;
                 }
                 ImGui::PopID();
             }
+            ImGui::PopStyleColor();
             ImGui::TreePop();
         }
         return clicked;
@@ -476,8 +483,11 @@ void App::drawSidebar(float x, float y, float w, float h)
             ImGuiTreeNodeFlags_DefaultOpen |
             ImGuiTreeNodeFlags_SpanAvailWidth;
 
+        const bool navKey = ImGui::IsKeyPressed(ImGuiKey_UpArrow,   true)
+                         || ImGui::IsKeyPressed(ImGuiKey_DownArrow, true);
         int clicked = -1;
         if (ImGui::TreeNodeEx(header, nodeFlags)) {
+            ImGui::PushStyleColor(ImGuiCol_NavHighlight, IM_COL32(0, 0, 0, 0));
             for (int i = 0; i < numPat; ++i) {
                 bool used = usedPats.count(i) > 0;
                 ImGui::PushID(i + 10000);
@@ -489,9 +499,12 @@ void App::drawSidebar(float x, float y, float w, float h)
                 if (ImGui::Selectable(row, false,
                         used ? 0 : ImGuiSelectableFlags_Disabled, {0.f, 0.f}))
                     clicked = i;
+                if (ImGui::IsItemFocused() && navKey && used)
+                    clicked = i;
                 if (!used) ImGui::PopStyleColor();
                 ImGui::PopID();
             }
+            ImGui::PopStyleColor();
             ImGui::TreePop();
         }
         return clicked;

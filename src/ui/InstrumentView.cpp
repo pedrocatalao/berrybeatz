@@ -67,8 +67,7 @@ void InstrumentView::midiNoteOn(int midiNote, int vel)
         m_kbChannels[midiNote] = -1;
     }
     double v = vel / 127.0;
-    int opnote = midiNote + 1;  // libopenmpt is 1-based
-    m_kbChannels[midiNote] = ia->play_note(m_sel, opnote, v, 0.5);
+    m_kbChannels[midiNote] = ia->play_note(m_sel - 1, midiNote, v, 0.5);
     if (onNeedAudio) onNeedAudio();
 }
 
@@ -836,7 +835,7 @@ void InstrumentView::drawNoteKeyboard(float w, float h) {
         if (hitNote > 0 && hitNote != m_playNote) {
             if (m_playChannel >= 0) ia->stop_note(m_playChannel);
             if (onNeedAudio) onNeedAudio();
-            m_playChannel = ia->play_note(m_sel, hitNote, 0.85, 0.5);
+            m_playChannel = ia->play_note(m_sel - 1, hitNote - 1, 0.85, 0.5);
             m_playNote    = hitNote;
         }
         if (kbDeactivated && m_playChannel >= 0) {
@@ -862,7 +861,7 @@ void InstrumentView::drawNoteKeyboard(float w, float h) {
             if (note < 1 || note > 128) continue;
             if (ImGui::IsKeyPressed(k.key, false) && m_kbChannels[note-1] < 0) {
                 if (onNeedAudio) onNeedAudio();
-                m_kbChannels[note-1] = ia->play_note(m_sel, note, 0.85, 0.5);
+                m_kbChannels[note-1] = ia->play_note(m_sel - 1, note - 1, 0.85, 0.5);
             }
             if (ImGui::IsKeyReleased(k.key) && m_kbChannels[note-1] >= 0) {
                 ia->stop_note(m_kbChannels[note-1]);

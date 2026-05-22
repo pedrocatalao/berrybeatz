@@ -19,12 +19,7 @@ pkg_check_modules(VORBISFILE REQUIRED vorbisfile)
 pkg_check_modules(VORBIS REQUIRED vorbis)
 pkg_check_modules(OGG REQUIRED ogg)
 
-# mpg123 may not have a .pc file — fall back to Homebrew path
-pkg_check_modules(MPG123 mpg123)
-if(NOT MPG123_FOUND)
-    set(MPG123_LIBRARIES "-L${HOMEBREW_PREFIX}/opt/mpg123/lib -lmpg123")
-    set(MPG123_INCLUDE_DIRS "${HOMEBREW_PREFIX}/opt/mpg123/include")
-endif()
+pkg_check_modules(MPG123 REQUIRED libmpg123)
 
 # libopenmpt (built from sibling repo)
 set(OPENMPT_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/vendor/openmpt")
@@ -156,7 +151,7 @@ target_link_libraries(BerryBeatz PRIVATE
     ${VORBISFILE_LINK_LIBRARIES}
     ${VORBIS_LINK_LIBRARIES}
     ${OGG_LINK_LIBRARIES}
-    ${MPG123_LIBRARIES}
+    ${MPG123_LINK_LIBRARIES}
     "-lz"
     "-framework Cocoa"
     "-framework IOKit"

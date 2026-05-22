@@ -1,6 +1,6 @@
 #include "SidebarView.h"
 #include "imgui.h"
-#include <algorithm>
+#include "imgui_internal.h"
 #include <cstdio>
 
 // ─── Node ID scheme ───────────────────────────────────────────────────────────
@@ -47,9 +47,9 @@ void SidebarView::buildNodes(std::vector<Node>& out, const SidebarData& d) const
     out.clear();
 
     // ── Song root ─────────────────────────────────────────────────────────────
+    // Leading spaces reserve room for the RenderArrow drawn in render().
     char rootLabel[256];
-    snprintf(rootLabel, sizeof(rootLabel), "%s  %s",
-             isExpanded(kIdSongRoot) ? "-" : "+",
+    snprintf(rootLabel, sizeof(rootLabel), "   %s",
              d.songTitle.empty() ? "(untitled)" : d.songTitle.c_str());
     out.push_back({kIdSongRoot, 0, true, true, rootLabel, -1, -1});
     if (!isExpanded(kIdSongRoot)) return;
@@ -57,15 +57,14 @@ void SidebarView::buildNodes(std::vector<Node>& out, const SidebarData& d) const
     // ── Instruments ──────────────────────────────────────────────────────────
     if (!d.instrNames.empty()) {
         char grpLabel[64];
-        snprintf(grpLabel, sizeof(grpLabel), "  %s  Instruments (%d)",
-                 isExpanded(kIdInstrGroup) ? "-" : "+",
+        snprintf(grpLabel, sizeof(grpLabel), "     Instruments (%d)",
                  (int)d.instrNames.size());
         out.push_back({kIdInstrGroup, 1, true, true, grpLabel, -1, -1});
 
         if (isExpanded(kIdInstrGroup)) {
             for (int i = 0; i < (int)d.instrNames.size(); ++i) {
                 char row[256];
-                snprintf(row, sizeof(row), "    %02d  %s", i + 1,
+                snprintf(row, sizeof(row), "      %02d  %s", i + 1,
                          d.instrNames[i].empty() ? "---" : d.instrNames[i].c_str());
                 out.push_back({kBaseInstr + i, 2, false, true, row, 3, i});
             }
@@ -75,15 +74,14 @@ void SidebarView::buildNodes(std::vector<Node>& out, const SidebarData& d) const
     // ── Samples ──────────────────────────────────────────────────────────────
     {
         char grpLabel[64];
-        snprintf(grpLabel, sizeof(grpLabel), "  %s  Samples (%d)",
-                 isExpanded(kIdSampleGroup) ? "-" : "+",
+        snprintf(grpLabel, sizeof(grpLabel), "     Samples (%d)",
                  (int)d.sampleNames.size());
         out.push_back({kIdSampleGroup, 1, true, true, grpLabel, -1, -1});
 
         if (isExpanded(kIdSampleGroup)) {
             for (int i = 0; i < (int)d.sampleNames.size(); ++i) {
                 char row[256];
-                snprintf(row, sizeof(row), "    %02d  %s", i + 1,
+                snprintf(row, sizeof(row), "      %02d  %s", i + 1,
                          d.sampleNames[i].empty() ? "---" : d.sampleNames[i].c_str());
                 out.push_back({kBaseSample + i, 2, false, true, row, 2, i});
             }
@@ -93,8 +91,7 @@ void SidebarView::buildNodes(std::vector<Node>& out, const SidebarData& d) const
     // ── Patterns ─────────────────────────────────────────────────────────────
     {
         char grpLabel[64];
-        snprintf(grpLabel, sizeof(grpLabel), "  %s  Patterns (%d)",
-                 isExpanded(kIdPatGroup) ? "-" : "+",
+        snprintf(grpLabel, sizeof(grpLabel), "     Patterns (%d)",
                  (int)d.patNames.size());
         out.push_back({kIdPatGroup, 1, true, true, grpLabel, -1, -1});
 
@@ -288,6 +285,16 @@ void SidebarView::render(float x, float y, float w, float h,
         }
 
         if (n.isGroup) {
+            // Draw ImGui-style arrow — same style as TreeNodeEx (full scale, text color)
+            {
+                ImVec2 p  = ImGui::GetCursorScreenPos();
+                float  sz = ImGui::GetTextLineHeight();
+                ImGui::RenderArrow(ImGui::GetWindowDrawList(),
+                    {p.x + n.depth * sz, p.y},
+                    IM_COL32(180, 200, 230, 220),
+                    isExpanded(n.id) ? ImGuiDir_Down : ImGuiDir_Right,
+                    0.7f);
+            }
             // Group row: clicking toggles expand/collapse
             if (ImGui::Selectable(n.label.c_str(), false, 0, {0.f, 0.f})) {
                 m_expanded[n.id] = !isExpanded(n.id);

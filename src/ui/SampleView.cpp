@@ -255,6 +255,17 @@ void SampleView::drawEditor(float x, float y, float w, float h) {
             ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (36.f - lw) * 0.5f);
             ImGui::TextColored(kDim, "Pan");
             ImGui::EndGroup();
+            ImGui::SameLine(0, 12);
+        }
+
+        // Pitch bend display
+        {
+            ImGui::BeginGroup();
+            KnobDisplay("##pb", (m_pitchBend - 8192) / 8192.f);
+            float lw = ImGui::CalcTextSize("P.Bend").x;
+            ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (36.f - lw) * 0.5f);
+            ImGui::TextColored(kDim, "P.Bend");
+            ImGui::EndGroup();
         }
 
         ImGui::Spacing();
@@ -381,19 +392,6 @@ void SampleView::drawEditor(float x, float y, float w, float h) {
 
     ImGui::Spacing();
     ImGui::Separator();
-    ImGui::Spacing();
-
-    // ── Pitch bend indicator ──────────────────────────────────────────────────
-    {
-        constexpr float kSize = 36.f;
-        float kx = ImGui::GetCursorPosX() + (cw - kSize) * 0.5f;
-        ImGui::SetCursorPosX(kx);
-        KnobDisplay("##pb", (m_pitchBend - 8192) / 8192.f);
-        const char* lbl = "Pitch Bend";
-        float lw = ImGui::CalcTextSize(lbl).x;
-        ImGui::SetCursorPosX(kx + (kSize - lw) * 0.5f);
-        ImGui::TextColored(kDim, "%s", lbl);
-    }
     ImGui::Spacing();
 
     // ── Keyboard ──────────────────────────────────────────────────────────────

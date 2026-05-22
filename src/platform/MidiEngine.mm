@@ -100,8 +100,12 @@ void MidiEngine::readProc(const void* pktlistVoid, void* refCon, void*)
             } else if (type == 0x80 && j + 2 < pkt->length) {  // Note Off
                 self->enqueueNote(pkt->data[j+1] & 0x7F, 0);
                 j += 3;
-            } else if ((type == 0xA0 || type == 0xE0) &&        // Aftertouch / Pitch Bend
-                       j + 2 < pkt->length) {
+            } else if (type == 0xE0 && j + 2 < pkt->length) {    // Pitch Bend
+                int lsb = pkt->data[j+1] & 0x7F;
+                int msb = pkt->data[j+2] & 0x7F;
+                self->storePitchBend((msb << 7) | lsb);
+                j += 3;
+            } else if (type == 0xA0 && j + 2 < pkt->length) {    // Aftertouch
                 j += 3;
             } else if ((type == 0xC0 || type == 0xD0) &&        // Program / Channel Pressure
                        j + 1 < pkt->length) {

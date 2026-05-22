@@ -1,6 +1,7 @@
 #pragma once
 #include <vector>
 #include <mutex>
+#include <atomic>
 #include <cstdint>
 
 struct CCEvent   { int cc;   int value; };
@@ -14,12 +15,14 @@ public:
     void setSource(int sourceIndex);
     std::vector<CCEvent>   poll();           // drain CC queue; call once per frame
     std::vector<NoteEvent> pollNotes();      // drain note queue; call once per frame
+    int  getPitchBend() const { return m_pitchBend.load(); }  // 0–16383, center=8192
 
 public:
     static void readProc(const void* pktlist, void* refCon, void* connRefCon);
 private:
     void enqueueCC(int cc, int value);
     void enqueueNote(int note, int vel);
+    void storePitchBend(int raw14) { m_pitchBend.store(raw14); }
 
     uint32_t m_client           {0};
     uint32_t m_port             {0};
@@ -28,4 +31,5 @@ private:
     std::mutex             m_mutex;
     std::vector<CCEvent>   m_queue;
     std::vector<NoteEvent> m_noteQueue;
+    std::atomic<int>       m_pitchBend {8192};  // 14-bit, center=8192
 };

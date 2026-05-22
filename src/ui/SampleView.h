@@ -17,6 +17,7 @@ public:
     void setBaseOctave(int o)  { m_baseOctave = o; }
     void midiNoteOn(int midiNote, int vel);
     void midiNoteOff(int midiNote);
+    void midiPitchBend(int raw14);  // 0–16383, center=8192
     void render(float x, float y, float w, float h);
 
     std::function<void()> onNeedAudio;

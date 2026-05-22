@@ -345,6 +345,9 @@ void App::render(int winW, int winH)
                 if (m_activeTab == 3) m_instrView.midiNoteOff(n.note);
             }
         }
+        int pb = m_midi.getPitchBend();
+        if (m_activeTab == 2) m_sampleView.midiPitchBend(pb);
+        if (m_activeTab == 3) m_instrView.midiPitchBend(pb);
     }
 
     m_settingsView.draw();

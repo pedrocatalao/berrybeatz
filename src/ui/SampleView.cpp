@@ -84,6 +84,18 @@ void SampleView::midiNoteOff(int midiNote)
     m_kbChannels[midiNote] = -1;
 }
 
+void SampleView::midiPitchBend(int raw14)
+{
+    if (!m_mod) return;
+    auto* ia2 = static_cast<openmpt::ext::interactive2*>(
+        m_mod->get_interface(openmpt::ext::interactive2_id));
+    if (!ia2) return;
+    double finetune = (raw14 - 8192) / 8192.0;
+    for (int i = 0; i < 128; ++i)
+        if (m_kbChannels[i] >= 0) ia2->set_note_finetune(m_kbChannels[i], finetune);
+    if (m_playChannel >= 0) ia2->set_note_finetune(m_playChannel, finetune);
+}
+
 void SampleView::setFonts(ImFont* mono, ImFont* ui) {
     m_fontMono = mono;
     m_fontUI   = ui;

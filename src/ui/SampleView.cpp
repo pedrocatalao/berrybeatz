@@ -86,6 +86,7 @@ void SampleView::midiNoteOff(int midiNote)
 
 void SampleView::midiPitchBend(int raw14)
 {
+    m_pitchBend = raw14;
     if (!m_mod) return;
     auto* ia2 = static_cast<openmpt::ext::interactive2*>(
         m_mod->get_interface(openmpt::ext::interactive2_id));
@@ -380,6 +381,19 @@ void SampleView::drawEditor(float x, float y, float w, float h) {
 
     ImGui::Spacing();
     ImGui::Separator();
+    ImGui::Spacing();
+
+    // ── Pitch bend indicator ──────────────────────────────────────────────────
+    {
+        constexpr float kSize = 36.f;
+        float kx = ImGui::GetCursorPosX() + (cw - kSize) * 0.5f;
+        ImGui::SetCursorPosX(kx);
+        KnobDisplay("##pb", (m_pitchBend - 8192) / 8192.f);
+        const char* lbl = "Pitch Bend";
+        float lw = ImGui::CalcTextSize(lbl).x;
+        ImGui::SetCursorPosX(kx + (kSize - lw) * 0.5f);
+        ImGui::TextColored(kDim, "%s", lbl);
+    }
     ImGui::Spacing();
 
     // ── Keyboard ──────────────────────────────────────────────────────────────

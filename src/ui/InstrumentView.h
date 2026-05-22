@@ -42,4 +42,5 @@ private:
     int m_playNote{-1};
     int m_baseOctave{4};
     int m_kbChannels[128];   // per-note play channel; -1 = not playing
+    int m_pitchBend{8192};   // 14-bit MIDI pitch bend, center=8192
 };

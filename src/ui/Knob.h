@@ -201,6 +201,74 @@ inline bool KnobWidget(const char* id,
     return changed;
 }
 
+// KnobDisplay — read-only bipolar knob used for visual feedback (e.g. pitch bend).
+// t is in [-1.0, 1.0] where 0.0 = center.
+inline void KnobDisplay(const char* id, float t)
+{
+    ImGui::PushID(id);
+
+    const float  SIZE   = 36.f;
+    const ImVec2 pos    = ImGui::GetCursorScreenPos();
+    const ImVec2 center = ImVec2(pos.x + SIZE * 0.5f, pos.y + SIZE * 0.5f);
+    const float  radius = SIZE * 0.5f - 1.f;
+    const float  trackR = radius - 3.f;
+
+    ImGui::Dummy({SIZE, SIZE});
+
+    ImDrawList* dl = ImGui::GetWindowDrawList();
+
+    dl->AddCircleFilled(center, radius, IM_COL32(14, 14, 34, 255));
+    dl->AddCircle(center, radius, IM_COL32(64, 64, 114, 255), 0, 1.5f);
+
+    const float SWEEP      = (float)(M_PI * 1.5);
+    const float ANG_START  = (float)(M_PI * 0.75);
+    const float ANG_CENTER = ANG_START + SWEEP * 0.5f;
+
+    dl->PathArcTo(center, trackR, ANG_START, ANG_START + SWEEP, 32);
+    dl->PathStroke(IM_COL32(46, 46, 90, 255), false, 2.5f);
+
+    float tN = (t < -1.f ? -1.f : (t > 1.f ? 1.f : t)) * 0.5f + 0.5f;  // [0,1]
+    float arcA = (tN >= 0.5f) ? ANG_CENTER           : ANG_START + tN * SWEEP;
+    float arcB = (tN >= 0.5f) ? ANG_START + tN * SWEEP : ANG_CENTER;
+    if (arcB > arcA) {
+        dl->PathArcTo(center, trackR, arcA, arcB, 32);
+        dl->PathStroke(IM_COL32(0, 180, 210, 100), false, 2.5f);
+        dl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+        }, nullptr);
+        dl->PathArcTo(center, trackR, arcA, arcB, 32);
+        dl->PathStroke(IM_COL32(0, 220, 255,  3), false, 22.0f);
+        dl->PathArcTo(center, trackR, arcA, arcB, 32);
+        dl->PathStroke(IM_COL32(0, 220, 255,  6), false, 15.0f);
+        dl->PathArcTo(center, trackR, arcA, arcB, 32);
+        dl->PathStroke(IM_COL32(0, 220, 255, 10), false, 10.0f);
+        dl->PathArcTo(center, trackR, arcA, arcB, 32);
+        dl->PathStroke(IM_COL32(0, 220, 255, 18), false,  6.0f);
+        dl->PathArcTo(center, trackR, arcA, arcB, 32);
+        dl->PathStroke(IM_COL32(0, 220, 255, 28), false,  3.0f);
+        float sx = center.x + trackR * cosf(arcA), sy = center.y + trackR * sinf(arcA);
+        float ex = center.x + trackR * cosf(arcB), ey = center.y + trackR * sinf(arcB);
+        for (auto [cx2, cy2] : {std::pair{sx,sy}, std::pair{ex,ey}}) {
+            dl->AddCircleFilled({cx2, cy2}, 11.0f, IM_COL32(0, 220, 255,  3));
+            dl->AddCircleFilled({cx2, cy2},  8.0f, IM_COL32(0, 220, 255,  6));
+            dl->AddCircleFilled({cx2, cy2},  5.0f, IM_COL32(0, 220, 255, 10));
+            dl->AddCircleFilled({cx2, cy2},  3.0f, IM_COL32(0, 220, 255, 18));
+        }
+        dl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        }, nullptr);
+    }
+
+    // Center tick
+    float tx0 = center.x + (trackR - 3.f) * cosf(ANG_CENTER);
+    float ty0 = center.y + (trackR - 3.f) * sinf(ANG_CENTER);
+    float tx1 = center.x + (trackR + 3.f) * cosf(ANG_CENTER);
+    float ty1 = center.y + (trackR + 3.f) * sinf(ANG_CENTER);
+    dl->AddLine({tx0, ty0}, {tx1, ty1}, IM_COL32(120, 120, 180, 200), 1.5f);
+
+    ImGui::PopID();
+}
+
 // KnobEdit — KnobWidget with click-to-type inline editing (same pattern as toolbar knobs).
 // Bipolar knobs show and accept the offset from center in the edit field.
 inline bool KnobEdit(const char* id, int* value, int vmin, int vmax, bool bipolar = false)

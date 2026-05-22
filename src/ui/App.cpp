@@ -124,6 +124,25 @@ App::App() : m_audio(m_state), m_tracker(m_state), m_generalView(m_state)
     m_tracker.onInsertPatternRequested = [this]() { insertPattern(); };
     m_tracker.onLoopToggled = [this](bool loop) { m_audio.setLoopPattern(loop); };
 
+    m_sidebar.onLeafActivated = [this](int tab, int idx) {
+        m_pendingTab = tab;
+        if (tab == 3) {
+            m_instrView.setSelection(idx + 1);
+        } else if (tab == 2) {
+            m_sampleView.setSelection(idx + 1);
+        } else if (tab == 1) {
+            auto* mod = m_audio.getModule();
+            if (mod) {
+                int numOrd;
+                { std::lock_guard<std::mutex> lk(m_state.meta_mutex); numOrd = m_state.num_orders; }
+                int order = -1;
+                for (int o = 0; o < numOrd; ++o)
+                    if (mod->get_order_pattern(o) == idx) { order = o; break; }
+                if (order >= 0)
+                    m_audio.playPatternFrom(order, 0, m_tracker.getLoopPattern());
+            }
+        }
+    };
 }
 
 App::~App()
@@ -205,7 +224,24 @@ void App::render(int winW, int winH)
     ImGui::PushFont(m_fontUI);
 
     // ── Sidebar ───────────────────────────────────────────────────────────
-    drawSidebar(0.f, contentY, m_sidebarW, h - contentY);
+    {
+        SidebarData sd;
+        int numOrd = 0;
+        {
+            std::lock_guard<std::mutex> lk(m_state.meta_mutex);
+            sd.songTitle   = m_state.title;
+            sd.instrNames  = m_state.instrument_names;
+            sd.sampleNames = m_state.sample_names;
+            sd.patNames    = m_state.pattern_names;
+            numOrd         = m_state.num_orders;
+        }
+        if (auto* mod = m_audio.getModule())
+            for (int o = 0; o < numOrd; ++o) {
+                int p = mod->get_order_pattern(o);
+                if (p >= 0) sd.usedPats.insert(p);
+            }
+        m_sidebar.render(0.f, contentY, m_sidebarW, h - contentY, m_hasModule, sd);
+    }
 
     // ── Splitter (drag handle) ────────────────────────────────────────────
     {
@@ -355,203 +391,6 @@ void App::render(int winW, int winH)
     ImGui::PopFont();
 }
 
-// ─── Sidebar (module tree) ────────────────────────────────────────────────────
-
-void App::drawSidebar(float x, float y, float w, float h)
-{
-    ImGui::PushStyleColor(ImGuiCol_WindowBg,      IM_COL32(20, 20, 40, 255));
-    ImGui::PushStyleColor(ImGuiCol_Header,        IM_COL32(45, 45, 75, 255));
-    ImGui::PushStyleColor(ImGuiCol_HeaderHovered, IM_COL32(60, 60, 95, 255));
-    ImGui::PushStyleColor(ImGuiCol_HeaderActive,  IM_COL32(75, 75, 115, 255));
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,    ImVec2(8.f, 4.f));
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,      ImVec2(4.f, 2.f));
-    ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing,    12.f);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f);
-
-    ImGui::SetNextWindowPos({x, y}, ImGuiCond_Always);
-    ImGui::SetNextWindowSize({w, h}, ImGuiCond_Always);
-    ImGui::Begin("##sidebar", nullptr,
-        ImGuiWindowFlags_NoTitleBar              |
-        ImGuiWindowFlags_NoResize                |
-        ImGuiWindowFlags_NoCollapse              |
-        ImGuiWindowFlags_NoMove                  |
-        ImGuiWindowFlags_NoSavedSettings         |
-        ImGuiWindowFlags_NoScrollbar             |
-        ImGuiWindowFlags_NoScrollWithMouse);
-    ImGui::PopStyleVar(4);
-    ImGui::PopStyleColor(4);
-
-    if (!m_hasModule) {
-        ImGui::TextDisabled("No module loaded");
-        ImGui::End();
-        return;
-    }
-
-    // ── Sticky header (never scrolls) ─────────────────────────────────────────
-    {
-        std::lock_guard<std::mutex> lk(m_state.meta_mutex);
-        const char* title = m_state.title.empty() ? "(untitled)" : m_state.title.c_str();
-        ImGui::TextColored({0.75f, 0.75f, 1.f, 1.f}, "%s", title);
-    }
-
-    ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 3.f);
-
-    // ── Scrollable list ────────────────────────────────────────────────────────
-    // Extend child into the parent's right padding so the scrollbar sits flush
-    // against the sidebar edge.  Zero child padding so no extra gaps are added.
-    // Scrollbar style is pushed here (not on parent) and popped after EndChild
-    // so it is still active when ImGui renders the scrollbar in EndChild.
-    {
-        const float rp    = ImGui::GetStyle().WindowPadding.x;
-        const float sw    = ImGui::GetStyle().ScrollbarSize;
-        const float childW = ImGui::GetContentRegionAvail().x + rp;
-        ImGui::SetNextWindowContentSize({childW - sw, 0.f});
-        ImGui::PushStyleColor(ImGuiCol_ScrollbarBg,          IM_COL32( 12,  12,  22, 255));
-        ImGui::PushStyleColor(ImGuiCol_ScrollbarGrab,        IM_COL32( 40,  85, 145, 200));
-        ImGui::PushStyleColor(ImGuiCol_ScrollbarGrabHovered, IM_COL32( 55, 112, 175, 230));
-        ImGui::PushStyleColor(ImGuiCol_ScrollbarGrabActive,  IM_COL32( 66, 130, 205, 255));
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.f, 0.f));
-        ImGui::BeginChild("##sidebar_scroll", {childW, 0.f}, false, 0);
-        ImGui::PopStyleVar(1);  // WindowPadding — no longer needed after Begin
-    }
-
-    // Helper: draw a numbered list under a collapsing section.
-    // Returns the index that was clicked, or -1.
-    auto section = [&](const char* label,
-                        const std::vector<std::string>& names,
-                        int tabSwitch,
-                        int activeSel = -1) -> int
-    {
-        char header[64];
-        snprintf(header, sizeof(header), "%s (%d)##hdr", label, (int)names.size());
-
-        int clicked = -1;
-        ImGuiTreeNodeFlags nodeFlags =
-            ImGuiTreeNodeFlags_DefaultOpen |
-            ImGuiTreeNodeFlags_SpanAvailWidth;
-
-        const bool navKey = ImGui::IsKeyPressed(ImGuiKey_UpArrow,   true)
-                         || ImGui::IsKeyPressed(ImGuiKey_DownArrow, true);
-        if (ImGui::TreeNodeEx(header, nodeFlags)) {
-            ImGui::PushStyleColor(ImGuiCol_NavHighlight, IM_COL32(0, 0, 0, 0));
-            for (int i = 0; i < (int)names.size(); ++i) {
-                ImGui::PushID(i);
-                char row[256];
-                snprintf(row, sizeof(row), "%3d  %s", i + 1,
-                         names[i].empty() ? "---" : names[i].c_str());
-                bool isActive = (i + 1 == activeSel);
-                if (ImGui::Selectable(row, isActive, 0, {0.f, 0.f}))
-                    clicked = i;
-                if (ImGui::IsItemFocused() && navKey)
-                    clicked = i;
-                if (clicked == i) {
-                    m_pendingTab = tabSwitch;
-                }
-                ImGui::PopID();
-            }
-            ImGui::PopStyleColor();
-            ImGui::TreePop();
-        }
-        return clicked;
-    };
-
-    // Patterns use 0-based numbering and a different tab index.
-    // Returns the clicked pattern index, or -1.
-    auto patSection = [&]() -> int {
-        int numPat = 0, numOrd = 0;
-        std::vector<std::string> patNames;
-        {
-            std::lock_guard<std::mutex> lk(m_state.meta_mutex);
-            numPat   = m_state.num_patterns;
-            numOrd   = m_state.num_orders;
-            patNames = m_state.pattern_names;
-        }
-
-        // Build set of patterns actually referenced in the order list
-        std::unordered_set<int> usedPats;
-        if (auto* mod = m_audio.getModule()) {
-            for (int o = 0; o < numOrd; ++o) {
-                int p = mod->get_order_pattern(o);
-                if (p >= 0) usedPats.insert(p);
-            }
-        }
-
-        char header[64];
-        snprintf(header, sizeof(header), "Patterns (%d)##hdr", numPat);
-
-        ImGuiTreeNodeFlags nodeFlags =
-            ImGuiTreeNodeFlags_DefaultOpen |
-            ImGuiTreeNodeFlags_SpanAvailWidth;
-
-        const bool navKey = ImGui::IsKeyPressed(ImGuiKey_UpArrow,   true)
-                         || ImGui::IsKeyPressed(ImGuiKey_DownArrow, true);
-        int clicked = -1;
-        if (ImGui::TreeNodeEx(header, nodeFlags)) {
-            ImGui::PushStyleColor(ImGuiCol_NavHighlight, IM_COL32(0, 0, 0, 0));
-            for (int i = 0; i < numPat; ++i) {
-                bool used = usedPats.count(i) > 0;
-                ImGui::PushID(i + 10000);
-                char row[256];
-                const std::string& name = (i < (int)patNames.size()) ? patNames[i] : "";
-                snprintf(row, sizeof(row), "%3d  %s", i,
-                         name.empty() ? "---" : name.c_str());
-                if (!used) ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(180, 180, 200, 200));
-                if (ImGui::Selectable(row, false,
-                        used ? 0 : ImGuiSelectableFlags_Disabled, {0.f, 0.f}))
-                    clicked = i;
-                if (ImGui::IsItemFocused() && navKey && used)
-                    clicked = i;
-                if (!used) ImGui::PopStyleColor();
-                ImGui::PopID();
-            }
-            ImGui::PopStyleColor();
-            ImGui::TreePop();
-        }
-        return clicked;
-    };
-
-    // Render sections with brief locks to copy the name vectors
-    std::vector<std::string> instrNames, sampleNames;
-    {
-        std::lock_guard<std::mutex> lk(m_state.meta_mutex);
-        instrNames  = m_state.instrument_names;
-        sampleNames = m_state.sample_names;
-    }
-
-    if (!instrNames.empty()) {
-        int clicked = section("Instruments", instrNames, 3, m_instrView.getSelection());
-        if (clicked >= 0)
-            m_instrView.setSelection(clicked + 1);
-    }
-
-    {
-        int clicked = section("Samples", sampleNames, 2, m_sampleView.getSelection());
-        if (clicked >= 0)
-            m_sampleView.setSelection(clicked + 1);
-    }
-    {
-        int clickedPat = patSection();
-        if (clickedPat >= 0) {
-            m_pendingTab = 1;
-            // Find the first order position that references this pattern, then play it looped
-            auto* mod = m_audio.getModule();
-            if (mod) {
-                int numOrd = m_state.num_orders;
-                int order  = -1;
-                for (int o = 0; o < numOrd; ++o) {
-                    if (mod->get_order_pattern(o) == clickedPat) { order = o; break; }
-                }
-                if (order >= 0)
-                    m_audio.playPatternFrom(order, 0, m_tracker.getLoopPattern());
-            }
-        }
-    }
-
-    ImGui::EndChild();
-    ImGui::PopStyleColor(4); // scrollbar colors
-
-    ImGui::End();
-}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -666,6 +505,7 @@ void App::clearModule()
     m_generalView.clearModule();
     m_instrView.clearModule();
     m_sampleView.clearModule();
+    m_sidebar.resetState();
     m_state.reset();
     m_hasModule  = false;
     m_loadedPath.clear();

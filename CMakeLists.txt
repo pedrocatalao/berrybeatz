@@ -72,6 +72,7 @@ set(SOURCES
     src/core/OpenMPTInternalGet.cpp
     # ui — ImGui views and widgets
     src/ui/App.cpp
+    src/ui/SidebarView.cpp
     src/ui/GeneralView.cpp
     src/ui/InstrumentView.cpp
     src/ui/SampleView.cpp

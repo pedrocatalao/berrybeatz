@@ -12,6 +12,7 @@
 #include "SettingsView.h"
 #include "Settings.h"
 #include "MidiEngine.h"
+#include "SidebarView.h"
 #include <string>
 
 struct ImFont;
@@ -30,7 +31,6 @@ public:
 
 private:
     void syncToolbarState();
-    void drawSidebar(float x, float y, float w, float h);
     void drawSamplesTab();
     void drawInstrumentsTab();
     void drawCommentsTab();
@@ -57,6 +57,7 @@ private:
     SettingsView   m_settingsView;
     Settings       m_settings;
     MidiEngine     m_midi;
+    SidebarView    m_sidebar;
 
     GLFWwindow* m_glfwWindow {nullptr};
     ImFont*     m_fontMono   {nullptr};

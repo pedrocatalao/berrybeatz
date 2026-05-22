@@ -14,6 +14,7 @@
 //  10000+    = reserved for future sound banks
 //  20000+    = reserved for future sound banks
 
+static constexpr int kIdSongRoot    = 0;
 static constexpr int kIdInstrGroup  = 1;
 static constexpr int kIdSampleGroup = 2;
 static constexpr int kIdPatGroup    = 3;
@@ -45,20 +46,28 @@ void SidebarView::buildNodes(std::vector<Node>& out, const SidebarData& d) const
 {
     out.clear();
 
+    // ── Song root ─────────────────────────────────────────────────────────────
+    char rootLabel[256];
+    snprintf(rootLabel, sizeof(rootLabel), "%s  %s",
+             isExpanded(kIdSongRoot) ? "-" : "+",
+             d.songTitle.empty() ? "(untitled)" : d.songTitle.c_str());
+    out.push_back({kIdSongRoot, 0, true, true, rootLabel, -1, -1});
+    if (!isExpanded(kIdSongRoot)) return;
+
     // ── Instruments ──────────────────────────────────────────────────────────
     if (!d.instrNames.empty()) {
         char grpLabel[64];
-        snprintf(grpLabel, sizeof(grpLabel), "%s  Instruments (%d)",
+        snprintf(grpLabel, sizeof(grpLabel), "  %s  Instruments (%d)",
                  isExpanded(kIdInstrGroup) ? "-" : "+",
                  (int)d.instrNames.size());
-        out.push_back({kIdInstrGroup, 0, true, true, grpLabel, -1, -1});
+        out.push_back({kIdInstrGroup, 1, true, true, grpLabel, -1, -1});
 
         if (isExpanded(kIdInstrGroup)) {
             for (int i = 0; i < (int)d.instrNames.size(); ++i) {
                 char row[256];
-                snprintf(row, sizeof(row), "  %02d  %s", i + 1,
+                snprintf(row, sizeof(row), "    %02d  %s", i + 1,
                          d.instrNames[i].empty() ? "---" : d.instrNames[i].c_str());
-                out.push_back({kBaseInstr + i, 1, false, true, row, 3, i});
+                out.push_back({kBaseInstr + i, 2, false, true, row, 3, i});
             }
         }
     }
@@ -66,17 +75,17 @@ void SidebarView::buildNodes(std::vector<Node>& out, const SidebarData& d) const
     // ── Samples ──────────────────────────────────────────────────────────────
     {
         char grpLabel[64];
-        snprintf(grpLabel, sizeof(grpLabel), "%s  Samples (%d)",
+        snprintf(grpLabel, sizeof(grpLabel), "  %s  Samples (%d)",
                  isExpanded(kIdSampleGroup) ? "-" : "+",
                  (int)d.sampleNames.size());
-        out.push_back({kIdSampleGroup, 0, true, true, grpLabel, -1, -1});
+        out.push_back({kIdSampleGroup, 1, true, true, grpLabel, -1, -1});
 
         if (isExpanded(kIdSampleGroup)) {
             for (int i = 0; i < (int)d.sampleNames.size(); ++i) {
                 char row[256];
-                snprintf(row, sizeof(row), "  %02d  %s", i + 1,
+                snprintf(row, sizeof(row), "    %02d  %s", i + 1,
                          d.sampleNames[i].empty() ? "---" : d.sampleNames[i].c_str());
-                out.push_back({kBaseSample + i, 1, false, true, row, 2, i});
+                out.push_back({kBaseSample + i, 2, false, true, row, 2, i});
             }
         }
     }
@@ -84,18 +93,18 @@ void SidebarView::buildNodes(std::vector<Node>& out, const SidebarData& d) const
     // ── Patterns ─────────────────────────────────────────────────────────────
     {
         char grpLabel[64];
-        snprintf(grpLabel, sizeof(grpLabel), "%s  Patterns (%d)",
+        snprintf(grpLabel, sizeof(grpLabel), "  %s  Patterns (%d)",
                  isExpanded(kIdPatGroup) ? "-" : "+",
                  (int)d.patNames.size());
-        out.push_back({kIdPatGroup, 0, true, true, grpLabel, -1, -1});
+        out.push_back({kIdPatGroup, 1, true, true, grpLabel, -1, -1});
 
         if (isExpanded(kIdPatGroup)) {
             for (int i = 0; i < (int)d.patNames.size(); ++i) {
                 bool used = d.usedPats.count(i) > 0;
                 char row[256];
-                snprintf(row, sizeof(row), "  %02d  %s", i,
+                snprintf(row, sizeof(row), "    %02d  %s", i,
                          d.patNames[i].empty() ? "---" : d.patNames[i].c_str());
-                out.push_back({kBasePat + i, 1, false, used, row, 1, i});
+                out.push_back({kBasePat + i, 2, false, used, row, 1, i});
             }
         }
     }
@@ -104,7 +113,8 @@ void SidebarView::buildNodes(std::vector<Node>& out, const SidebarData& d) const
 // ─── render ──────────────────────────────────────────────────────────────────
 
 void SidebarView::render(float x, float y, float w, float h,
-                         bool hasModule, const SidebarData& data)
+                         bool hasModule, const SidebarData& data,
+                         float topPad)
 {
     // ── Window style ──────────────────────────────────────────────────────────
     ImGui::PushStyleColor(ImGuiCol_WindowBg, IM_COL32(20, 20, 40, 255));
@@ -135,10 +145,8 @@ void SidebarView::render(float x, float y, float w, float h,
         return;
     }
 
-    // ── Sticky title ──────────────────────────────────────────────────────────
-    const char* title = data.songTitle.empty() ? "(untitled)" : data.songTitle.c_str();
-    ImGui::TextColored({0.75f, 0.75f, 1.f, 1.f}, "%s", title);
-    ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 3.f);
+    if (topPad > 0.f)
+        ImGui::SetCursorPosY(ImGui::GetCursorPosY() + topPad);
 
     // ── Scrollable child ──────────────────────────────────────────────────────
     {

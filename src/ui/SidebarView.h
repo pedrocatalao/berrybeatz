@@ -20,7 +20,8 @@ public:
     std::function<void(int tab, int idx)> onLeafActivated;
 
     void render(float x, float y, float w, float h,
-                bool hasModule, const SidebarData& data);
+                bool hasModule, const SidebarData& data,
+                float topPad = 0.f);
 
     // Call when a new module is loaded/cleared so stale cursor state is reset.
     void resetState();

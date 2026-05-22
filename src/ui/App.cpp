@@ -240,7 +240,7 @@ void App::render(int winW, int winH)
                 int p = mod->get_order_pattern(o);
                 if (p >= 0) sd.usedPats.insert(p);
             }
-        m_sidebar.render(0.f, contentY, m_sidebarW, h - contentY, m_hasModule, sd);
+        m_sidebar.render(0.f, contentY, m_sidebarW, h - contentY, m_hasModule, sd, kTabBarH);
     }
 
     // ── Splitter (drag handle) ────────────────────────────────────────────

@@ -1,6 +1,6 @@
 # BerryBeatz
 
-![BerryBeatz](assets/berrybeatz4-banner.png)
+<img src="assets/berrybeatz4-banner.png" width="600"/>
 
 **BerryBeatz** is a native macOS tracker app — a modern, GPU-accelerated frontend for the [OpenMPT](https://openmpt.org) engine, built from scratch with Dear ImGui. Load any classic module file and you get a full pattern editor, instrument and sample editors, live MIDI preview, and a custom borderless UI that feels native on Apple Silicon.
 

@@ -747,8 +747,8 @@ void InstrumentView::drawNoteKeyboard(float w, float h) {
                                                : IM_COL32(230, 230, 240, 255);
 
         uint16_t smp = m_data.keyboard[note - 1];
-        if (smp != 0 && !isHit && !isPlay && !hov)
-            col = IM_COL32(180, 220, 200, 255);
+        if (smp == 0 && !isHit && !isPlay && !isKb && !hov)
+            col = IM_COL32(185, 185, 192, 255);
 
         dl->AddRectFilled(kMin, kMax, col);
         dl->AddRect(kMin, kMax, IM_COL32(80, 80, 100, 255), 0.f, 0, 0.5f);
@@ -780,7 +780,7 @@ void InstrumentView::drawNoteKeyboard(float w, float h) {
             if (tsz.x < whiteW - 2.f)
                 dl->AddText(m_fontMono, 8.f,
                     {kx + (whiteW - tsz.x) * 0.5f, ky + whiteH - tsz.y - 2.f},
-                    IM_COL32(0, 60, 0, 200), sbuf);
+                    IM_COL32(60, 60, 80, 180), sbuf);
         }
         ++whiteIndex;
     }
@@ -806,8 +806,8 @@ void InstrumentView::drawNoteKeyboard(float w, float h) {
                                                : IM_COL32(30, 30, 40, 255);
 
         uint16_t smp = m_data.keyboard[note - 1];
-        if (smp != 0 && !isHit && !isPlay && !isKb && !hov)
-            col = IM_COL32(20, 60, 40, 255);
+        if (smp == 0 && !isHit && !isPlay && !isKb && !hov)
+            col = IM_COL32(50, 50, 58, 255);
 
         dl->AddRectFilled(kMin, kMax, col);
         dl->AddRect(kMin, kMax, IM_COL32(0, 0, 0, 255), 0.f, 0, 0.5f);

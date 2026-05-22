@@ -148,5 +148,5 @@ private:
     bool    m_followSong    {true};
     int32_t m_curInstrument {0};
     bool    m_overflowPaste {false};
-    bool    m_detailView    {false};
+    int     m_detailView    {0};     // 0=note+inst+vol+fx, 1=+vol, 2=+inst, 3=note
 };

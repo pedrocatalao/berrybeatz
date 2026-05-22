@@ -103,7 +103,9 @@ void TrackerView::render(float x, float y, float w, float h) {
     if (m_fontMono) ImGui::PushFont(m_fontMono);
     m_charW   = ImGui::CalcTextSize("A").x;
     m_rowNumW = m_charW * 3.0f + 2.0f;
-    m_cellW   = m_charW * 11.0f + 26.0f;
+    static constexpr float kCellChars[4] = {11.f, 8.f, 5.f, 3.f};
+    static constexpr float kCellPad[4]  = {26.f, 20.f, 14.f, 8.f};
+    m_cellW = m_charW * kCellChars[m_detailView] + kCellPad[m_detailView];
     m_rowH    = ImGui::GetTextLineHeightWithSpacing();
     if (m_fontMono) ImGui::PopFont();
 
@@ -293,7 +295,23 @@ void TrackerView::drawPatternToolbar3(float /*x*/, float /*y*/, float /*w*/) {
     ImGui::SameLine();
     togBtn("Follow##fw",         m_followSong);     tip("Follow playback cursor");
     tbSep();
-    togBtn("Detail##detail",     m_detailView);     tip("Detail view");
+    {
+        bool wasActive = m_detailView > 0;
+        if (wasActive) {
+            ImGui::PushStyleColor(ImGuiCol_Button,        IM_COL32(64, 64, 160, 255));
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(80, 80, 190, 255));
+        }
+        if (ImGui::Button("Detail##detail"))
+            m_detailView = (m_detailView + 1) % 4;
+        if (wasActive) ImGui::PopStyleColor(2);
+    }
+    static const char* detailTips[] = {
+        "Note + Instrument + Volume + Effect",
+        "Note + Instrument + Volume",
+        "Note + Instrument",
+        "Note only",
+    };
+    tip(detailTips[m_detailView]);
     tbSep();
     togBtn("Overflow##ovf",      m_overflowPaste);  tip("Overflow paste");
 
@@ -936,7 +954,11 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
                     rMin, rMax, IM_COL32(80, 80, 200, 60));
             }
 
-            float subX[5], subW[5];
+            const bool showInst = m_detailView <= 2;
+            const bool showVol  = m_detailView <= 1;
+            const bool showFx   = m_detailView == 0;
+
+            float subX[5] = {}, subW[5] = {};
             float cellY = 0.f;
             auto recordPos = [&](int col) {
                 ImVec2 cp = ImGui::GetCursorScreenPos();
@@ -945,18 +967,19 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
             };
 
             std::string note  = m_mod->format_pattern_row_channel_command(curPat, r, ch, openmpt::module::command_note);
-            std::string inst  = m_mod->format_pattern_row_channel_command(curPat, r, ch, openmpt::module::command_instrument);
-            std::string volFx = m_mod->format_pattern_row_channel_command(curPat, r, ch, openmpt::module::command_volumeffect);
-            std::string volV  = m_mod->format_pattern_row_channel_command(curPat, r, ch, openmpt::module::command_volume);
+            std::string inst  = showInst ? m_mod->format_pattern_row_channel_command(curPat, r, ch, openmpt::module::command_instrument) : "";
+            std::string volFx = showVol  ? m_mod->format_pattern_row_channel_command(curPat, r, ch, openmpt::module::command_volumeffect) : "";
+            std::string volV  = showVol  ? m_mod->format_pattern_row_channel_command(curPat, r, ch, openmpt::module::command_volume)       : "";
             std::string vol   = volFx + volV;
-            std::string fx    = m_mod->format_pattern_row_channel_command(curPat, r, ch, openmpt::module::command_effect);
-            std::string fxp   = m_mod->format_pattern_row_channel_command(curPat, r, ch, openmpt::module::command_parameter);
+            std::string fx    = showFx   ? m_mod->format_pattern_row_channel_command(curPat, r, ch, openmpt::module::command_effect)       : "";
+            std::string fxp   = showFx   ? m_mod->format_pattern_row_channel_command(curPat, r, ch, openmpt::module::command_parameter)    : "";
 
             bool hasNote = !note.empty() && note != "..." && note != "---";
-            bool hasInst = !inst.empty() && inst != ".." && inst != "00";
-            bool hasVol  = !volFx.empty() && volFx != "." && volFx != "..."
+            bool hasInst = showInst && !inst.empty() && inst != ".." && inst != "00";
+            bool hasVol  = showVol
+                        && !volFx.empty() && volFx != "." && volFx != "..."
                         && !volV.empty()  && volV  != ".." && volV != ".";
-            bool hasFx   = !fx.empty()    && fx    != ".";
+            bool hasFx   = showFx && !fx.empty() && fx != ".";
 
             {
                 ImVec2 cur = ImGui::GetCursorScreenPos();
@@ -964,29 +987,36 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
             }
             recordPos(0);
             ImGui::TextColored(hasNote ? kColNote : kDim, "%-3s", hasNote ? note.c_str() : "\xc2\xb7\xc2\xb7\xc2\xb7");
-            subW[0] = ImGui::GetItemRectSize().x + 6;
-            ImGui::SameLine(0, 6); recordPos(1);
-            ImGui::TextColored(hasInst ? kColInstr : kDim, "%-2s", hasInst ? inst.c_str() : "\xc2\xb7\xc2\xb7");
-            subW[1] = ImGui::GetItemRectSize().x + 6;
-            ImGui::SameLine(0, 6); recordPos(2);
-            ImGui::TextColored(hasVol ? kColVolume : kDim, "%-3s", hasVol ? vol.c_str() : "\xc2\xb7\xc2\xb7\xc2\xb7");
-            subW[2] = ImGui::GetItemRectSize().x + 6;
-            ImGui::SameLine(0, 6); recordPos(3);
-            ImGui::TextColored(hasFx ? kColGlobal : kDim, "%s",   hasFx ? fx.c_str()  : "\xc2\xb7");
-            subW[3] = ImGui::GetItemRectSize().x;
-            ImGui::SameLine(0, 0); recordPos(4);
-            ImGui::TextColored(hasFx ? kColGlobal : kDim, "%-2s", hasFx ? fxp.c_str() : "\xc2\xb7\xc2\xb7");
-            subW[4] = ImGui::GetItemRectSize().x;
+            subW[0] = ImGui::GetItemRectSize().x + (showInst ? 6.f : 0.f);
+            if (showInst) {
+                ImGui::SameLine(0, 6); recordPos(1);
+                ImGui::TextColored(hasInst ? kColInstr : kDim, "%-2s", hasInst ? inst.c_str() : "\xc2\xb7\xc2\xb7");
+                subW[1] = ImGui::GetItemRectSize().x + (showVol ? 6.f : 0.f);
+            }
+            if (showVol) {
+                ImGui::SameLine(0, 6); recordPos(2);
+                ImGui::TextColored(hasVol ? kColVolume : kDim, "%-3s", hasVol ? vol.c_str() : "\xc2\xb7\xc2\xb7\xc2\xb7");
+                subW[2] = ImGui::GetItemRectSize().x + (showFx ? 6.f : 0.f);
+            }
+            if (showFx) {
+                ImGui::SameLine(0, 6); recordPos(3);
+                ImGui::TextColored(hasFx ? kColGlobal : kDim, "%s",   hasFx ? fx.c_str()  : "\xc2\xb7");
+                subW[3] = ImGui::GetItemRectSize().x;
+                ImGui::SameLine(0, 0); recordPos(4);
+                ImGui::TextColored(hasFx ? kColGlobal : kDim, "%-2s", hasFx ? fxp.c_str() : "\xc2\xb7\xc2\xb7");
+                subW[4] = ImGui::GetItemRectSize().x;
+            }
 
             if (isEditCell) {
-                int col = int(m_cur.col);
+                int lastCol = showFx ? 4 : (showVol ? 2 : (showInst ? 1 : 0));
+                int col = std::min(int(m_cur.col), lastCol);
                 float y0 = ImGui::GetItemRectMin().y;
                 float y1 = ImGui::GetItemRectMax().y;
                 ImU32 hilite = IM_COL32(255, 220, 80, 80);
                 ImGui::GetWindowDrawList()->AddRectFilled(
                     {subX[col]-1, y0}, {subX[col]+subW[col], y1+1}, hilite);
                 float x0cell = subX[0] - 1;
-                float x1cell = subX[4] + subW[4] + 1;
+                float x1cell = subX[lastCol] + subW[lastCol] + 1;
                 ImGui::GetWindowDrawList()->AddRect(
                     {x0cell, y0-1}, {x1cell, y1+1}, IM_COL32(255,255,255,220));
             }
@@ -1021,9 +1051,9 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
                         gdl->AddText(font, fsz, {gx+3, cellY+3}, gc3, txt);
                     }
                 };
-                if (hasNote) addGlowText(subX[0], kColNote,   note.c_str());
-                if (hasInst) addGlowText(subX[1], kColInstr,  inst.c_str());
-                if (hasVol)  addGlowText(subX[2], kColVolume, vol.c_str());
+                if (hasNote)              addGlowText(subX[0], kColNote,   note.c_str());
+                if (hasInst)              addGlowText(subX[1], kColInstr,  inst.c_str());
+                if (hasVol)               addGlowText(subX[2], kColVolume, vol.c_str());
                 if (hasFx) {
                     addGlowText(subX[3], kColGlobal, fx.c_str());
                     addGlowText(subX[4], kColGlobal, fxp.c_str());

@@ -637,7 +637,7 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
     // Handle click to move edit cursor.
     // Uses m_tableOriginX/Y measured from inside the table loop last frame,
     // which correctly accounts for table cell padding.
-    if (ImGui::IsMouseClicked(0) && m_rowH > 0.f && m_tableOriginY > 0.f) {
+    if (ImGui::IsMouseClicked(0) && ImGui::IsWindowHovered(ImGuiHoveredFlags_RootAndChildWindows) && m_rowH > 0.f && m_tableOriginY > 0.f) {
         ImVec2 mp = ImGui::GetIO().MousePos;
         ImVec2 wp = ImGui::GetWindowPos();
         ImVec2 ws = ImGui::GetWindowSize();

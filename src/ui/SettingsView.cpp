@@ -86,14 +86,26 @@ void SettingsView::draw()
                          IM_COL32(200, 200, 220, 255), title);
         }
 
-        // Drag handle over title bar — updates stored position each frame
+        // Drag handle over title bar (excludes X button area)
         ImGui::SetCursorPos({0.f, 0.f});
-        ImGui::InvisibleButton("##drag", {kW, kTitleH});
+        ImGui::InvisibleButton("##drag", {kW - kTitleH, kTitleH});
         if (ImGui::IsItemActive() && ImGui::IsMouseDragging(ImGuiMouseButton_Left, 0.f)) {
             ImVec2 d = ImGui::GetIO().MouseDelta;
             m_winPosX += d.x;
             m_winPosY += d.y;
         }
+
+        // X close button
+        ImGui::SetCursorPos({kW - kTitleH, 0.f});
+        ImGui::PushStyleColor(ImGuiCol_Button,        IM_COL32(0, 0, 0, 0));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(160, 30, 30, 200));
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive,  IM_COL32(200, 50, 50, 255));
+        ImGui::PushStyleColor(ImGuiCol_Text,          IM_COL32(180, 180, 200, 220));
+        if (ImGui::Button("\xc3\x97##close", {kTitleH, kTitleH})) {
+            m_open = false;
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::PopStyleColor(4);
 
         // ── Tabs ─────────────────────────────────────────────────────────────
         ImGui::SetCursorPos({0.f, kTitleH});
@@ -103,21 +115,6 @@ void SettingsView::draw()
             if (ImGui::BeginTabItem("MIDI"))    { drawMidiTab();    ImGui::EndTabItem(); }
             if (ImGui::BeginTabItem("Editor"))  { drawEditorTab();  ImGui::EndTabItem(); }
             ImGui::EndTabBar();
-        }
-
-        // ── Buttons ──────────────────────────────────────────────────────────
-        ImGui::SetCursorPosY(kH - 34.f);
-        ImGui::Separator();
-        ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 4.f);
-        if (ImGui::Button("Apply", {80.f, 0.f})) {
-            if (onApply) onApply(m_pending);
-            m_open = false;
-            ImGui::CloseCurrentPopup();
-        }
-        ImGui::SameLine();
-        if (ImGui::Button("Cancel", {80.f, 0.f})) {
-            m_open = false;
-            ImGui::CloseCurrentPopup();
         }
 
         ImGui::EndPopup();
@@ -145,12 +142,14 @@ void SettingsView::drawAudioTab()
         if (ImGui::Selectable("(Default)", m_audioDevSel == 0)) {
             m_audioDevSel = 0;
             m_pending.audioDeviceIndex = -1;
+            if (onApply) onApply(m_pending);
         }
         for (int i = 0; i < (int)m_audioDevs.size(); ++i) {
             bool sel = (m_audioDevSel == i + 1);
             if (ImGui::Selectable(m_audioDevs[i].name.c_str(), sel)) {
                 m_audioDevSel = i + 1;
                 m_pending.audioDeviceIndex = m_audioDevs[i].index;
+                if (onApply) onApply(m_pending);
             }
             if (sel) ImGui::SetItemDefaultFocus();
         }
@@ -174,6 +173,7 @@ void SettingsView::drawAudioTab()
             if (ImGui::Selectable(kRateLabels[i], rateIdx == i)) {
                 m_pending.sampleRate = kRates[i];
                 rateIdx = i;
+                if (onApply) onApply(m_pending);
             }
             if (rateIdx == i) ImGui::SetItemDefaultFocus();
         }
@@ -181,7 +181,7 @@ void SettingsView::drawAudioTab()
     }
 
     ImGui::Spacing();
-    ImGui::TextDisabled("Changes take effect when playback is next started.");
+    ImGui::TextDisabled("Audio changes take effect when playback is next started.");
 }
 
 bool SettingsView::isLearning() const { return m_learnTarget >= 0; }
@@ -198,6 +198,7 @@ void SettingsView::feedMidiCC(int cc)
     };
     *targets[m_learnTarget] = cc;
     m_learnTarget = -1;
+    if (onApply) onApply(m_pending);
 }
 
 void SettingsView::drawMidiTab()
@@ -217,6 +218,7 @@ void SettingsView::drawMidiTab()
             m_midiDevSel = 0;
             m_pending.midiInputIndex = -1;
             if (onMidiSourceChange) onMidiSourceChange(-1);
+            if (onApply) onApply(m_pending);
         }
         for (int i = 0; i < (int)m_midiDevs.size(); ++i) {
             bool sel = (m_midiDevSel == i + 1);
@@ -224,6 +226,7 @@ void SettingsView::drawMidiTab()
                 m_midiDevSel = i + 1;
                 m_pending.midiInputIndex = m_midiDevs[i].index;
                 if (onMidiSourceChange) onMidiSourceChange(m_midiDevs[i].index);
+                if (onApply) onApply(m_pending);
             }
             if (sel) ImGui::SetItemDefaultFocus();
         }
@@ -286,6 +289,7 @@ void SettingsView::drawMidiTab()
                 if (ImGui::SmallButton("Clear")) {
                     *row.cc = -1;
                     if (m_learnTarget == row.target) m_learnTarget = -1;
+                    if (onApply) onApply(m_pending);
                 }
             }
 
@@ -304,25 +308,31 @@ void SettingsView::drawMidiTab()
 void SettingsView::drawEditorTab()
 {
     ImGui::Spacing();
-    ImGui::Checkbox("Follow playback cursor", &m_pending.followPlayback);
-    ImGui::Checkbox("Wrap cursor at pattern end", &m_pending.wrapCursor);
+    if (ImGui::Checkbox("Follow playback cursor", &m_pending.followPlayback))
+        if (onApply) onApply(m_pending);
+    if (ImGui::Checkbox("Wrap cursor at pattern end", &m_pending.wrapCursor))
+        if (onApply) onApply(m_pending);
 }
 
 void SettingsView::drawGeneralTab()
 {
-    auto togBtn = [](const char* lbl, bool& state) {
-        if (state) {
+    auto togBtn = [](const char* lbl, bool& state) -> bool {
+        bool isOn = state;
+        if (isOn) {
             ImGui::PushStyleColor(ImGuiCol_Button,        IM_COL32(64, 64, 160, 255));
             ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(80, 80, 190, 255));
         }
-        if (ImGui::Button(lbl)) state = !state;
-        if (state) ImGui::PopStyleColor(2);
+        bool clicked = ImGui::Button(lbl);
+        if (isOn) ImGui::PopStyleColor(2);
+        if (clicked) state = !state;
+        return clicked;
     };
 
     ImGui::Spacing();
     ImGui::TextUnformatted("Glow Level");
     ImGui::SetNextItemWidth(200.f);
     ImGui::SliderInt("##glowlevel", &m_pending.glowLevel, 0, 10);
+    if (ImGui::IsItemDeactivatedAfterEdit() && onApply) onApply(m_pending);
     ImGui::SameLine();
     if (m_pending.glowLevel == 0)
         ImGui::TextDisabled("Off");
@@ -332,8 +342,10 @@ void SettingsView::drawGeneralTab()
     ImGui::Spacing();
     ImGui::TextUnformatted("Glow Elements");
     ImGui::Spacing();
-    togBtn("Logo##gl",    m_pending.glowLogo);    ImGui::SameLine(0, 4);
-    togBtn("VU##gl",      m_pending.glowVU);      ImGui::SameLine(0, 4);
-    togBtn("Pattern##gl", m_pending.glowPattern); ImGui::SameLine(0, 4);
-    togBtn("Knobs##gl",   m_pending.glowKnobs);
+    bool changed = false;
+    changed |= togBtn("Logo##gl",    m_pending.glowLogo);    ImGui::SameLine(0, 4);
+    changed |= togBtn("VU##gl",      m_pending.glowVU);      ImGui::SameLine(0, 4);
+    changed |= togBtn("Pattern##gl", m_pending.glowPattern); ImGui::SameLine(0, 4);
+    changed |= togBtn("Knobs##gl",   m_pending.glowKnobs);
+    if (changed && onApply) onApply(m_pending);
 }

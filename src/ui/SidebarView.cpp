@@ -287,10 +287,12 @@ void SidebarView::render(float x, float y, float w, float h,
         if (n.isGroup) {
             // Draw ImGui-style arrow — same style as TreeNodeEx (full scale, text color)
             {
-                ImVec2 p  = ImGui::GetCursorScreenPos();
-                float  sz = ImGui::GetTextLineHeight();
+                ImVec2 p    = ImGui::GetCursorScreenPos();
+                float  sz   = ImGui::GetTextLineHeight();
+                float  rowH = ImGui::GetTextLineHeightWithSpacing();
+                float  yOff = (rowH - sz * 0.7f) * 0.5f;
                 ImGui::RenderArrow(ImGui::GetWindowDrawList(),
-                    {p.x + n.depth * sz, p.y},
+                    {p.x + n.depth * sz, p.y + yOff},
                     IM_COL32(180, 200, 230, 220),
                     isExpanded(n.id) ? ImGuiDir_Down : ImGuiDir_Right,
                     0.7f);

@@ -145,7 +145,8 @@ private:
     bool    m_showWave      {true};
     bool    m_showPluginRow {true};
     bool    m_loopPattern   {false};
-    bool    m_followSong    {true};
+    bool    m_followSong         {true};
+    float   m_scrollSuppressTimer {0.f};  // seconds remaining before follow re-engages
     int32_t m_curInstrument {0};
     bool    m_overflowPaste {false};
     int     m_detailView    {0};     // 0=note+inst+vol+fx, 1=+vol, 2=+inst, 3=note

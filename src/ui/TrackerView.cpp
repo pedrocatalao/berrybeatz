@@ -831,6 +831,22 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
     }
 
     float currentScrollY = ImGui::GetScrollY();
+
+    // Manual vertical scroll while hovered → suppress follow for 1 second.
+    // Ignore when horizontal component dominates (trackpad horizontal swipe bleed).
+    const float dt = ImGui::GetIO().DeltaTime;
+    {
+        const float wy = ImGui::GetIO().MouseWheel;
+        const float wx = ImGui::GetIO().MouseWheelH;
+        if (std::abs(wy) > std::abs(wx) &&
+            ImGui::IsWindowHovered(ImGuiHoveredFlags_RootAndChildWindows))
+        {
+            m_scrollSuppressTimer = 1.0f;
+        }
+    }
+    if (m_scrollSuppressTimer > 0.f)
+        m_scrollSuppressTimer = std::max(0.f, m_scrollSuppressTimer - dt);
+
     bool  playing    = m_state.is_playing.load();
     bool  patChanged = (curPat != m_lastPattern);
     bool  rowRewound = (playing && !m_editMode && curRow < m_lastRow - 2);
@@ -842,9 +858,8 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
         int32_t snapRow = m_editMode ? m_cur.row : curRow;
         newScrollY  = float(snapRow) * rowH - visH * 0.5f + rowH * 0.5f;
         forceScroll = true;
-    } else if (playing && !m_editMode && m_followSong) {
+    } else if (playing && !m_editMode && m_followSong && m_scrollSuppressTimer == 0.f) {
         float targetY = float(curRow) * rowH - visH * 0.5f + rowH * 0.5f;
-        float dt = ImGui::GetIO().DeltaTime;
         newScrollY  = currentScrollY + (targetY - currentScrollY) * std::min(1.0f, 8.0f * dt);
         forceScroll = true;
     }

@@ -266,6 +266,15 @@ void SettingsView::drawEditorTab()
 
 void SettingsView::drawGeneralTab()
 {
+    auto togBtn = [](const char* lbl, bool& state) {
+        if (state) {
+            ImGui::PushStyleColor(ImGuiCol_Button,        IM_COL32(64, 64, 160, 255));
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(80, 80, 190, 255));
+        }
+        if (ImGui::Button(lbl)) state = !state;
+        if (state) ImGui::PopStyleColor(2);
+    };
+
     ImGui::Spacing();
     ImGui::TextUnformatted("Glow Level");
     ImGui::SetNextItemWidth(200.f);
@@ -275,4 +284,12 @@ void SettingsView::drawGeneralTab()
         ImGui::TextDisabled("Off");
     else
         ImGui::Text("%d", m_pending.glowLevel);
+
+    ImGui::Spacing();
+    ImGui::TextUnformatted("Glow Elements");
+    ImGui::Spacing();
+    togBtn("Logo##gl",    m_pending.glowLogo);    ImGui::SameLine(0, 4);
+    togBtn("VU##gl",      m_pending.glowVU);      ImGui::SameLine(0, 4);
+    togBtn("Pattern##gl", m_pending.glowPattern); ImGui::SameLine(0, 4);
+    togBtn("Knobs##gl",   m_pending.glowKnobs);
 }

@@ -29,6 +29,10 @@ void Settings::load(const std::string& path)
             else if (key == "followPlayback") followPlayback   = (val == "1");
             else if (key == "wrapCursor")     wrapCursor       = (val == "1");
             else if (key == "glowLevel")      glowLevel        = std::stoi(val);
+            else if (key == "glowLogo")       glowLogo         = (val == "1");
+            else if (key == "glowVU")         glowVU           = (val == "1");
+            else if (key == "glowPattern")    glowPattern      = (val == "1");
+            else if (key == "glowKnobs")      glowKnobs        = (val == "1");
             else if (key == "ccOct")          midiCC.oct       = std::stoi(val);
             else if (key == "ccBpm")          midiCC.bpm       = std::stoi(val);
             else if (key == "ccSpd")          midiCC.spd       = std::stoi(val);
@@ -48,6 +52,10 @@ void Settings::save(const std::string& path) const
     f << "followPlayback=" << (followPlayback ? "1" : "0") << "\n";
     f << "wrapCursor="     << (wrapCursor    ? "1" : "0") << "\n";
     f << "glowLevel="      << glowLevel                  << "\n";
+    f << "glowLogo="       << (glowLogo    ? "1" : "0") << "\n";
+    f << "glowVU="         << (glowVU      ? "1" : "0") << "\n";
+    f << "glowPattern="    << (glowPattern ? "1" : "0") << "\n";
+    f << "glowKnobs="      << (glowKnobs   ? "1" : "0") << "\n";
     f << "ccOct="          << midiCC.oct << "\n";
     f << "ccBpm="          << midiCC.bpm << "\n";
     f << "ccSpd="          << midiCC.spd << "\n";

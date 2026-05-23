@@ -482,7 +482,7 @@ void TrackerView::drawStereoVU(ImDrawList* dl, float x, float y, float w, float 
     float normR = std::min(lvlR / 1.2f, 1.0f);
 
     // Glow pass — additive blending, only lit segments
-    if (g_glowLevel > 0.f) {
+    if (g_glowLevel > 0.f && g_glowVU) {
         auto ga = [](int a) { return (uint8_t)(a * g_glowLevel); };
         dl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {
             glBlendFunc(GL_SRC_ALPHA, GL_ONE);
@@ -1041,7 +1041,7 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
             }
 
             // Glow on non-empty cells — skip empty dots
-            if (g_glowLevel > 0.f && (hasNote || hasInst || hasVol || hasFx)) {
+            if (g_glowLevel > 0.f && g_glowPattern && (hasNote || hasInst || hasVol || hasFx)) {
                 ImDrawList* gdl  = ImGui::GetWindowDrawList();
                 ImFont*     font = ImGui::GetFont();
                 float       fsz  = ImGui::GetFontSize();

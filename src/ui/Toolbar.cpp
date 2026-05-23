@@ -47,7 +47,7 @@ static void drawVU(ImDrawList* dl,
     const float norm[2] = { std::min(lvlL / 1.2f, 1.f), std::min(lvlR / 1.2f, 1.f) };
     const float tops[2] = { y, y + bh + gap };
 
-    if (g_glowLevel > 0.f) {
+    if (g_glowLevel > 0.f && g_glowVU) {
         auto ga = [](int a) { return (uint8_t)(a * g_glowLevel); };
         dl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {
             glBlendFunc(GL_SRC_ALPHA, GL_ONE);
@@ -390,7 +390,7 @@ float DrawToolbar(ToolbarState& state,
             glBlendFunc(GL_SRC_ALPHA, GL_ONE);
         }, nullptr);
 
-        if (g_glowLevel > 0.f) {
+        if (g_glowLevel > 0.f && g_glowLogo) {
             auto ga = [](int a) { return (uint8_t)(a * g_glowLevel); };
             static const float kDirs[8][2] = {
                 {-1.f, 0.f},{1.f, 0.f},{0.f,-1.f},{0.f, 1.f},

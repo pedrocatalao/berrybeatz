@@ -1,3 +1,5 @@
+#define GL_SILENCE_DEPRECATION
+#include <OpenGL/gl3.h>
 #include "SettingsView.h"
 #include "imgui.h"
 
@@ -20,6 +22,8 @@ void SettingsView::open(const Settings& current,
     m_open        = true;
     m_shouldOpen  = true;
     m_learnTarget = -1;
+    m_winPosX     = -1.f;  // reset to center
+    m_winPosY     = -1.f;
 }
 
 void SettingsView::draw()
@@ -31,27 +35,68 @@ void SettingsView::draw()
         m_shouldOpen = false;
     }
 
-    ImVec2 center = ImGui::GetMainViewport()->GetCenter();
-    ImGui::SetNextWindowPos(center, ImGuiCond_Always, {0.5f, 0.5f});
-    ImGui::SetNextWindowSize({500.f, 340.f}, ImGuiCond_Always);
+    // Centre on first open; preserve position across frames so dragging works
+    if (m_winPosX < 0.f) {
+        ImVec2 c = ImGui::GetMainViewport()->GetCenter();
+        m_winPosX = c.x - 250.f;
+        m_winPosY = c.y - 170.f;
+    }
+
+    constexpr float kW = 500.f, kH = 340.f, kTitleH = 22.f;
+
+    ImGui::SetNextWindowPos({m_winPosX, m_winPosY}, ImGuiCond_Always);
+    ImGui::SetNextWindowSize({kW, kH}, ImGuiCond_Always);
     ImGui::PushStyleColor(ImGuiCol_ModalWindowDimBg, IM_COL32(0, 0, 0, 0));
-    ImGui::PushStyleColor(ImGuiCol_PopupBg,          IM_COL32(0, 0, 0, 0));
+    ImGui::PushStyleColor(ImGuiCol_PopupBg,          IM_COL32(0, 0, 20, 255));
 
     if (ImGui::BeginPopupModal("Settings", &m_open,
-            ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove)) {
+            ImGuiWindowFlags_NoTitleBar        |
+            ImGuiWindowFlags_NoResize          |
+            ImGuiWindowFlags_NoScrollbar       |
+            ImGuiWindowFlags_NoScrollWithMouse)) {
 
-        // Gradient background matching toolbar: dark navy top → slightly lighter bottom
+        ImVec2 p0  = ImGui::GetWindowPos();
+        ImVec2 p1  = {p0.x + kW, p0.y + kH};
+        ImDrawList* wdl = ImGui::GetWindowDrawList();
+
+        // ── Shadow (window draw list + full-screen clip so it bleeds outside) ──
+        wdl->PushClipRectFullScreen();
+        for (int i = 24; i >= 1; i--) {
+            float f = float(i) / 24.f;
+            float r = 40.f * f;
+            auto  a = (uint8_t)(10.f * (1.f - f) * (1.f - f));
+            if (!a) continue;
+            wdl->AddRectFilled({p0.x - r, p0.y + 10.f - r},
+                               {p1.x + r, p1.y + 2.f + r},
+                               IM_COL32(0, 0, 0, a), 6.f + r * 0.5f);
+        }
+        wdl->PopClipRect();
+
+        // ── Gradient background ──────────────────────────────────────────────
+        wdl->AddRectFilledMultiColor(p0, p1,
+            IM_COL32( 0,  0, 20, 100), IM_COL32( 0,  0, 20, 100),
+            IM_COL32(20, 20, 40, 100), IM_COL32(20, 20, 40, 100));
+
+        // ── Custom title bar ─────────────────────────────────────────────────
+        wdl->AddRectFilled(p0, {p1.x, p0.y + kTitleH}, IM_COL32(8, 8, 30, 255));
         {
-            ImVec2 p0 = ImGui::GetWindowPos();
-            ImVec2 p1 = {p0.x + ImGui::GetWindowWidth(), p0.y + ImGui::GetWindowHeight()};
-            ImGui::GetWindowDrawList()->AddRectFilledMultiColor(
-                p0, p1,
-                IM_COL32( 0,  0, 20, 255),   // top-left
-                IM_COL32( 0,  0, 20, 255),   // top-right
-                IM_COL32(20, 20, 40, 255),   // bottom-right
-                IM_COL32(20, 20, 40, 255));  // bottom-left
+            const char* title = "Settings";
+            ImVec2 tsz = ImGui::CalcTextSize(title);
+            wdl->AddText({p0.x + (kW - tsz.x) * 0.5f, p0.y + (kTitleH - tsz.y) * 0.5f},
+                         IM_COL32(200, 200, 220, 255), title);
         }
 
+        // Drag handle over title bar — updates stored position each frame
+        ImGui::SetCursorPos({0.f, 0.f});
+        ImGui::InvisibleButton("##drag", {kW, kTitleH});
+        if (ImGui::IsItemActive() && ImGui::IsMouseDragging(ImGuiMouseButton_Left, 0.f)) {
+            ImVec2 d = ImGui::GetIO().MouseDelta;
+            m_winPosX += d.x;
+            m_winPosY += d.y;
+        }
+
+        // ── Tabs ─────────────────────────────────────────────────────────────
+        ImGui::SetCursorPos({0.f, kTitleH});
         if (ImGui::BeginTabBar("##settabs")) {
             if (ImGui::BeginTabItem("General")) { drawGeneralTab(); ImGui::EndTabItem(); }
             if (ImGui::BeginTabItem("Audio"))   { drawAudioTab();   ImGui::EndTabItem(); }
@@ -60,11 +105,10 @@ void SettingsView::draw()
             ImGui::EndTabBar();
         }
 
-        // ── Buttons ────────────────────────────────────────────────────────
-        ImGui::SetCursorPosY(ImGui::GetWindowHeight() - 34.f);
+        // ── Buttons ──────────────────────────────────────────────────────────
+        ImGui::SetCursorPosY(kH - 34.f);
         ImGui::Separator();
         ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 4.f);
-
         if (ImGui::Button("Apply", {80.f, 0.f})) {
             if (onApply) onApply(m_pending);
             m_open = false;
@@ -79,7 +123,7 @@ void SettingsView::draw()
         ImGui::EndPopup();
     }
 
-    ImGui::PopStyleColor(2); // ModalWindowDimBg + PopupBg
+    ImGui::PopStyleColor(2);
 
     if (!ImGui::IsPopupOpen("Settings"))
         m_open = false;

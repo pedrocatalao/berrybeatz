@@ -2,6 +2,7 @@
 #include <OpenGL/gl3.h>
 #include "Toolbar.h"
 #include "Knob.h"
+#include "RenderSettings.h"
 #include "imgui.h"
 #include <algorithm>
 #include <cmath>
@@ -46,31 +47,33 @@ static void drawVU(ImDrawList* dl,
     const float norm[2] = { std::min(lvlL / 1.2f, 1.f), std::min(lvlR / 1.2f, 1.f) };
     const float tops[2] = { y, y + bh + gap };
 
-    // Glow pass — additive blending, only lit segments
-    dl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE);
-    }, nullptr);
-    for (int ch = 0; ch < 2; ++ch) {
-        for (int i = 0; i < N; ++i) {
-            float frac = float(i) / float(N);
-            if (norm[ch] <= frac) continue;
-            int gr, gg, gb;
-            if      (frac >= 0.80f) { gr = 200; gg =   0; gb = 255; }
-            else if (frac >= 0.60f) { gr = 255; gg =  30; gb = 180; }
-            else                    { gr =   0; gg = 220; gb = 255; }
-            float sx = x + float(i) * stride;
-            float ty = tops[ch];
-            dl->AddRectFilled({sx - 16, ty - 6}, {sx + barW + 16, ty + bh + 6}, IM_COL32(gr, gg, gb,  1));
-            dl->AddRectFilled({sx - 11, ty - 5}, {sx + barW + 11, ty + bh + 5}, IM_COL32(gr, gg, gb,  1));
-            dl->AddRectFilled({sx -  7, ty - 3}, {sx + barW +  7, ty + bh + 3}, IM_COL32(gr, gg, gb,  1));
-            dl->AddRectFilled({sx -  4, ty - 2}, {sx + barW +  4, ty + bh + 2}, IM_COL32(gr, gg, gb,  2));
-            dl->AddRectFilled({sx -  2, ty - 1}, {sx + barW +  2, ty + bh + 1}, IM_COL32(gr, gg, gb,  3));
-            dl->AddRectFilled({sx -  1, ty    }, {sx + barW +  1, ty + bh    }, IM_COL32(gr, gg, gb,  3));
+    if (g_glowLevel > 0.f) {
+        auto ga = [](int a) { return (uint8_t)(a * g_glowLevel); };
+        dl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+        }, nullptr);
+        for (int ch = 0; ch < 2; ++ch) {
+            for (int i = 0; i < N; ++i) {
+                float frac = float(i) / float(N);
+                if (norm[ch] <= frac) continue;
+                int gr, gg, gb;
+                if      (frac >= 0.80f) { gr = 200; gg =   0; gb = 255; }
+                else if (frac >= 0.60f) { gr = 255; gg =  30; gb = 180; }
+                else                    { gr =   0; gg = 220; gb = 255; }
+                float sx = x + float(i) * stride;
+                float ty = tops[ch];
+                dl->AddRectFilled({sx - 16, ty - 6}, {sx + barW + 16, ty + bh + 6}, IM_COL32(gr, gg, gb, ga( 1)));
+                dl->AddRectFilled({sx - 11, ty - 5}, {sx + barW + 11, ty + bh + 5}, IM_COL32(gr, gg, gb, ga( 1)));
+                dl->AddRectFilled({sx -  7, ty - 3}, {sx + barW +  7, ty + bh + 3}, IM_COL32(gr, gg, gb, ga( 1)));
+                dl->AddRectFilled({sx -  4, ty - 2}, {sx + barW +  4, ty + bh + 2}, IM_COL32(gr, gg, gb, ga( 2)));
+                dl->AddRectFilled({sx -  2, ty - 1}, {sx + barW +  2, ty + bh + 1}, IM_COL32(gr, gg, gb, ga( 3)));
+                dl->AddRectFilled({sx -  1, ty    }, {sx + barW +  1, ty + bh    }, IM_COL32(gr, gg, gb, ga( 3)));
+            }
         }
+        dl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        }, nullptr);
     }
-    dl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    }, nullptr);
 
     // Normal bars
     for (int ch = 0; ch < 2; ++ch) {
@@ -387,13 +390,16 @@ float DrawToolbar(ToolbarState& state,
             glBlendFunc(GL_SRC_ALPHA, GL_ONE);
         }, nullptr);
 
-        static const float kDirs[8][2] = {
-            {-1.f, 0.f},{1.f, 0.f},{0.f,-1.f},{0.f, 1.f},
-            {-1.f,-1.f},{1.f,-1.f},{-1.f,1.f},{1.f, 1.f}
-        };
-        for (auto& d : kDirs) drawQuad(d[0]*5.f,  d[1]*5.f,  IM_COL32(160, 160, 255,  8));
-        for (auto& d : kDirs) drawQuad(d[0]*3.f,  d[1]*3.f,  IM_COL32(180, 180, 255, 13));
-        for (auto& d : kDirs) drawQuad(d[0]*1.5f, d[1]*1.5f, IM_COL32(200, 200, 255, 18));
+        if (g_glowLevel > 0.f) {
+            auto ga = [](int a) { return (uint8_t)(a * g_glowLevel); };
+            static const float kDirs[8][2] = {
+                {-1.f, 0.f},{1.f, 0.f},{0.f,-1.f},{0.f, 1.f},
+                {-1.f,-1.f},{1.f,-1.f},{-1.f,1.f},{1.f, 1.f}
+            };
+            for (auto& d : kDirs) drawQuad(d[0]*5.f,  d[1]*5.f,  IM_COL32(160, 160, 255, ga( 8)));
+            for (auto& d : kDirs) drawQuad(d[0]*3.f,  d[1]*3.f,  IM_COL32(180, 180, 255, ga(13)));
+            for (auto& d : kDirs) drawQuad(d[0]*1.5f, d[1]*1.5f, IM_COL32(200, 200, 255, ga(18)));
+        }
 
         // Restore normal blending before drawing the main image
         fdl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {

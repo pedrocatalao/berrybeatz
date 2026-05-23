@@ -2,6 +2,7 @@
 #define GL_SILENCE_DEPRECATION
 #include <OpenGL/gl3.h>
 #include "imgui.h"
+#include "RenderSettings.h"
 #include <unordered_map>
 #include <cmath>
 
@@ -142,31 +143,33 @@ inline bool KnobWidget(const char* id,
         dl->PathArcTo(center, trackR, a, b, 32);
         dl->PathStroke(IM_COL32(0, 180, 210, 100), false, 2.5f);
 
-        dl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {
-            glBlendFunc(GL_SRC_ALPHA, GL_ONE);
-        }, nullptr);
-        dl->PathArcTo(center, trackR, a, b, 32);
-        dl->PathStroke(IM_COL32(0, 220, 255,   3), false, 22.0f);
-        dl->PathArcTo(center, trackR, a, b, 32);
-        dl->PathStroke(IM_COL32(0, 220, 255,   6), false, 15.0f);
-        dl->PathArcTo(center, trackR, a, b, 32);
-        dl->PathStroke(IM_COL32(0, 220, 255,  10), false, 10.0f);
-        dl->PathArcTo(center, trackR, a, b, 32);
-        dl->PathStroke(IM_COL32(0, 220, 255,  18), false,  6.0f);
-        dl->PathArcTo(center, trackR, a, b, 32);
-        dl->PathStroke(IM_COL32(0, 220, 255,  28), false,  3.0f);
-
-        float sx = center.x + trackR * cosf(a), sy = center.y + trackR * sinf(a);
-        float ex = center.x + trackR * cosf(b), ey = center.y + trackR * sinf(b);
-        for (auto [cx2, cy2] : {std::pair{sx,sy}, std::pair{ex,ey}}) {
-            dl->AddCircleFilled({cx2, cy2}, 11.0f, IM_COL32(0, 220, 255,   3));
-            dl->AddCircleFilled({cx2, cy2},  8.0f, IM_COL32(0, 220, 255,   6));
-            dl->AddCircleFilled({cx2, cy2},  5.0f, IM_COL32(0, 220, 255,  10));
-            dl->AddCircleFilled({cx2, cy2},  3.0f, IM_COL32(0, 220, 255,  18));
+        if (g_glowLevel > 0.f) {
+            auto ga = [](int a) { return (uint8_t)(a * g_glowLevel); };
+            dl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {
+                glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+            }, nullptr);
+            dl->PathArcTo(center, trackR, a, b, 32);
+            dl->PathStroke(IM_COL32(0, 220, 255, ga( 3)), false, 22.0f);
+            dl->PathArcTo(center, trackR, a, b, 32);
+            dl->PathStroke(IM_COL32(0, 220, 255, ga( 6)), false, 15.0f);
+            dl->PathArcTo(center, trackR, a, b, 32);
+            dl->PathStroke(IM_COL32(0, 220, 255, ga(10)), false, 10.0f);
+            dl->PathArcTo(center, trackR, a, b, 32);
+            dl->PathStroke(IM_COL32(0, 220, 255, ga(18)), false,  6.0f);
+            dl->PathArcTo(center, trackR, a, b, 32);
+            dl->PathStroke(IM_COL32(0, 220, 255, ga(28)), false,  3.0f);
+            float sx = center.x + trackR * cosf(a), sy = center.y + trackR * sinf(a);
+            float ex = center.x + trackR * cosf(b), ey = center.y + trackR * sinf(b);
+            for (auto [cx2, cy2] : {std::pair{sx,sy}, std::pair{ex,ey}}) {
+                dl->AddCircleFilled({cx2, cy2}, 11.0f, IM_COL32(0, 220, 255, ga( 3)));
+                dl->AddCircleFilled({cx2, cy2},  8.0f, IM_COL32(0, 220, 255, ga( 6)));
+                dl->AddCircleFilled({cx2, cy2},  5.0f, IM_COL32(0, 220, 255, ga(10)));
+                dl->AddCircleFilled({cx2, cy2},  3.0f, IM_COL32(0, 220, 255, ga(18)));
+            }
+            dl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {
+                glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+            }, nullptr);
         }
-        dl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {
-            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-        }, nullptr);
     };
     drawArc(arcA, arcB);
 
@@ -233,30 +236,33 @@ inline void KnobDisplay(const char* id, float t)
     if (arcB > arcA) {
         dl->PathArcTo(center, trackR, arcA, arcB, 32);
         dl->PathStroke(IM_COL32(0, 180, 210, 100), false, 2.5f);
-        dl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {
-            glBlendFunc(GL_SRC_ALPHA, GL_ONE);
-        }, nullptr);
-        dl->PathArcTo(center, trackR, arcA, arcB, 32);
-        dl->PathStroke(IM_COL32(0, 220, 255,  3), false, 22.0f);
-        dl->PathArcTo(center, trackR, arcA, arcB, 32);
-        dl->PathStroke(IM_COL32(0, 220, 255,  6), false, 15.0f);
-        dl->PathArcTo(center, trackR, arcA, arcB, 32);
-        dl->PathStroke(IM_COL32(0, 220, 255, 10), false, 10.0f);
-        dl->PathArcTo(center, trackR, arcA, arcB, 32);
-        dl->PathStroke(IM_COL32(0, 220, 255, 18), false,  6.0f);
-        dl->PathArcTo(center, trackR, arcA, arcB, 32);
-        dl->PathStroke(IM_COL32(0, 220, 255, 28), false,  3.0f);
-        float sx = center.x + trackR * cosf(arcA), sy = center.y + trackR * sinf(arcA);
-        float ex = center.x + trackR * cosf(arcB), ey = center.y + trackR * sinf(arcB);
-        for (auto [cx2, cy2] : {std::pair{sx,sy}, std::pair{ex,ey}}) {
-            dl->AddCircleFilled({cx2, cy2}, 11.0f, IM_COL32(0, 220, 255,  3));
-            dl->AddCircleFilled({cx2, cy2},  8.0f, IM_COL32(0, 220, 255,  6));
-            dl->AddCircleFilled({cx2, cy2},  5.0f, IM_COL32(0, 220, 255, 10));
-            dl->AddCircleFilled({cx2, cy2},  3.0f, IM_COL32(0, 220, 255, 18));
+        if (g_glowLevel > 0.f) {
+            auto ga = [](int a) { return (uint8_t)(a * g_glowLevel); };
+            dl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {
+                glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+            }, nullptr);
+            dl->PathArcTo(center, trackR, arcA, arcB, 32);
+            dl->PathStroke(IM_COL32(0, 220, 255, ga( 3)), false, 22.0f);
+            dl->PathArcTo(center, trackR, arcA, arcB, 32);
+            dl->PathStroke(IM_COL32(0, 220, 255, ga( 6)), false, 15.0f);
+            dl->PathArcTo(center, trackR, arcA, arcB, 32);
+            dl->PathStroke(IM_COL32(0, 220, 255, ga(10)), false, 10.0f);
+            dl->PathArcTo(center, trackR, arcA, arcB, 32);
+            dl->PathStroke(IM_COL32(0, 220, 255, ga(18)), false,  6.0f);
+            dl->PathArcTo(center, trackR, arcA, arcB, 32);
+            dl->PathStroke(IM_COL32(0, 220, 255, ga(28)), false,  3.0f);
+            float sx = center.x + trackR * cosf(arcA), sy = center.y + trackR * sinf(arcA);
+            float ex = center.x + trackR * cosf(arcB), ey = center.y + trackR * sinf(arcB);
+            for (auto [cx2, cy2] : {std::pair{sx,sy}, std::pair{ex,ey}}) {
+                dl->AddCircleFilled({cx2, cy2}, 11.0f, IM_COL32(0, 220, 255, ga( 3)));
+                dl->AddCircleFilled({cx2, cy2},  8.0f, IM_COL32(0, 220, 255, ga( 6)));
+                dl->AddCircleFilled({cx2, cy2},  5.0f, IM_COL32(0, 220, 255, ga(10)));
+                dl->AddCircleFilled({cx2, cy2},  3.0f, IM_COL32(0, 220, 255, ga(18)));
+            }
+            dl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {
+                glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+            }, nullptr);
         }
-        dl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {
-            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-        }, nullptr);
     }
 
     // Center tick

@@ -28,6 +28,7 @@ void Settings::load(const std::string& path)
             else if (key == "midiInput")      midiInputIndex   = std::stoi(val);
             else if (key == "followPlayback") followPlayback   = (val == "1");
             else if (key == "wrapCursor")     wrapCursor       = (val == "1");
+            else if (key == "glowLevel")      glowLevel        = std::stoi(val);
             else if (key == "ccOct")          midiCC.oct       = std::stoi(val);
             else if (key == "ccBpm")          midiCC.bpm       = std::stoi(val);
             else if (key == "ccSpd")          midiCC.spd       = std::stoi(val);
@@ -46,6 +47,7 @@ void Settings::save(const std::string& path) const
     f << "midiInput="      << midiInputIndex           << "\n";
     f << "followPlayback=" << (followPlayback ? "1" : "0") << "\n";
     f << "wrapCursor="     << (wrapCursor    ? "1" : "0") << "\n";
+    f << "glowLevel="      << glowLevel                  << "\n";
     f << "ccOct="          << midiCC.oct << "\n";
     f << "ccBpm="          << midiCC.bpm << "\n";
     f << "ccSpd="          << midiCC.spd << "\n";

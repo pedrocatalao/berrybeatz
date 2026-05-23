@@ -15,6 +15,7 @@ struct Settings {
     int  midiInputIndex   {-1};   // -1 = none
     bool followPlayback   {true};
     bool wrapCursor       {false};
+    int  glowLevel        {10};    // 0 = off, 10 = full
     MidiCCMap midiCC;
 
     void load(const std::string& path);

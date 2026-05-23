@@ -22,6 +22,7 @@ private:
     void drawAudioTab();
     void drawMidiTab();
     void drawEditorTab();
+    void drawGeneralTab();
 
     bool     m_open        {false};
     bool     m_shouldOpen  {false};

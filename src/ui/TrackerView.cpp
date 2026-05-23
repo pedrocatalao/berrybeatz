@@ -1,5 +1,6 @@
 #define GL_SILENCE_DEPRECATION
 #include <OpenGL/gl3.h>
+#include "RenderSettings.h"
 #include "TrackerView.h"
 #include "PatternEditor.h"
 #include <libopenmpt/libopenmpt_ext.hpp>
@@ -481,37 +482,40 @@ void TrackerView::drawStereoVU(ImDrawList* dl, float x, float y, float w, float 
     float normR = std::min(lvlR / 1.2f, 1.0f);
 
     // Glow pass — additive blending, only lit segments
-    dl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE);
-    }, nullptr);
-    for (int i = 0; i < N; i++) {
-        float frac = float(i) / float(N);
-        int gr, gg, gb;
-        if      (frac >= 0.80f) { gr = 200; gg =   0; gb = 255; }
-        else if (frac >= 0.60f) { gr = 255; gg =  30; gb = 180; }
-        else                    { gr =   0; gg = 220; gb = 255; }
-        float rx = cx + 1.0f + float(i) * stride;
-        float lx = cx - 1.0f - float(i) * stride - barW;
-        if (normR > frac) {
-            dl->AddRectFilled({rx - 16, y - 6}, {rx + barW + 16, y + bH + 6}, IM_COL32(gr, gg, gb,  1));
-            dl->AddRectFilled({rx - 11, y - 5}, {rx + barW + 11, y + bH + 5}, IM_COL32(gr, gg, gb,  1));
-            dl->AddRectFilled({rx -  7, y - 3}, {rx + barW +  7, y + bH + 3}, IM_COL32(gr, gg, gb,  1));
-            dl->AddRectFilled({rx -  4, y - 2}, {rx + barW +  4, y + bH + 2}, IM_COL32(gr, gg, gb,  2));
-            dl->AddRectFilled({rx -  2, y - 1}, {rx + barW +  2, y + bH + 1}, IM_COL32(gr, gg, gb,  3));
-            dl->AddRectFilled({rx -  1, y    }, {rx + barW +  1, y + bH    }, IM_COL32(gr, gg, gb,  3));
+    if (g_glowLevel > 0.f) {
+        auto ga = [](int a) { return (uint8_t)(a * g_glowLevel); };
+        dl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+        }, nullptr);
+        for (int i = 0; i < N; i++) {
+            float frac = float(i) / float(N);
+            int gr, gg, gb;
+            if      (frac >= 0.80f) { gr = 200; gg =   0; gb = 255; }
+            else if (frac >= 0.60f) { gr = 255; gg =  30; gb = 180; }
+            else                    { gr =   0; gg = 220; gb = 255; }
+            float rx = cx + 1.0f + float(i) * stride;
+            float lx = cx - 1.0f - float(i) * stride - barW;
+            if (normR > frac) {
+                dl->AddRectFilled({rx - 16, y - 6}, {rx + barW + 16, y + bH + 6}, IM_COL32(gr, gg, gb, ga( 1)));
+                dl->AddRectFilled({rx - 11, y - 5}, {rx + barW + 11, y + bH + 5}, IM_COL32(gr, gg, gb, ga( 1)));
+                dl->AddRectFilled({rx -  7, y - 3}, {rx + barW +  7, y + bH + 3}, IM_COL32(gr, gg, gb, ga( 1)));
+                dl->AddRectFilled({rx -  4, y - 2}, {rx + barW +  4, y + bH + 2}, IM_COL32(gr, gg, gb, ga( 2)));
+                dl->AddRectFilled({rx -  2, y - 1}, {rx + barW +  2, y + bH + 1}, IM_COL32(gr, gg, gb, ga( 3)));
+                dl->AddRectFilled({rx -  1, y    }, {rx + barW +  1, y + bH    }, IM_COL32(gr, gg, gb, ga( 3)));
+            }
+            if (normL > frac) {
+                dl->AddRectFilled({lx - 16, y - 6}, {lx + barW + 16, y + bH + 6}, IM_COL32(gr, gg, gb, ga( 1)));
+                dl->AddRectFilled({lx - 11, y - 5}, {lx + barW + 11, y + bH + 5}, IM_COL32(gr, gg, gb, ga( 1)));
+                dl->AddRectFilled({lx -  7, y - 3}, {lx + barW +  7, y + bH + 3}, IM_COL32(gr, gg, gb, ga( 1)));
+                dl->AddRectFilled({lx -  4, y - 2}, {lx + barW +  4, y + bH + 2}, IM_COL32(gr, gg, gb, ga( 2)));
+                dl->AddRectFilled({lx -  2, y - 1}, {lx + barW +  2, y + bH + 1}, IM_COL32(gr, gg, gb, ga( 3)));
+                dl->AddRectFilled({lx -  1, y    }, {lx + barW +  1, y + bH    }, IM_COL32(gr, gg, gb, ga( 3)));
+            }
         }
-        if (normL > frac) {
-            dl->AddRectFilled({lx - 16, y - 6}, {lx + barW + 16, y + bH + 6}, IM_COL32(gr, gg, gb,  1));
-            dl->AddRectFilled({lx - 11, y - 5}, {lx + barW + 11, y + bH + 5}, IM_COL32(gr, gg, gb,  1));
-            dl->AddRectFilled({lx -  7, y - 3}, {lx + barW +  7, y + bH + 3}, IM_COL32(gr, gg, gb,  1));
-            dl->AddRectFilled({lx -  4, y - 2}, {lx + barW +  4, y + bH + 2}, IM_COL32(gr, gg, gb,  2));
-            dl->AddRectFilled({lx -  2, y - 1}, {lx + barW +  2, y + bH + 1}, IM_COL32(gr, gg, gb,  3));
-            dl->AddRectFilled({lx -  1, y    }, {lx + barW +  1, y + bH    }, IM_COL32(gr, gg, gb,  3));
-        }
+        dl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        }, nullptr);
     }
-    dl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    }, nullptr);
 
     // Normal bars
     for (int i = 0; i < N; i++) {
@@ -1037,7 +1041,7 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
             }
 
             // Glow on non-empty cells — skip empty dots
-            if (hasNote || hasInst || hasVol || hasFx) {
+            if (g_glowLevel > 0.f && (hasNote || hasInst || hasVol || hasFx)) {
                 ImDrawList* gdl  = ImGui::GetWindowDrawList();
                 ImFont*     font = ImGui::GetFont();
                 float       fsz  = ImGui::GetFontSize();
@@ -1045,9 +1049,9 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
                     glBlendFunc(GL_SRC_ALPHA, GL_ONE);
                 }, nullptr);
                 auto addGlowText = [&](float gx, const ImVec4& c, const char* txt) {
-                    uint8_t a1 = isCur ? 25 : 15;
-                    uint8_t a2 = isCur ? 8 : 7;
-                    uint8_t a3 = isCur ? 5 :  0;
+                    uint8_t a1 = (uint8_t)((isCur ? 25 : 15) * g_glowLevel);
+                    uint8_t a2 = (uint8_t)((isCur ?  8 :  7) * g_glowLevel);
+                    uint8_t a3 = (uint8_t)((isCur ?  5 :  0) * g_glowLevel);
                     ImU32 gc1 = IM_COL32((uint8_t)(c.x*255.f),(uint8_t)(c.y*255.f),(uint8_t)(c.z*255.f), a1);
                     ImU32 gc2 = IM_COL32((uint8_t)(c.x*255.f),(uint8_t)(c.y*255.f),(uint8_t)(c.z*255.f), a2);
                     ImU32 gc3 = IM_COL32((uint8_t)(c.x*255.f),(uint8_t)(c.y*255.f),(uint8_t)(c.z*255.f), a3);

@@ -53,9 +53,10 @@ void SettingsView::draw()
         }
 
         if (ImGui::BeginTabBar("##settabs")) {
-            if (ImGui::BeginTabItem("Audio"))  { drawAudioTab();  ImGui::EndTabItem(); }
-            if (ImGui::BeginTabItem("MIDI"))   { drawMidiTab();   ImGui::EndTabItem(); }
-            if (ImGui::BeginTabItem("Editor")) { drawEditorTab(); ImGui::EndTabItem(); }
+            if (ImGui::BeginTabItem("General")) { drawGeneralTab(); ImGui::EndTabItem(); }
+            if (ImGui::BeginTabItem("Audio"))   { drawAudioTab();   ImGui::EndTabItem(); }
+            if (ImGui::BeginTabItem("MIDI"))    { drawMidiTab();    ImGui::EndTabItem(); }
+            if (ImGui::BeginTabItem("Editor"))  { drawEditorTab();  ImGui::EndTabItem(); }
             ImGui::EndTabBar();
         }
 
@@ -261,4 +262,17 @@ void SettingsView::drawEditorTab()
     ImGui::Spacing();
     ImGui::Checkbox("Follow playback cursor", &m_pending.followPlayback);
     ImGui::Checkbox("Wrap cursor at pattern end", &m_pending.wrapCursor);
+}
+
+void SettingsView::drawGeneralTab()
+{
+    ImGui::Spacing();
+    ImGui::TextUnformatted("Glow Level");
+    ImGui::SetNextItemWidth(200.f);
+    ImGui::SliderInt("##glowlevel", &m_pending.glowLevel, 0, 10);
+    ImGui::SameLine();
+    if (m_pending.glowLevel == 0)
+        ImGui::TextDisabled("Off");
+    else
+        ImGui::Text("%d", m_pending.glowLevel);
 }

@@ -28,6 +28,7 @@ public:
     void openFile(const std::string& path);
     void tickChrome() { m_chrome.tick(); }  // call before ImGui::NewFrame each frame
     void render(int winW, int winH);
+    bool isPlaying() const { return m_state.is_playing.load() && !m_audio.isPaused(); }
 
 private:
     void syncToolbarState();

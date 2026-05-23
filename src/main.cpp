@@ -157,7 +157,10 @@ int main(int argc, char* argv[])
 
     // ── Render loop ───────────────────────────────────────────────────────
     while (!glfwWindowShouldClose(window)) {
-        glfwPollEvents();
+        if (app->isPlaying())
+            glfwPollEvents();
+        else
+            glfwWaitEventsTimeout(0.1);
 
         // Handle edge resize before ImGui::NewFrame so io.DisplaySize is
         // correct for this frame (avoids one-frame content-scaling artifact).

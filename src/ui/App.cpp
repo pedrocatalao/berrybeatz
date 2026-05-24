@@ -1,5 +1,6 @@
 #include "App.h"
 #include "Theme.h"
+#include "TabBar.h"
 #include "RenderSettings.h"
 #include "CocoaHelpers.h"
 #include "Logo.h"
@@ -301,29 +302,19 @@ void App::render(int winW, int winH)
     ImGui::PopStyleVar(2);
     ImGui::PopStyleColor();
 
-    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,     kTabFramePad);
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemInnerSpacing, kTabInnerSpacing);
-    ImGui::PushStyleColor(ImGuiCol_Tab,        kClrTabBg);
-    ImGui::PushStyleColor(ImGuiCol_TabHovered, kClrTabHover);
-    if (ImGui::BeginTabBar("##tabs")) {
+    if (BeginStyledTabBar("##tabs")) {
         const char* tabs[] = {"General", "Patterns", "Samples", "Instruments", "Comments"};
         for (int i = 0; i < 5; ++i) {
-            bool active = (i == m_activeTab);
-            ImGui::PushStyleColor(ImGuiCol_Text, active ? kClrTextBright : kClrTextDim);
-            ImGuiTabItemFlags flags = (m_pendingTab == i)
-                                      ? ImGuiTabItemFlags_SetSelected : 0;
-            if (ImGui::BeginTabItem(tabs[i], nullptr, flags)) {
+            ImGuiTabItemFlags flags = (m_pendingTab == i) ? ImGuiTabItemFlags_SetSelected : 0;
+            if (StyledTabItem(tabs[i], nullptr, flags)) {
                 m_activeTab = i;
                 ImGui::EndTabItem();
             }
-            ImGui::PopStyleColor();
         }
         m_tabsInited = true;
         m_pendingTab = -1;
-        ImGui::EndTabBar();
+        EndStyledTabBar();
     }
-    ImGui::PopStyleColor(2);
-    ImGui::PopStyleVar(2);
     ImGui::End();
 
     // Extend the tab bar separator to the left edge of the window.

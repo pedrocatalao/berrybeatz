@@ -2,6 +2,7 @@
 #include <OpenGL/gl3.h>
 #include "SettingsView.h"
 #include "Knob.h"
+#include "TabBar.h"
 #include "imgui.h"
 #include "Theme.h"
 
@@ -111,30 +112,19 @@ void SettingsView::draw()
 
         // ── Tabs ─────────────────────────────────────────────────────────────
         ImGui::SetCursorPos({0.f, kTitleH});
-        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,     kTabFramePad);
-        ImGui::PushStyleVar(ImGuiStyleVar_ItemInnerSpacing, kTabInnerSpacing);
-        ImGui::PushStyleColor(ImGuiCol_Tab,        kClrTabBg);
-        ImGui::PushStyleColor(ImGuiCol_TabHovered, kClrTabHover);
-        if (ImGui::BeginTabBar("##settabs")) {
+        if (BeginStyledTabBar("##settabs")) {
             const char* tabs[] = {"General", "Audio", "MIDI", "Editor"};
             using DrawFn = void (SettingsView::*)();
             DrawFn fns[] = { &SettingsView::drawGeneralTab, &SettingsView::drawAudioTab,
                              &SettingsView::drawMidiTab,    &SettingsView::drawEditorTab };
             for (int i = 0; i < 4; ++i) {
-                ImGui::PushStyleColor(ImGuiCol_Text, (i == m_activeTab)
-                    ? kClrTextBright
-                    : kClrTextDim);
-                if (ImGui::BeginTabItem(tabs[i])) {
-                    m_activeTab = i;
+                if (StyledTabItem(tabs[i])) {
                     (this->*fns[i])();
                     ImGui::EndTabItem();
                 }
-                ImGui::PopStyleColor();
             }
-            ImGui::EndTabBar();
+            EndStyledTabBar();
         }
-        ImGui::PopStyleColor(2);
-        ImGui::PopStyleVar(2);
 
         ImGui::EndPopup();
     }

@@ -34,5 +34,4 @@ private:
     int      m_midiDevSel  {0};  // 0 = "(None)"
     float    m_winPosX     {-1.f};  // -1 = use center on next open
     float    m_winPosY     {-1.f};
-    int      m_activeTab   {0};
 };

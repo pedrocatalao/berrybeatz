@@ -1,4 +1,5 @@
 #include "SidebarView.h"
+#include "Theme.h"
 #include "imgui.h"
 #include "imgui_internal.h"
 #include <cstdio>
@@ -114,7 +115,7 @@ void SidebarView::render(float x, float y, float w, float h,
                          float topPad)
 {
     // ── Window style ──────────────────────────────────────────────────────────
-    ImGui::PushStyleColor(ImGuiCol_WindowBg, IM_COL32(20, 20, 40, 255));
+    ImGui::PushStyleColor(ImGuiCol_WindowBg, kClrBgPanel);
     // Suppress all built-in selection/hover/nav visuals — we draw our own.
     ImGui::PushStyleColor(ImGuiCol_Header,        IM_COL32(0, 0, 0, 0));
     ImGui::PushStyleColor(ImGuiCol_HeaderHovered, IM_COL32(0, 0, 0, 0));
@@ -151,10 +152,10 @@ void SidebarView::render(float x, float y, float w, float h,
         const float sw     = ImGui::GetStyle().ScrollbarSize;
         const float childW = ImGui::GetContentRegionAvail().x + rp;
         ImGui::SetNextWindowContentSize({childW - sw, 0.f});
-        ImGui::PushStyleColor(ImGuiCol_ScrollbarBg,          IM_COL32( 12,  12,  22, 255));
-        ImGui::PushStyleColor(ImGuiCol_ScrollbarGrab,        IM_COL32( 40,  85, 145, 200));
-        ImGui::PushStyleColor(ImGuiCol_ScrollbarGrabHovered, IM_COL32( 55, 112, 175, 230));
-        ImGui::PushStyleColor(ImGuiCol_ScrollbarGrabActive,  IM_COL32( 66, 130, 205, 255));
+        ImGui::PushStyleColor(ImGuiCol_ScrollbarBg,          kClrScrollBg);
+        ImGui::PushStyleColor(ImGuiCol_ScrollbarGrab,        kClrScrollGrab);
+        ImGui::PushStyleColor(ImGuiCol_ScrollbarGrabHovered, kClrScrollHover);
+        ImGui::PushStyleColor(ImGuiCol_ScrollbarGrabActive,  kClrScrollActive);
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.f, 0.f));
         ImGui::BeginChild("##sidebar_scroll", {childW, 0.f}, false, 0);
         ImGui::PopStyleVar(1);

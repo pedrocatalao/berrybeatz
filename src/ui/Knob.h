@@ -3,6 +3,7 @@
 #include <OpenGL/gl3.h>
 #include "imgui.h"
 #include "RenderSettings.h"
+#include "Theme.h"
 #include <unordered_map>
 #include <cmath>
 
@@ -111,8 +112,8 @@ inline bool KnobWidget(const char* id,
     ImDrawList* dl = ImGui::GetWindowDrawList();
 
     // Body
-    dl->AddCircleFilled(center, radius, IM_COL32(14, 14, 34, 255));
-    dl->AddCircle(center, radius, IM_COL32(64, 64, 114, 255), 0, 1.5f);
+    dl->AddCircleFilled(center, radius, kClrKnobBg);
+    dl->AddCircle(center, radius, kClrKnobBorder, 0, 1.5f);
 
     // Arc geometry
     // 270° sweep starting at 7 o'clock: angle_start = 135° = PI*0.75
@@ -121,7 +122,7 @@ inline bool KnobWidget(const char* id,
 
     // Unlit track
     dl->PathArcTo(center, trackR, ANG_START, ANG_START + SWEEP, 32);
-    dl->PathStroke(IM_COL32(46, 46, 90, 255), false, 2.5f);
+    dl->PathStroke(kClrKnobTrack, false, 2.5f);
 
     // Active (filled) arc
     float t = (vmax > vmin)
@@ -141,7 +142,7 @@ inline bool KnobWidget(const char* id,
     auto drawArc = [&](float a, float b) {
         if (b <= a) return;
         dl->PathArcTo(center, trackR, a, b, 32);
-        dl->PathStroke(IM_COL32(0, 180, 210, 100), false, 2.5f);
+        dl->PathStroke(kClrKnobArc, false, 2.5f);
 
         if (g_glowKnobs > 0.f) {
             auto ga = [](int a) { return (uint8_t)(a * g_glowKnobs); };
@@ -179,7 +180,7 @@ inline bool KnobWidget(const char* id,
         float ty0 = center.y + (trackR - 3.f) * sinf(ANG_CENTER);
         float tx1 = center.x + (trackR + 3.f) * cosf(ANG_CENTER);
         float ty1 = center.y + (trackR + 3.f) * sinf(ANG_CENTER);
-        dl->AddLine({tx0, ty0}, {tx1, ty1}, IM_COL32(120, 120, 180, 200), 1.5f);
+        dl->AddLine({tx0, ty0}, {tx1, ty1}, kClrKnobTick, 1.5f);
     }
 
     // Value text centered in the knob (suppressed when caller renders an edit field)
@@ -195,7 +196,7 @@ inline bool KnobWidget(const char* id,
         ImVec2 textSz = ImGui::CalcTextSize(buf);
         dl->AddText(
             ImVec2(center.x - textSz.x * 0.5f, center.y - textSz.y * 0.5f),
-            IM_COL32(208, 208, 80, 255),
+            kClrTextValue,
             buf
         );
     }
@@ -220,22 +221,22 @@ inline void KnobDisplay(const char* id, float t)
 
     ImDrawList* dl = ImGui::GetWindowDrawList();
 
-    dl->AddCircleFilled(center, radius, IM_COL32(14, 14, 34, 255));
-    dl->AddCircle(center, radius, IM_COL32(64, 64, 114, 255), 0, 1.5f);
+    dl->AddCircleFilled(center, radius, kClrKnobBg);
+    dl->AddCircle(center, radius, kClrKnobBorder, 0, 1.5f);
 
     const float SWEEP      = (float)(M_PI * 1.5);
     const float ANG_START  = (float)(M_PI * 0.75);
     const float ANG_CENTER = ANG_START + SWEEP * 0.5f;
 
     dl->PathArcTo(center, trackR, ANG_START, ANG_START + SWEEP, 32);
-    dl->PathStroke(IM_COL32(46, 46, 90, 255), false, 2.5f);
+    dl->PathStroke(kClrKnobTrack, false, 2.5f);
 
     float tN = (t < -1.f ? -1.f : (t > 1.f ? 1.f : t)) * 0.5f + 0.5f;  // [0,1]
     float arcA = (tN >= 0.5f) ? ANG_CENTER           : ANG_START + tN * SWEEP;
     float arcB = (tN >= 0.5f) ? ANG_START + tN * SWEEP : ANG_CENTER;
     if (arcB > arcA) {
         dl->PathArcTo(center, trackR, arcA, arcB, 32);
-        dl->PathStroke(IM_COL32(0, 180, 210, 100), false, 2.5f);
+        dl->PathStroke(kClrKnobArc, false, 2.5f);
         if (g_glowKnobs > 0.f) {
             auto ga = [](int a) { return (uint8_t)(a * g_glowKnobs); };
             dl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {
@@ -270,7 +271,7 @@ inline void KnobDisplay(const char* id, float t)
     float ty0 = center.y + (trackR - 3.f) * sinf(ANG_CENTER);
     float tx1 = center.x + (trackR + 3.f) * cosf(ANG_CENTER);
     float ty1 = center.y + (trackR + 3.f) * sinf(ANG_CENTER);
-    dl->AddLine({tx0, ty0}, {tx1, ty1}, IM_COL32(120, 120, 180, 200), 1.5f);
+    dl->AddLine({tx0, ty0}, {tx1, ty1}, kClrKnobTick, 1.5f);
 
     ImGui::PopID();
 }
@@ -318,7 +319,7 @@ inline bool KnobEdit(const char* id, int* value, int vmin, int vmax, bool bipola
         ImGui::PushStyleColor(ImGuiCol_FrameBg,        IM_COL32(0, 0, 0, 0));
         ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, IM_COL32(0, 0, 0, 0));
         ImGui::PushStyleColor(ImGuiCol_FrameBgActive,  IM_COL32(0, 0, 0, 0));
-        ImGui::PushStyleColor(ImGuiCol_Text,           IM_COL32(208, 208, 80, 255));
+        ImGui::PushStyleColor(ImGuiCol_Text,           kClrTextValue);
         ImGui::PushStyleColor(ImGuiCol_Border,         IM_COL32(0, 0, 0, 0));
         ImGui::PushStyleColor(ImGuiCol_NavHighlight,   IM_COL32(0, 0, 0, 0));
         ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0.f);

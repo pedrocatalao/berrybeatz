@@ -1,4 +1,5 @@
 #include "App.h"
+#include "Theme.h"
 #include "RenderSettings.h"
 #include "CocoaHelpers.h"
 #include "Logo.h"
@@ -286,7 +287,7 @@ void App::render(int winW, int winH)
     const float cw = w - cx;
 
     // ── Tab bar ───────────────────────────────────────────────────────────
-    ImGui::PushStyleColor(ImGuiCol_WindowBg,  IM_COL32(20, 20, 40, 255));
+    ImGui::PushStyleColor(ImGuiCol_WindowBg,  kClrBgPanel);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,    ImVec2(4.f, 2.f));
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f);
     ImGui::SetNextWindowPos({cx, contentY}, ImGuiCond_Always);
@@ -300,16 +301,15 @@ void App::render(int winW, int winH)
     ImGui::PopStyleVar(2);
     ImGui::PopStyleColor();
 
-    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,   ImVec2(8.5f, 4.f));
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemInnerSpacing, ImVec2(1.f, 0.f));
-    ImGui::PushStyleColor(ImGuiCol_Tab,        IM_COL32(10, 10, 22, 255));
-    ImGui::PushStyleColor(ImGuiCol_TabHovered, IM_COL32(35, 35, 60, 255));
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,     kTabFramePad);
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemInnerSpacing, kTabInnerSpacing);
+    ImGui::PushStyleColor(ImGuiCol_Tab,        kClrTabBg);
+    ImGui::PushStyleColor(ImGuiCol_TabHovered, kClrTabHover);
     if (ImGui::BeginTabBar("##tabs")) {
         const char* tabs[] = {"General", "Patterns", "Samples", "Instruments", "Comments"};
         for (int i = 0; i < 5; ++i) {
             bool active = (i == m_activeTab);
-            ImGui::PushStyleColor(ImGuiCol_Text, active ? IM_COL32(208, 208, 224, 255)
-                                                        : IM_COL32(110, 110, 130, 255));
+            ImGui::PushStyleColor(ImGuiCol_Text, active ? kClrTextBright : kClrTextDim);
             ImGuiTabItemFlags flags = (m_pendingTab == i)
                                       ? ImGuiTabItemFlags_SetSelected : 0;
             if (ImGui::BeginTabItem(tabs[i], nullptr, flags)) {
@@ -347,7 +347,7 @@ void App::render(int winW, int winH)
     if (displayTab == 1) {
         m_tracker.render(cx, cy, cw, ch);
     } else {
-        ImGui::PushStyleColor(ImGuiCol_WindowBg, IM_COL32(20, 20, 32, 255));
+        ImGui::PushStyleColor(ImGuiCol_WindowBg, kClrBgContent);
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,    ImVec2(12.f, 10.f));
         ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f);
         ImGui::SetNextWindowPos({cx, cy}, ImGuiCond_Always);

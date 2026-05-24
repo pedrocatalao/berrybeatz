@@ -1,5 +1,6 @@
 #define GL_SILENCE_DEPRECATION
 #include <OpenGL/gl3.h>
+#include "Theme.h"
 #include "RenderSettings.h"
 #include "TrackerView.h"
 #include "PatternEditor.h"
@@ -8,28 +9,28 @@
 #include <imgui_internal.h>
 #include <algorithm>
 
-// ── OpenMPT "Blue (FT2)" colour scheme ────────────────────────────────────────
-static const ImVec4 kBgNormal    { 20/255.f,  20/255.f,  33/255.f, 1.f};
-static const ImVec4 kTextNormal  {224/255.f, 224/255.f,  64/255.f, 1.f};
-static const ImVec4 kBgCurRow    { 40/255.f,  85/255.f,  145/255.f, 0.85f};
-static const ImVec4 kTextCurRow  {240/255.f, 240/255.f,  80/255.f, 1.f};
-static const ImVec4 kBgHilight   { 64/255.f,  64/255.f, 128/255.f, 1.f};
-static const ImVec4 kBgMeasure   { 46/255.f,  46/255.f,  90/255.f, 1.f};
-static const ImVec4 kColNote     {100/255.f, 210/255.f, 220/255.f, 1.f};  // soft cyan
-static const ImVec4 kColInstr    {220/255.f, 200/255.f, 110/255.f, 1.f};  // soft yellow
-static const ImVec4 kColVolume   {250/255.f, 100/255.f, 140/255.f, 1.f};  // soft pink
-static const ImVec4 kColGlobal   {120/255.f, 200/255.f, 130/255.f, 1.f};  // soft green
-static const ImVec4 kDim         { 80/255.f,  80/255.f,  80/255.f, 1.f};
-static const ImVec4 kChHeader    { 30/255.f,  30/255.f,  60/255.f, 1.f};
-static const ImVec4 kOrderBg     {  0/255.f,   0/255.f,   0/255.f, 0.f};
-static const ImVec4 kOrderCur    { 64/255.f,  64/255.f, 160/255.f, 1.f};
+// ── OpenMPT "Blue (FT2)" colour scheme — sourced from Theme.h ─────────────────
+static constexpr ImVec4 kBgNormal   = kCellBgNormal;
+static constexpr ImVec4 kTextNormal = kCellTextNormal;
+static constexpr ImVec4 kBgCurRow   = kCellBgCurRow;
+static constexpr ImVec4 kTextCurRow = kCellTextCurRow;
+static constexpr ImVec4 kBgHilight  = kCellBgBeat;
+static constexpr ImVec4 kBgMeasure  = kCellBgMeasure;
+static constexpr ImVec4 kColNote    = kCellNote;
+static constexpr ImVec4 kColInstr   = kCellInstr;
+static constexpr ImVec4 kColVolume  = kCellVolume;
+static constexpr ImVec4 kColGlobal  = kCellEffect;
+static constexpr ImVec4 kDim        = kCellDim;
+static constexpr ImVec4 kChHeader   = kCellChanHdr;
+static constexpr ImVec4 kOrderBg    = kCellOrderBg;
+static constexpr ImVec4 kOrderCur   = kCellOrderCur;
 
-static const ImU32 kVuLoLit    = IM_COL32(  0, 220, 255, 225);  // cyan
-static const ImU32 kVuLoUnlit  = IM_COL32(  0,  35,  45, 225);
-static const ImU32 kVuMedLit   = IM_COL32(255,  30, 180, 225);  // hot pink
-static const ImU32 kVuMedUnlit = IM_COL32( 45,   0,  30, 225);
-static const ImU32 kVuHiLit    = IM_COL32(255,   0, 255,  90);  // violet
-static const ImU32 kVuHiUnlit  = IM_COL32( 45,   0,  20, 225);
+static constexpr ImU32 kVuLoLit    = kVuCyanLit;
+static constexpr ImU32 kVuLoUnlit  = kVuCyanUnlit;
+static constexpr ImU32 kVuMedLit   = kVuPinkLit;
+static constexpr ImU32 kVuMedUnlit = kVuPinkUnlit;
+static constexpr ImU32 kVuHiLit    = kVuVioletLit;
+static constexpr ImU32 kVuHiUnlit  = kVuVioletUnlit;
 
 // ── Layout constants ──────────────────────────────────────────────────────────
 static constexpr float PTBAR1_H   = 28.0f;

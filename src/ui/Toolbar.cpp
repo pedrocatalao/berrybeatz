@@ -1,5 +1,6 @@
 #define GL_SILENCE_DEPRECATION
 #include <OpenGL/gl3.h>
+#include "Theme.h"
 #include "Toolbar.h"
 #include "Knob.h"
 #include "RenderSettings.h"
@@ -9,16 +10,16 @@
 
 static void pushToolbarStyle()
 {
-    ImGui::PushStyleColor(ImGuiCol_WindowBg,      IM_COL32(  0,   0,   0,   0));  // drawn as gradient below
-    ImGui::PushStyleColor(ImGuiCol_Button,        IM_COL32( 45,  45,  68, 255));
-    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32( 65,  65,  98, 255));
-    ImGui::PushStyleColor(ImGuiCol_ButtonActive,  IM_COL32( 80,  80, 120, 255));
-    ImGui::PushStyleColor(ImGuiCol_Border,        IM_COL32( 80,  80, 112, 255));
-    ImGui::PushStyleColor(ImGuiCol_Text,          IM_COL32(208, 208, 224, 255));
-    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,     ImVec2(8.f, 2.f));
-    ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding,    0.f);
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,      ImVec2(3.f, 0.f));
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,    ImVec2(8.f, 0.f));
+    ImGui::PushStyleColor(ImGuiCol_WindowBg,      IM_COL32(0, 0, 0, 0));  // drawn as gradient below
+    ImGui::PushStyleColor(ImGuiCol_Button,        kClrBtnBg);
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, kClrBtnHover);
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive,  kClrBtnActive);
+    ImGui::PushStyleColor(ImGuiCol_Border,        kClrBtnBorder);
+    ImGui::PushStyleColor(ImGuiCol_Text,          kClrTextBright);
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,     kToolbarFramePad);
+    ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding,    kStyleFrameRounding);
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,      kToolbarItemSpacing);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,    kToolbarWindowPad);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f);
 }
 
@@ -28,12 +29,12 @@ static void popToolbarStyle()
     ImGui::PopStyleColor(6);
 }
 
-static const ImU32 kVuLoLit    = IM_COL32(  0, 220, 255, 225);  // cyan
-static const ImU32 kVuLoUnlit  = IM_COL32(  0,  35,  45, 225);
-static const ImU32 kVuMedLit   = IM_COL32(255,  30, 180, 225);  // hot pink
-static const ImU32 kVuMedUnlit = IM_COL32( 45,   0,  30, 225);
-static const ImU32 kVuHiLit    = IM_COL32(255,   0,  90, 225);  // red
-static const ImU32 kVuHiUnlit  = IM_COL32( 45,   0,  20, 225);
+static constexpr ImU32 kVuLoLit    = kVuCyanLit;
+static constexpr ImU32 kVuLoUnlit  = kVuCyanUnlit;
+static constexpr ImU32 kVuMedLit   = kVuPinkLit;
+static constexpr ImU32 kVuMedUnlit = kVuPinkUnlit;
+static constexpr ImU32 kVuHiLit    = kVuRedLit;
+static constexpr ImU32 kVuHiUnlit  = kVuRedUnlit;
 
 static void drawVU(ImDrawList* dl,
                    float x, float y, float w, float h,

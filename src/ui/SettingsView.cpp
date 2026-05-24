@@ -3,6 +3,7 @@
 #include "SettingsView.h"
 #include "Knob.h"
 #include "imgui.h"
+#include "Theme.h"
 
 void SettingsView::open(const Settings& current,
                         std::vector<AudioDeviceInfo> audioDevs,
@@ -48,7 +49,7 @@ void SettingsView::draw()
     ImGui::SetNextWindowPos({m_winPosX, m_winPosY}, ImGuiCond_Always);
     ImGui::SetNextWindowSize({kW, kH}, ImGuiCond_Always);
     ImGui::PushStyleColor(ImGuiCol_ModalWindowDimBg, IM_COL32(0, 0, 0, 0));
-    ImGui::PushStyleColor(ImGuiCol_PopupBg,          IM_COL32(0, 0, 20, 255));
+    ImGui::PushStyleColor(ImGuiCol_PopupBg,          kClrModalBg);
 
     if (ImGui::BeginPopupModal("Settings", &m_open,
             ImGuiWindowFlags_NoTitleBar        |
@@ -75,16 +76,16 @@ void SettingsView::draw()
 
         // ── Gradient background ──────────────────────────────────────────────
         wdl->AddRectFilledMultiColor(p0, p1,
-            IM_COL32( 0,  0, 20, 100), IM_COL32( 0,  0, 20, 100),
-            IM_COL32(20, 20, 40, 100), IM_COL32(20, 20, 40, 100));
+            kClrModalGradTop, kClrModalGradTop,
+            kClrModalGradBot, kClrModalGradBot);
 
         // ── Custom title bar ─────────────────────────────────────────────────
-        wdl->AddRectFilled(p0, {p1.x, p0.y + kTitleH}, IM_COL32(8, 8, 30, 255));
+        wdl->AddRectFilled(p0, {p1.x, p0.y + kTitleH}, kClrBgTitle);
         {
             const char* title = "Settings";
             ImVec2 tsz = ImGui::CalcTextSize(title);
             wdl->AddText({p0.x + (kW - tsz.x) * 0.5f, p0.y + (kTitleH - tsz.y) * 0.5f},
-                         IM_COL32(200, 200, 220, 255), title);
+                         kClrTextTitle, title);
         }
 
         // Drag handle over title bar (excludes X button area)
@@ -99,8 +100,8 @@ void SettingsView::draw()
         // X close button
         ImGui::SetCursorPos({kW - kTitleH, 0.f});
         ImGui::PushStyleColor(ImGuiCol_Button,        IM_COL32(0, 0, 0, 0));
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(160, 30, 30, 200));
-        ImGui::PushStyleColor(ImGuiCol_ButtonActive,  IM_COL32(200, 50, 50, 255));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, kClrModalClose);
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive,  kClrModalCloseAct);
         ImGui::PushStyleColor(ImGuiCol_Text,          IM_COL32(180, 180, 200, 220));
         if (ImGui::Button("\xc3\x97##close", {kTitleH, kTitleH})) {
             m_open = false;
@@ -110,10 +111,10 @@ void SettingsView::draw()
 
         // ── Tabs ─────────────────────────────────────────────────────────────
         ImGui::SetCursorPos({0.f, kTitleH});
-        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,     ImVec2(8.5f, 4.f));
-        ImGui::PushStyleVar(ImGuiStyleVar_ItemInnerSpacing, ImVec2(1.f, 0.f));
-        ImGui::PushStyleColor(ImGuiCol_Tab,        IM_COL32(10, 10, 22, 255));
-        ImGui::PushStyleColor(ImGuiCol_TabHovered, IM_COL32(35, 35, 60, 255));
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,     kTabFramePad);
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemInnerSpacing, kTabInnerSpacing);
+        ImGui::PushStyleColor(ImGuiCol_Tab,        kClrTabBg);
+        ImGui::PushStyleColor(ImGuiCol_TabHovered, kClrTabHover);
         if (ImGui::BeginTabBar("##settabs")) {
             const char* tabs[] = {"General", "Audio", "MIDI", "Editor"};
             using DrawFn = void (SettingsView::*)();
@@ -121,8 +122,8 @@ void SettingsView::draw()
                              &SettingsView::drawMidiTab,    &SettingsView::drawEditorTab };
             for (int i = 0; i < 4; ++i) {
                 ImGui::PushStyleColor(ImGuiCol_Text, (i == m_activeTab)
-                    ? IM_COL32(208, 208, 224, 255)
-                    : IM_COL32(110, 110, 130, 255));
+                    ? kClrTextBright
+                    : kClrTextDim);
                 if (ImGui::BeginTabItem(tabs[i])) {
                     m_activeTab = i;
                     (this->*fns[i])();
@@ -294,8 +295,8 @@ void SettingsView::drawMidiTab()
 
             bool learning = (m_learnTarget == row.target);
             if (learning) {
-                ImGui::PushStyleColor(ImGuiCol_Button,        IM_COL32(160, 30, 30, 255));
-                ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(190, 50, 50, 255));
+                ImGui::PushStyleColor(ImGuiCol_Button,        kClrRed);
+                ImGui::PushStyleColor(ImGuiCol_ButtonHovered, kClrRedHover);
             }
             if (ImGui::SmallButton(learning ? "Waiting..." : "Learn")) {
                 m_learnTarget = learning ? -1 : row.target;

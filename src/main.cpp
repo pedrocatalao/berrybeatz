@@ -8,6 +8,7 @@
 #include "backends/imgui_impl_opengl3.h"
 
 #include "App.h"
+#include "Theme.h"
 #include "CocoaHelpers.h"
 #include <CoreFoundation/CoreFoundation.h>
 #include <cstdio>
@@ -70,15 +71,15 @@ int main(int argc, char* argv[])
     // Style: dark, square, dense
     ImGui::StyleColorsDark();
     ImGuiStyle& style = ImGui::GetStyle();
-    style.WindowRounding    = 0.f;
-    style.FrameRounding     = 0.f;
-    style.ScrollbarRounding = 2.f;
-    style.TabRounding       = 3.f;
+    style.WindowRounding    = kStyleWindowRounding;
+    style.FrameRounding     = kStyleFrameRounding;
+    style.ScrollbarRounding = kStyleScrollbarRounding;
+    style.TabRounding       = kStyleTabRounding;
     style.WindowBorderSize  = 0.f;
     style.FrameBorderSize   = 0.f;
-    style.Colors[ImGuiCol_WindowBg]  = ImVec4(0.08f, 0.08f, 0.13f, 1.f);
-    style.Colors[ImGuiCol_TitleBg]   = ImVec4(0.08f, 0.08f, 0.13f, 1.f);
-    style.Colors[ImGuiCol_TitleBgActive] = ImVec4(0.12f, 0.12f, 0.20f, 1.f);
+    style.Colors[ImGuiCol_WindowBg]      = kStyleWindowBg;
+    style.Colors[ImGuiCol_TitleBg]       = kStyleTitleBg;
+    style.Colors[ImGuiCol_TitleBgActive] = kStyleTitleBgAct;
 
     ImGui_ImplGlfw_InitForOpenGL(window, false);  // we install callbacks manually below
     ImGui_ImplOpenGL3_Init("#version 150");
@@ -115,6 +116,8 @@ int main(int argc, char* argv[])
         if (!fontUI)   fontUI   = io.Fonts->AddFontDefault();
 
         io.Fonts->Build();
+        g_fontMono = fontMono;
+        g_fontUI   = fontUI;
     }
 
     // ── Application ───────────────────────────────────────────────────────

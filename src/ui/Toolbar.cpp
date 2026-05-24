@@ -238,92 +238,6 @@ float DrawToolbar(ToolbarState& state,
     ImGui::SetCursorPos({13.f, knobMidY});
 
     // ─── Knobs ────────────────────────────────────────────────────────────────
-    // Each knob is 36×36; draw label text below via the draw list.
-    // Clicking without dragging activates an in-place InputInt overlay.
-    static const char* s_editLabel = nullptr;
-    static int         s_editVal   = 0;
-    static bool        s_doFocus   = false;
-    static float       s_editX     = 0.f;   // screen x where the value text starts
-    static float       s_editY     = 0.f;   // screen y for the text baseline
-
-    auto doKnob = [&](const char* label, int* val, int vmin, int vmax,
-                      std::function<void(int)> cb)
-    {
-        ImGui::SetCursorPosY(knobMidY);
-
-        // Label to the left of the knob, vertically centred
-        const float labelGap = 5.f;
-        ImVec2 labelSp = ImGui::GetCursorScreenPos();
-        ImVec2 textSz  = ImGui::CalcTextSize(label);
-        ImGui::GetWindowDrawList()->AddText(
-            {labelSp.x, labelSp.y + (knobSz - textSz.y) * 0.5f},
-            IM_COL32(160, 160, 180, 255), label);
-
-        // Advance cursor past the label so the knob sits to its right
-        ImGui::SetCursorScreenPos({labelSp.x + textSz.x + labelGap, labelSp.y});
-        ImVec2 sp = ImGui::GetCursorScreenPos();
-
-        bool editing = (s_editLabel == label);
-
-        bool editReq = false;
-        bool changed = KnobWidget(label, val, vmin, vmax, &editReq, editing);
-        if (changed && cb) cb(*val);
-
-        if (editReq) {
-            s_editLabel = label;
-            s_editVal   = *val;
-            s_doFocus   = true;
-            char ibuf[16];
-            snprintf(ibuf, sizeof(ibuf), "%d", *val);
-            ImVec2 vsz = ImGui::CalcTextSize(ibuf);
-            s_editX = sp.x + (knobSz - vsz.x) * 0.5f;
-            s_editY = sp.y + (knobSz - vsz.y) * 0.5f;
-        }
-
-        // In-place number edit: transparent, borderless InputInt drawn exactly
-        // where the value text lives; a Dummy at the knob footprint resets the
-        // ImGui last-item rect so SameLine on the caller side stays correct.
-        if (editing) {
-            char ibuf[16];
-            snprintf(ibuf, sizeof(ibuf), "%d", s_editVal);
-            const float iw = ImGui::CalcTextSize(ibuf).x + ImGui::GetTextLineHeight();
-
-            ImGui::SetCursorScreenPos({s_editX, s_editY});
-            ImGui::SetNextItemWidth(iw);
-            if (s_doFocus) { ImGui::SetKeyboardFocusHere(); s_doFocus = false; }
-
-            ImGui::PushStyleColor(ImGuiCol_FrameBg,        IM_COL32(0, 0, 0, 0));
-            ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, IM_COL32(0, 0, 0, 0));
-            ImGui::PushStyleColor(ImGuiCol_FrameBgActive,  IM_COL32(0, 0, 0, 0));
-            ImGui::PushStyleColor(ImGuiCol_Text,           IM_COL32(208, 208, 80, 255));
-            ImGui::PushStyleColor(ImGuiCol_Border,         IM_COL32(0, 0, 0, 0));
-            ImGui::PushStyleColor(ImGuiCol_NavHighlight,   IM_COL32(0, 0, 0, 0));
-            ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0.f);
-            ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0.f, 0.f));
-
-            ImGui::PushID(label);
-            if (ImGui::InputInt("##ke", &s_editVal, 0, 0,
-                    ImGuiInputTextFlags_EnterReturnsTrue |
-                    ImGuiInputTextFlags_AutoSelectAll)) {
-                s_editVal = s_editVal < vmin ? vmin : (s_editVal > vmax ? vmax : s_editVal);
-                *val = s_editVal;
-                if (cb) cb(*val);
-                s_editLabel = nullptr;
-            }
-            if (ImGui::IsKeyPressed(ImGuiKey_Escape, false))
-                s_editLabel = nullptr;
-            ImGui::PopID();
-
-            ImGui::PopStyleVar(2);
-            ImGui::PopStyleColor(6);
-
-            // Dummy at the knob footprint: resets last-item rect so SameLine
-            // after this doKnob call places the next knob at the right position.
-            ImGui::SetCursorScreenPos(sp);
-            ImGui::Dummy({knobSz, knobSz});
-        }
-    };
-
     const float kPad  = 5.f;
     const float rowX0 = ImGui::GetCursorScreenPos().x - kPad;
     const float rowY0 = ImGui::GetWindowPos().y + knobMidY - kPad;
@@ -333,13 +247,21 @@ float DrawToolbar(ToolbarState& state,
     dl->ChannelsSplit(2);
     dl->ChannelsSetCurrent(1);
 
-    doKnob("Oct",  &state.octave,    0,   8,   state.onOctaveChange);
+    auto doKnob = [&](const char* id, int* val, int vmin, int vmax,
+                      std::function<void(int)> cb)
+    {
+        ImGui::SetCursorPosY(knobMidY);
+        if (KnobEdit(id, val, vmin, vmax, false, id, KnobLabelPos::Left) && cb)
+            cb(*val);
+    };
+
+    doKnob("Oct", &state.octave,    0,   8,   state.onOctaveChange);
     ImGui::SameLine(0.f, 6.f);
-    doKnob("BPM",  &state.tempo,     32,  512, state.onTempoChange);
+    doKnob("BPM", &state.tempo,     32,  512, state.onTempoChange);
     ImGui::SameLine(0.f, 6.f);
-    doKnob("Spd",  &state.speed,     1,   255, state.onSpeedChange);
+    doKnob("Spd", &state.speed,     1,   255, state.onSpeedChange);
     ImGui::SameLine(0.f, 6.f);
-    doKnob("RPB",  &state.rpb,       1,   32,  state.onRPBChange);
+    doKnob("RPB", &state.rpb,       1,   32,  state.onRPBChange);
     ImGui::SameLine(0.f, 6.f);
     doKnob("Vol", &state.globalVol, 0,   256, state.onGlobalVolChange);
 

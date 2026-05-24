@@ -349,12 +349,9 @@ void SettingsView::drawGeneralTab()
     bool changed = false;
     for (int i = 0; i < 4; ++i) {
         if (i > 0) ImGui::SameLine(0, 20);
-        ImGui::BeginGroup();
-        float labelW = ImGui::CalcTextSize(knobs[i].label).x;
-        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (36.f - labelW) * 0.5f);
-        ImGui::TextUnformatted(knobs[i].label);
-        changed |= KnobWidget(knobs[i].label, knobs[i].val, 0, 10);
-        ImGui::EndGroup();
+        changed |= KnobWidget(knobs[i].label, knobs[i].val, 0, 10,
+                              nullptr, false, false,
+                              knobs[i].label, KnobLabelPos::Top);
     }
     if (changed && onApply) onApply(m_pending);
 }

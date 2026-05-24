@@ -110,13 +110,30 @@ void SettingsView::draw()
 
         // ── Tabs ─────────────────────────────────────────────────────────────
         ImGui::SetCursorPos({0.f, kTitleH});
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,     ImVec2(8.5f, 4.f));
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemInnerSpacing, ImVec2(1.f, 0.f));
+        ImGui::PushStyleColor(ImGuiCol_Tab,        IM_COL32(10, 10, 22, 255));
+        ImGui::PushStyleColor(ImGuiCol_TabHovered, IM_COL32(35, 35, 60, 255));
         if (ImGui::BeginTabBar("##settabs")) {
-            if (ImGui::BeginTabItem("General")) { drawGeneralTab(); ImGui::EndTabItem(); }
-            if (ImGui::BeginTabItem("Audio"))   { drawAudioTab();   ImGui::EndTabItem(); }
-            if (ImGui::BeginTabItem("MIDI"))    { drawMidiTab();    ImGui::EndTabItem(); }
-            if (ImGui::BeginTabItem("Editor"))  { drawEditorTab();  ImGui::EndTabItem(); }
+            const char* tabs[] = {"General", "Audio", "MIDI", "Editor"};
+            using DrawFn = void (SettingsView::*)();
+            DrawFn fns[] = { &SettingsView::drawGeneralTab, &SettingsView::drawAudioTab,
+                             &SettingsView::drawMidiTab,    &SettingsView::drawEditorTab };
+            for (int i = 0; i < 4; ++i) {
+                ImGui::PushStyleColor(ImGuiCol_Text, (i == m_activeTab)
+                    ? IM_COL32(208, 208, 224, 255)
+                    : IM_COL32(110, 110, 130, 255));
+                if (ImGui::BeginTabItem(tabs[i])) {
+                    m_activeTab = i;
+                    (this->*fns[i])();
+                    ImGui::EndTabItem();
+                }
+                ImGui::PopStyleColor();
+            }
             ImGui::EndTabBar();
         }
+        ImGui::PopStyleColor(2);
+        ImGui::PopStyleVar(2);
 
         ImGui::EndPopup();
     }

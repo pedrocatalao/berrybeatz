@@ -48,7 +48,7 @@ static void drawVU(ImDrawList* dl,
     const float tops[2] = { y, y + bh + gap };
 
     if (g_glowLevel > 0.f && g_glowVU) {
-        auto ga = [](int a) { return (uint8_t)(a * g_glowLevel); };
+        const float opa = g_glowLevel * 0.35f;  // halved vs tracker: L+R glow accumulates in the overlap
         dl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {
             glBlendFunc(GL_SRC_ALPHA, GL_ONE);
         }, nullptr);
@@ -62,12 +62,12 @@ static void drawVU(ImDrawList* dl,
                 else                    { gr =   0; gg = 220; gb = 255; }
                 float sx = x + float(i) * stride;
                 float ty = tops[ch];
-                dl->AddRectFilled({sx - 16, ty - 6}, {sx + barW + 16, ty + bh + 6}, IM_COL32(gr, gg, gb, ga( 1)));
-                dl->AddRectFilled({sx - 11, ty - 5}, {sx + barW + 11, ty + bh + 5}, IM_COL32(gr, gg, gb, ga( 1)));
-                dl->AddRectFilled({sx -  7, ty - 3}, {sx + barW +  7, ty + bh + 3}, IM_COL32(gr, gg, gb, ga( 1)));
-                dl->AddRectFilled({sx -  4, ty - 2}, {sx + barW +  4, ty + bh + 2}, IM_COL32(gr, gg, gb, ga( 2)));
-                dl->AddRectFilled({sx -  2, ty - 1}, {sx + barW +  2, ty + bh + 1}, IM_COL32(gr, gg, gb, ga( 3)));
-                dl->AddRectFilled({sx -  1, ty    }, {sx + barW +  1, ty + bh    }, IM_COL32(gr, gg, gb, ga( 3)));
+                dl->AddRectFilled({sx - 16, ty - 6}, {sx + barW + 16, ty + bh + 6}, IM_COL32(gr, gg, gb, (uint8_t)( 3 * opa)));
+                dl->AddRectFilled({sx - 11, ty - 5}, {sx + barW + 11, ty + bh + 5}, IM_COL32(gr, gg, gb, (uint8_t)( 3 * opa)));
+                dl->AddRectFilled({sx -  7, ty - 3}, {sx + barW +  7, ty + bh + 3}, IM_COL32(gr, gg, gb, (uint8_t)( 5 * opa)));
+                dl->AddRectFilled({sx -  4, ty - 2}, {sx + barW +  4, ty + bh + 2}, IM_COL32(gr, gg, gb, (uint8_t)( 7 * opa)));
+                dl->AddRectFilled({sx -  2, ty - 1}, {sx + barW +  2, ty + bh + 1}, IM_COL32(gr, gg, gb, (uint8_t)(10 * opa)));
+                dl->AddRectFilled({sx -  1, ty    }, {sx + barW +  1, ty + bh    }, IM_COL32(gr, gg, gb, (uint8_t)(10 * opa)));
             }
         }
         dl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {

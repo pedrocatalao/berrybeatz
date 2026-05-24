@@ -483,7 +483,7 @@ void TrackerView::drawStereoVU(ImDrawList* dl, float x, float y, float w, float 
 
     // Glow pass — additive blending, only lit segments
     if (g_glowLevel > 0.f && g_glowVU) {
-        auto ga = [](int a) { return (uint8_t)(a * g_glowLevel); };
+        const float opa = g_glowLevel * 0.5f;  // 0.0 (off) → 1.0 (max) across slider 0–10
         dl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {
             glBlendFunc(GL_SRC_ALPHA, GL_ONE);
         }, nullptr);
@@ -496,20 +496,20 @@ void TrackerView::drawStereoVU(ImDrawList* dl, float x, float y, float w, float 
             float rx = cx + 1.0f + float(i) * stride;
             float lx = cx - 1.0f - float(i) * stride - barW;
             if (normR > frac) {
-                dl->AddRectFilled({rx - 16, y - 6}, {rx + barW + 16, y + bH + 6}, IM_COL32(gr, gg, gb, ga( 1)));
-                dl->AddRectFilled({rx - 11, y - 5}, {rx + barW + 11, y + bH + 5}, IM_COL32(gr, gg, gb, ga( 1)));
-                dl->AddRectFilled({rx -  7, y - 3}, {rx + barW +  7, y + bH + 3}, IM_COL32(gr, gg, gb, ga( 1)));
-                dl->AddRectFilled({rx -  4, y - 2}, {rx + barW +  4, y + bH + 2}, IM_COL32(gr, gg, gb, ga( 2)));
-                dl->AddRectFilled({rx -  2, y - 1}, {rx + barW +  2, y + bH + 1}, IM_COL32(gr, gg, gb, ga( 3)));
-                dl->AddRectFilled({rx -  1, y    }, {rx + barW +  1, y + bH    }, IM_COL32(gr, gg, gb, ga( 3)));
+                dl->AddRectFilled({rx - 16, y - 6}, {rx + barW + 16, y + bH + 6}, IM_COL32(gr, gg, gb, (uint8_t)( 3 * opa)));
+                dl->AddRectFilled({rx - 11, y - 5}, {rx + barW + 11, y + bH + 5}, IM_COL32(gr, gg, gb, (uint8_t)( 3 * opa)));
+                dl->AddRectFilled({rx -  7, y - 3}, {rx + barW +  7, y + bH + 3}, IM_COL32(gr, gg, gb, (uint8_t)( 5 * opa)));
+                dl->AddRectFilled({rx -  4, y - 2}, {rx + barW +  4, y + bH + 2}, IM_COL32(gr, gg, gb, (uint8_t)( 7 * opa)));
+                dl->AddRectFilled({rx -  2, y - 1}, {rx + barW +  2, y + bH + 1}, IM_COL32(gr, gg, gb, (uint8_t)(10 * opa)));
+                dl->AddRectFilled({rx -  1, y    }, {rx + barW +  1, y + bH    }, IM_COL32(gr, gg, gb, (uint8_t)(10 * opa)));
             }
             if (normL > frac) {
-                dl->AddRectFilled({lx - 16, y - 6}, {lx + barW + 16, y + bH + 6}, IM_COL32(gr, gg, gb, ga( 1)));
-                dl->AddRectFilled({lx - 11, y - 5}, {lx + barW + 11, y + bH + 5}, IM_COL32(gr, gg, gb, ga( 1)));
-                dl->AddRectFilled({lx -  7, y - 3}, {lx + barW +  7, y + bH + 3}, IM_COL32(gr, gg, gb, ga( 1)));
-                dl->AddRectFilled({lx -  4, y - 2}, {lx + barW +  4, y + bH + 2}, IM_COL32(gr, gg, gb, ga( 2)));
-                dl->AddRectFilled({lx -  2, y - 1}, {lx + barW +  2, y + bH + 1}, IM_COL32(gr, gg, gb, ga( 3)));
-                dl->AddRectFilled({lx -  1, y    }, {lx + barW +  1, y + bH    }, IM_COL32(gr, gg, gb, ga( 3)));
+                dl->AddRectFilled({lx - 16, y - 6}, {lx + barW + 16, y + bH + 6}, IM_COL32(gr, gg, gb, (uint8_t)( 3 * opa)));
+                dl->AddRectFilled({lx - 11, y - 5}, {lx + barW + 11, y + bH + 5}, IM_COL32(gr, gg, gb, (uint8_t)( 3 * opa)));
+                dl->AddRectFilled({lx -  7, y - 3}, {lx + barW +  7, y + bH + 3}, IM_COL32(gr, gg, gb, (uint8_t)( 5 * opa)));
+                dl->AddRectFilled({lx -  4, y - 2}, {lx + barW +  4, y + bH + 2}, IM_COL32(gr, gg, gb, (uint8_t)( 7 * opa)));
+                dl->AddRectFilled({lx -  2, y - 1}, {lx + barW +  2, y + bH + 1}, IM_COL32(gr, gg, gb, (uint8_t)(10 * opa)));
+                dl->AddRectFilled({lx -  1, y    }, {lx + barW +  1, y + bH    }, IM_COL32(gr, gg, gb, (uint8_t)(10 * opa)));
             }
         }
         dl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {

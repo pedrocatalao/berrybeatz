@@ -187,18 +187,13 @@ void TrackerView::render(float x, float y, float w, float h) {
     ImGui::SetNextWindowBgAlpha(0.f);
     ImGui::Begin("##plughost", nullptr, noDecoFlags | ImGuiWindowFlags_NoNav);
     if (m_pluginPopupCh >= 0) {
-        ImGui::OpenPopup("##plugsettings");
+        m_pluginPopup.open();
         m_pluginPopupCh = -1;
     }
-    ImGui::SetNextWindowSize({300, 0}, ImGuiCond_Always);
-    if (ImGui::BeginPopupModal("##plugsettings", nullptr,
-                               ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar)) {
-        ImGui::TextColored(kTextNormal, "Channel — Plugin Settings");
-        ImGui::Separator(); ImGui::Spacing();
+    if (m_pluginPopup.begin("Plugin Settings", 300.f, 76.f)) {
+        ImGui::Spacing();
         ImGui::TextColored(kDim, "No plugin assigned.");
-        ImGui::Spacing(); ImGui::Separator();
-        if (ImGui::Button("Close", {80, 0})) ImGui::CloseCurrentPopup();
-        ImGui::EndPopup();
+        m_pluginPopup.end();
     }
     ImGui::End();
 }

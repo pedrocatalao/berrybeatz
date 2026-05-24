@@ -5,6 +5,7 @@
 #include "ModuleState.h"
 #include "PatternEditor.h"
 #include "UndoManager.h"
+#include "PopupModal.h"
 
 struct ImFont;
 struct ImDrawList;
@@ -127,6 +128,7 @@ private:
     int        m_editStep      {1};
     bool       m_editMode      {false};
     int32_t    m_pluginPopupCh {-1};
+    PopupModal m_pluginPopup;
 
     // Block selection
     PatSel m_sel;

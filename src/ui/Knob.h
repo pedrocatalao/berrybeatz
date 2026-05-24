@@ -143,8 +143,8 @@ inline bool KnobWidget(const char* id,
         dl->PathArcTo(center, trackR, a, b, 32);
         dl->PathStroke(IM_COL32(0, 180, 210, 100), false, 2.5f);
 
-        if (g_glowLevel > 0.f && g_glowKnobs) {
-            auto ga = [](int a) { return (uint8_t)(a * g_glowLevel); };
+        if (g_glowKnobs > 0.f) {
+            auto ga = [](int a) { return (uint8_t)(a * g_glowKnobs); };
             dl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {
                 glBlendFunc(GL_SRC_ALPHA, GL_ONE);
             }, nullptr);
@@ -236,8 +236,8 @@ inline void KnobDisplay(const char* id, float t)
     if (arcB > arcA) {
         dl->PathArcTo(center, trackR, arcA, arcB, 32);
         dl->PathStroke(IM_COL32(0, 180, 210, 100), false, 2.5f);
-        if (g_glowLevel > 0.f && g_glowKnobs) {
-            auto ga = [](int a) { return (uint8_t)(a * g_glowLevel); };
+        if (g_glowKnobs > 0.f) {
+            auto ga = [](int a) { return (uint8_t)(a * g_glowKnobs); };
             dl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {
                 glBlendFunc(GL_SRC_ALPHA, GL_ONE);
             }, nullptr);

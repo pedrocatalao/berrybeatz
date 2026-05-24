@@ -15,11 +15,10 @@ struct Settings {
     int  midiInputIndex   {-1};   // -1 = none
     bool followPlayback   {true};
     bool wrapCursor       {false};
-    int  glowLevel        {5};     // 0 = off, 5 = default (1.0×), 10 = max (2.0×)
-    bool glowLogo         {true};
-    bool glowVU           {true};
-    bool glowPattern      {true};
-    bool glowKnobs        {true};
+    int  glowLogo    {5};   // 0 = off, 1–10 intensity
+    int  glowVU      {5};
+    int  glowPattern {5};
+    int  glowKnobs   {5};
     MidiCCMap midiCC;
 
     void load(const std::string& path);

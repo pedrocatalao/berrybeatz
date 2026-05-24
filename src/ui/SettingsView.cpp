@@ -1,6 +1,7 @@
 #define GL_SILENCE_DEPRECATION
 #include <OpenGL/gl3.h>
 #include "SettingsView.h"
+#include "Knob.h"
 #include "imgui.h"
 
 void SettingsView::open(const Settings& current,
@@ -316,36 +317,26 @@ void SettingsView::drawEditorTab()
 
 void SettingsView::drawGeneralTab()
 {
-    auto togBtn = [](const char* lbl, bool& state) -> bool {
-        bool isOn = state;
-        if (isOn) {
-            ImGui::PushStyleColor(ImGuiCol_Button,        IM_COL32(64, 64, 160, 255));
-            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(80, 80, 190, 255));
-        }
-        bool clicked = ImGui::Button(lbl);
-        if (isOn) ImGui::PopStyleColor(2);
-        if (clicked) state = !state;
-        return clicked;
+    ImGui::Spacing();
+    ImGui::TextUnformatted("Glow");
+    ImGui::Spacing();
+
+    struct { const char* label; int* val; } knobs[] = {
+        {"Logo",    &m_pending.glowLogo},
+        {"VU",      &m_pending.glowVU},
+        {"Pattern", &m_pending.glowPattern},
+        {"Knobs",   &m_pending.glowKnobs},
     };
 
-    ImGui::Spacing();
-    ImGui::TextUnformatted("Glow Level");
-    ImGui::SetNextItemWidth(200.f);
-    ImGui::SliderInt("##glowlevel", &m_pending.glowLevel, 0, 10);
-    if (ImGui::IsItemDeactivatedAfterEdit() && onApply) onApply(m_pending);
-    ImGui::SameLine();
-    if (m_pending.glowLevel == 0)
-        ImGui::TextDisabled("Off");
-    else
-        ImGui::Text("%d", m_pending.glowLevel);
-
-    ImGui::Spacing();
-    ImGui::TextUnformatted("Glow Elements");
-    ImGui::Spacing();
     bool changed = false;
-    changed |= togBtn("Logo##gl",    m_pending.glowLogo);    ImGui::SameLine(0, 4);
-    changed |= togBtn("VU##gl",      m_pending.glowVU);      ImGui::SameLine(0, 4);
-    changed |= togBtn("Pattern##gl", m_pending.glowPattern); ImGui::SameLine(0, 4);
-    changed |= togBtn("Knobs##gl",   m_pending.glowKnobs);
+    for (int i = 0; i < 4; ++i) {
+        if (i > 0) ImGui::SameLine(0, 20);
+        ImGui::BeginGroup();
+        float labelW = ImGui::CalcTextSize(knobs[i].label).x;
+        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (36.f - labelW) * 0.5f);
+        ImGui::TextUnformatted(knobs[i].label);
+        changed |= KnobWidget(knobs[i].label, knobs[i].val, 0, 10);
+        ImGui::EndGroup();
+    }
     if (changed && onApply) onApply(m_pending);
 }

@@ -47,8 +47,8 @@ static void drawVU(ImDrawList* dl,
     const float norm[2] = { std::min(lvlL / 1.2f, 1.f), std::min(lvlR / 1.2f, 1.f) };
     const float tops[2] = { y, y + bh + gap };
 
-    if (g_glowLevel > 0.f && g_glowVU) {
-        const float opa = g_glowLevel * 0.35f;  // halved vs tracker: L+R glow accumulates in the overlap
+    if (g_glowVU > 0.f) {
+        const float opa = g_glowVU * 0.35f;  // L+R glow accumulates in the overlap
         dl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {
             glBlendFunc(GL_SRC_ALPHA, GL_ONE);
         }, nullptr);
@@ -390,8 +390,8 @@ float DrawToolbar(ToolbarState& state,
             glBlendFunc(GL_SRC_ALPHA, GL_ONE);
         }, nullptr);
 
-        if (g_glowLevel > 0.f && g_glowLogo) {
-            auto ga = [](int a) { return (uint8_t)(a * g_glowLevel); };
+        if (g_glowLogo > 0.f) {
+            auto ga = [](int a) { return (uint8_t)(a * g_glowLogo); };
             static const float kDirs[8][2] = {
                 {-1.f, 0.f},{1.f, 0.f},{0.f,-1.f},{0.f, 1.f},
                 {-1.f,-1.f},{1.f,-1.f},{-1.f,1.f},{1.f, 1.f}

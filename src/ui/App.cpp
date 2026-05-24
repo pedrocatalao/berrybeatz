@@ -83,11 +83,10 @@ App::App() : m_audio(m_state), m_tracker(m_state), m_generalView(m_state)
 
     // ── Settings ──────────────────────────────────────────────────────────
     m_settings.load(Settings::defaultPath());
-    g_glowLevel   = m_settings.glowLevel / 5.f;
-    g_glowLogo    = m_settings.glowLogo;
-    g_glowVU      = m_settings.glowVU;
-    g_glowPattern = m_settings.glowPattern;
-    g_glowKnobs   = m_settings.glowKnobs;
+    g_glowLogo    = m_settings.glowLogo    / 5.f;
+    g_glowVU      = m_settings.glowVU      / 5.f;
+    g_glowPattern = m_settings.glowPattern / 5.f;
+    g_glowKnobs   = m_settings.glowKnobs   / 5.f;
     m_audio.setAudioConfig(m_settings.audioDeviceIndex, m_settings.sampleRate);
     m_midi.setSource(m_settings.midiInputIndex);
 
@@ -101,11 +100,10 @@ App::App() : m_audio(m_state), m_tracker(m_state), m_generalView(m_state)
         bool midiChanged  = (s.midiInputIndex   != m_settings.midiInputIndex);
         m_settings = s;
         m_settings.save(Settings::defaultPath());
-        g_glowLevel   = s.glowLevel / 5.f;
-        g_glowLogo    = s.glowLogo;
-        g_glowVU      = s.glowVU;
-        g_glowPattern = s.glowPattern;
-        g_glowKnobs   = s.glowKnobs;
+        g_glowLogo    = s.glowLogo    / 5.f;
+        g_glowVU      = s.glowVU      / 5.f;
+        g_glowPattern = s.glowPattern / 5.f;
+        g_glowKnobs   = s.glowKnobs   / 5.f;
         m_audio.setAudioConfig(s.audioDeviceIndex, s.sampleRate);
         if (audioChanged && m_audio.isRunning()) {
             m_audio.stop();

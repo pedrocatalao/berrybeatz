@@ -482,8 +482,8 @@ void TrackerView::drawStereoVU(ImDrawList* dl, float x, float y, float w, float 
     float normR = std::min(lvlR / 1.2f, 1.0f);
 
     // Glow pass — additive blending, only lit segments
-    if (g_glowLevel > 0.f && g_glowVU) {
-        const float opa = g_glowLevel * 0.5f;  // 0.0 (off) → 1.0 (max) across slider 0–10
+    if (g_glowVU > 0.f) {
+        const float opa = g_glowVU * 0.5f;
         dl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {
             glBlendFunc(GL_SRC_ALPHA, GL_ONE);
         }, nullptr);
@@ -1041,7 +1041,7 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
             }
 
             // Glow on non-empty cells — skip empty dots
-            if (g_glowLevel > 0.f && g_glowPattern && (hasNote || hasInst || hasVol || hasFx)) {
+            if (g_glowPattern > 0.f && (hasNote || hasInst || hasVol || hasFx)) {
                 ImDrawList* gdl  = ImGui::GetWindowDrawList();
                 ImFont*     font = ImGui::GetFont();
                 float       fsz  = ImGui::GetFontSize();
@@ -1049,9 +1049,9 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
                     glBlendFunc(GL_SRC_ALPHA, GL_ONE);
                 }, nullptr);
                 auto addGlowText = [&](float gx, const ImVec4& c, const char* txt) {
-                    uint8_t a1 = (uint8_t)((isCur ? 25 : 15) * g_glowLevel);
-                    uint8_t a2 = (uint8_t)((isCur ?  8 :  7) * g_glowLevel);
-                    uint8_t a3 = (uint8_t)((isCur ?  5 :  0) * g_glowLevel);
+                    uint8_t a1 = (uint8_t)((isCur ? 25 : 15) * g_glowPattern);
+                    uint8_t a2 = (uint8_t)((isCur ?  8 :  7) * g_glowPattern);
+                    uint8_t a3 = (uint8_t)((isCur ?  5 :  0) * g_glowPattern);
                     ImU32 gc1 = IM_COL32((uint8_t)(c.x*255.f),(uint8_t)(c.y*255.f),(uint8_t)(c.z*255.f), a1);
                     ImU32 gc2 = IM_COL32((uint8_t)(c.x*255.f),(uint8_t)(c.y*255.f),(uint8_t)(c.z*255.f), a2);
                     ImU32 gc3 = IM_COL32((uint8_t)(c.x*255.f),(uint8_t)(c.y*255.f),(uint8_t)(c.z*255.f), a3);

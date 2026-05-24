@@ -6,7 +6,6 @@
 #include "PatternEditor.h"
 #include <libopenmpt/libopenmpt_ext.hpp>
 #include <imgui.h>
-#include <imgui_internal.h>
 #include <algorithm>
 
 // ── OpenMPT "Blue (FT2)" colour scheme — sourced from Theme.h ─────────────────
@@ -891,45 +890,17 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
         bool isMeasure = (r % rpm == 0);
         bool isBeat    = (r % rpb == 0) && !isMeasure;
 
-        if (!isCur) {
-            ImU32 rowNumBg = isMeasure ? ImGui::ColorConvertFloat4ToU32(kBgMeasure)
-                           : isBeat    ? ImGui::ColorConvertFloat4ToU32(kBgHilight)
-                           : IM_COL32(20, 20, 40, 255);
-            ImGui::TableSetBgColor(ImGuiTableBgTarget_CellBg, rowNumBg, 0);
+        if (isCur) {
+            ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, kClrPatCurRowBg);
+        } else if (isMeasure) {
+            ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0,
+                ImGui::ColorConvertFloat4ToU32(kBgMeasure));
+        } else if (isBeat) {
+            ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0,
+                ImGui::ColorConvertFloat4ToU32(kBgHilight));
         }
 
         ImGui::TableNextColumn();
-        {
-            ImDrawList* dl  = ImGui::GetWindowDrawList();
-            ImRect      icr = ImGui::GetCurrentWindow()->InnerClipRect;
-            float       pad = ImGui::GetStyle().CellPadding.y;
-            float       rT  = ImGui::GetCursorScreenPos().y - pad;
-            float       rH  = ImGui::GetTextLineHeight() + 2.f * pad;
-            // Right edge: stop at the last channel column, not the full clip rect
-            float chansRight = (m_colStep > 0.f && m_tableOriginX > 0.f)
-                ? m_tableOriginX - m_hscroll + nch * m_colStep
-                : icr.Max.x;
-            chansRight = std::min(chansRight, icr.Max.x);
-            if (isCur || isMeasure || isBeat) {
-                // Expand X to all channels but keep current Y clip (excludes frozen header)
-                ImVec2 cMin = dl->GetClipRectMin();
-                ImVec2 cMax = dl->GetClipRectMax();
-                dl->PushClipRect({icr.Min.x, cMin.y}, {chansRight, cMax.y}, false);
-                if (isCur) {
-                    dl->AddRectFilledMultiColor(
-                        {icr.Min.x, rT}, {chansRight, rT + rH},
-                        IM_COL32(40, 85, 145, 128), IM_COL32(40, 85, 145, 220),
-                        IM_COL32(40, 85, 145, 255), IM_COL32(40, 85, 145, 255));
-                } else if (isMeasure) {
-                    dl->AddRectFilled({icr.Min.x, rT}, {chansRight, rT + rH},
-                        ImGui::ColorConvertFloat4ToU32(kBgMeasure));
-                } else {
-                    dl->AddRectFilled({icr.Min.x, rT}, {chansRight, rT + rH},
-                        ImGui::ColorConvertFloat4ToU32(kBgHilight));
-                }
-                dl->PopClipRect();
-            }
-        }
         ImGui::TextColored(isCur ? kTextCurRow : (isBeat||isMeasure ? kTextNormal : kDim), "%3d", r);
 
         for (int ch = 0; ch < nch; ch++) {

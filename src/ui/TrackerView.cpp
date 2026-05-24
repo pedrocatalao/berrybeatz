@@ -606,7 +606,11 @@ void TrackerView::drawChannelStrip(float /*x*/, float /*y*/, float /*w*/) {
         if (m_showPluginRow) {
             ImU32 plugBg = IM_COL32(20, 20, 35, 255);
             dl->AddRectFilled({chX, vuBottom}, {chX + cellW2 - 1, vuBottom + PLUGIN_H}, plugBg);
-            dl->AddText({chX + 2, vuBottom + 1}, IM_COL32(60, 60, 80, 255), "–");
+            {
+                ImVec2 ts = ImGui::CalcTextSize("\xe2\x80\x93");
+                dl->AddText({chX + (cellW2 - ts.x) * 0.5f, vuBottom + (PLUGIN_H - ts.y) * 0.5f},
+                            IM_COL32(60, 60, 80, 255), "\xe2\x80\x93");
+            }
 
             ImGui::SetCursorScreenPos({chX, vuBottom});
             if (ImGui::InvisibleButton("##plug", {cellW2, PLUGIN_H}))
@@ -814,7 +818,11 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
             if (m_showPluginRow) {
                 dl->AddRectFilled({p.x + 1, plugTop}, {p.x + cw - 1, plugTop + PLUGIN_H},
                                   IM_COL32(20, 20, 35, 255));
-                dl->AddText({p.x + 2, plugTop + 1}, IM_COL32(60, 60, 80, 255), "–");
+                {
+                    ImVec2 ts = ImGui::CalcTextSize("\xe2\x80\x93");
+                    dl->AddText({p.x + (cw - ts.x) * 0.5f, plugTop + (PLUGIN_H - ts.y) * 0.5f},
+                                IM_COL32(60, 60, 80, 255), "\xe2\x80\x93");
+                }
                 ImGui::SetCursorScreenPos({p.x, plugTop});
                 if (ImGui::InvisibleButton("##plug", {cw, PLUGIN_H}))
                     plugClickCh = ch;

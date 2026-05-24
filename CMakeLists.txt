@@ -82,13 +82,12 @@ set(SOURCES
     src/platform/CocoaHelpers.mm
     src/platform/Logo.mm
     # assets bundled into Resources/
-    assets/logo.png
-    assets/berrybeatz5-banner.png
-    assets/speakercone.png
+    assets/img/banner.png
+    assets/img/speaker.png
     assets/AppIcon.icns
-    assets/BigBlueTermPlusNerdFontMono-Regular.ttf
-    assets/Ac437_IBM_VGA_8x16.ttf
-    assets/unscii-16-full.ttf
+    assets/ttf/BigBlueTermPlusNerdFontMono-Regular.ttf
+    assets/ttf/Ac437_IBM_VGA_8x16.ttf
+    assets/ttf/unscii-16-full.ttf
 )
 
 add_executable(BerryBeatz MACOSX_BUNDLE
@@ -106,13 +105,12 @@ set_source_files_properties(
 
 # Bundle the logo into Resources/
 set_source_files_properties(
-    assets/logo.png
-    assets/berrybeatz5-banner.png
-    assets/speakercone.png
+    assets/img/banner.png
+    assets/img/speaker.png
     assets/AppIcon.icns
-    assets/BigBlueTermPlusNerdFontMono-Regular.ttf
-    assets/Ac437_IBM_VGA_8x16.ttf
-    assets/unscii-16-full.ttf
+    assets/ttf/BigBlueTermPlusNerdFontMono-Regular.ttf
+    assets/ttf/Ac437_IBM_VGA_8x16.ttf
+    assets/ttf/unscii-16-full.ttf
     PROPERTIES MACOSX_PACKAGE_LOCATION Resources
 )
 

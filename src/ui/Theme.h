@@ -9,12 +9,31 @@
 
 
 // ── Fonts ─────────────────────────────────────────────────────────────────────
-inline ImFont* g_fontMono = nullptr;   // Unscii-16 @ 14 px — tracker cells
-inline ImFont* g_fontUI   = nullptr;   // Monaco    @ 13 px — UI labels
+inline ImFont* g_fontBtnTab    = nullptr;   // buttons, tabs, labels
+inline ImFont* g_fontKnob      = nullptr;   // knob values
+inline ImFont* g_fontRowNum    = nullptr;   // tracker row number column
+inline ImFont* g_fontTracker   = nullptr;   // tracker pattern cells (note/vol/fx columns)
+inline ImFont* g_fontOrderRow  = nullptr;   // ordered pattern list row (above channel headers)
+inline ImFont* g_fontSidebar   = nullptr;   // remaining UI (sidebar, etc.)
 
-static constexpr float kFontMonoSize = 14.f;
-static constexpr float kFontUISize   = 13.f;
-static constexpr float kFontKeySize  =  8.f;  // keyboard labels (instrument/sample views)
+// Legacy aliases — existing code uses these; map to semantic globals above
+#define g_fontUI   g_fontBtnTab
+#define g_fontMono g_fontTracker
+
+static constexpr const char* kFontBtnTabFile   = "FiraMono-Regular.ttf";
+static constexpr const char* kFontKnobFile     = "FiraMono-Regular.ttf";
+static constexpr const char* kFontRowNumFile   = "unscii-16-full.ttf";
+static constexpr const char* kFontTrackerFile  = "unscii-16-full.ttf";
+static constexpr const char* kFontOrderRowFile = "unscii-16-full.ttf";
+static constexpr const char* kFontSidebarFile  = "FiraMono-Regular.ttf";
+
+static constexpr float kFontBtnTabSize   = 13.f;
+static constexpr float kFontKnobSize     = 13.f;
+static constexpr float kFontRowNumSize   = 14.f;
+static constexpr float kFontTrackerSize  = 14.f;
+static constexpr float kFontOrderRowSize = 14.f;
+static constexpr float kFontSidebarSize  = 13.f;
+static constexpr float kFontKeySize      =  8.f;  // keyboard labels (instrument/sample views)
 
 
 // ── Background surfaces ───────────────────────────────────────────────────────

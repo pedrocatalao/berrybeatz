@@ -50,10 +50,10 @@ static GLuint loadPNGTexture(NSString* resource, float& outW, float& outH)
 
 GLuint loadLogoTexture(float& outW, float& outH)
 {
-    return loadPNGTexture(@"berrybeatz5-banner", outW, outH);
+    return loadPNGTexture(@"banner", outW, outH);
 }
 
 GLuint loadSpeakerConeTexture(float& outW, float& outH)
 {
-    return loadPNGTexture(@"speakercone", outW, outH);
+    return loadPNGTexture(@"speaker", outW, outH);
 }

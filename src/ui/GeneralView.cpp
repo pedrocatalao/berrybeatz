@@ -133,35 +133,14 @@ void GeneralView::render(float /*x*/, float /*y*/, float /*w*/, float /*h*/)
             int speed = (int)m_mod->get_current_speed();
             int gvol  = (int)std::round(ia->get_global_volume() * 100.0);
 
-            auto kGroup = [&](const char* kid, int* v, int vmin, int vmax,
-                               const char* lbl) -> bool {
-                constexpr float KW = 36.f;
-                ImVec2 cp = ImGui::GetCursorPos();
-                bool ch = KnobWidget(kid, v, vmin, vmax);
-                float lw = ImGui::CalcTextSize(lbl).x;
-                ImGui::SetCursorPosX(cp.x + (KW - lw) * 0.5f);
-                ImGui::TextColored(kDim, "%s", lbl);
-                char vbuf[16]; snprintf(vbuf, sizeof(vbuf), "%d", *v);
-                float vw = ImGui::CalcTextSize(vbuf).x;
-                ImGui::SetCursorPosX(cp.x + (KW - vw) * 0.5f);
-                ImGui::TextColored(kVal, "%s", vbuf);
-                return ch;
-            };
-
-            ImGui::BeginGroup();
-            if (kGroup("##kTempo", &tempo, 32, 512, "Tempo"))
+            if (KnobWidget("##kTempo", &tempo, 32, 512, nullptr, false, false, "Tempo"))
                 ia3->set_current_tempo2((double)tempo);
-            ImGui::EndGroup();
             ImGui::SameLine(0, 16);
-            ImGui::BeginGroup();
-            if (kGroup("##kSpeed", &speed, 1, 32, "Speed"))
+            if (KnobWidget("##kSpeed", &speed, 1, 32, nullptr, false, false, "Speed"))
                 ia->set_current_speed(speed);
-            ImGui::EndGroup();
             ImGui::SameLine(0, 16);
-            ImGui::BeginGroup();
-            if (kGroup("##kGVol", &gvol, 0, 100, "G.Vol"))
+            if (KnobWidget("##kGVol", &gvol, 0, 100, nullptr, false, false, "G.Vol"))
                 ia->set_global_volume(gvol / 100.0);
-            ImGui::EndGroup();
 
             ImGui::Spacing();
             double bpm = m_state.bpm.load();

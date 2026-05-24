@@ -224,38 +224,21 @@ void InstrumentView::drawEditor(float x, float y, float w, float h) {
         // Global Vol knob
         {
             int gv = (int)m_data.globalVol;
-            ImGui::BeginGroup();
-            if (KnobEdit("##kGVol", &gv, 0, 64))
+            if (KnobEdit("##kGVol", &gv, 0, 64, false, "G.Vol"))
                 { m_data.globalVol = (uint16_t)gv; m_dirty = true; }
-            float lw = ImGui::CalcTextSize("G.Vol").x;
-            ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (36.f - lw) * 0.5f);
-            ImGui::TextColored(kDim, "G.Vol");
-            ImGui::EndGroup();
             ImGui::SameLine(0, 12);
         }
 
         // Fadeout knob
         {
             int fo = (int)m_data.fadeOut;
-            ImGui::BeginGroup();
-            if (KnobEdit("##kFade", &fo, 0, 8192))
+            if (KnobEdit("##kFade", &fo, 0, 8192, false, "Fade"))
                 { m_data.fadeOut = (uint16_t)fo; m_dirty = true; }
-            float lw = ImGui::CalcTextSize("Fade").x;
-            ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (36.f - lw) * 0.5f);
-            ImGui::TextColored(kDim, "Fade");
-            ImGui::EndGroup();
             ImGui::SameLine(0, 12);
         }
 
         // Pitch bend display
-        {
-            ImGui::BeginGroup();
-            KnobDisplay("##pb", (m_pitchBend - 8192) / 8192.f);
-            float lw = ImGui::CalcTextSize("P.Bend").x;
-            ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (36.f - lw) * 0.5f);
-            ImGui::TextColored(kDim, "P.Bend");
-            ImGui::EndGroup();
-        }
+        KnobDisplay("##pb", (m_pitchBend - 8192) / 8192.f, "P.Bend");
 
         ImGui::Spacing();
         // Vol Swing slider
@@ -275,16 +258,11 @@ void InstrumentView::drawEditor(float x, float y, float w, float h) {
         // Pan knob (bipolar, center=128)
         {
             int pv = (int)m_data.pan;
-            ImGui::BeginGroup();
-            if (KnobEdit("##kPan", &pv, 0, 256, /*bipolar=*/true)) {
+            if (KnobEdit("##kPan", &pv, 0, 256, /*bipolar=*/true, "Pan")) {
                 m_data.pan        = (uint16_t)pv;
                 m_data.panEnabled = true;
                 m_dirty           = true;
             }
-            float lw = ImGui::CalcTextSize("Pan").x;
-            ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (36.f - lw) * 0.5f);
-            ImGui::TextColored(kDim, "Pan");
-            ImGui::EndGroup();
         }
 
         ImGui::Spacing();

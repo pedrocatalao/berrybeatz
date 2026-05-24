@@ -219,54 +219,32 @@ void SampleView::drawEditor(float x, float y, float w, float h) {
         // Global Volume knob
         {
             int gv = (int)m_data.globalVol;
-            ImGui::BeginGroup();
-            if (KnobEdit("##kSGVol", &gv, 0, 64))
+            if (KnobEdit("##kSGVol", &gv, 0, 64, false, "G.Vol"))
                 { m_data.globalVol = (uint16_t)gv; m_dirty = true; }
-            float lw = ImGui::CalcTextSize("G.Vol").x;
-            ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (36.f - lw) * 0.5f);
-            ImGui::TextColored(kDim, "G.Vol");
-            ImGui::EndGroup();
             ImGui::SameLine(0, 12);
         }
 
         // Volume knob
         {
             int vol = (int)m_data.volume;
-            ImGui::BeginGroup();
-            if (KnobEdit("##kSVol", &vol, 0, 256))
+            if (KnobEdit("##kSVol", &vol, 0, 256, false, "Volume"))
                 { m_data.volume = (uint16_t)vol; m_dirty = true; }
-            float lw = ImGui::CalcTextSize("Volume").x;
-            ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (36.f - lw) * 0.5f);
-            ImGui::TextColored(kDim, "Volume");
-            ImGui::EndGroup();
             ImGui::SameLine(0, 12);
         }
 
         // Pan knob (bipolar, center=128)
         {
             int pv = (int)m_data.pan;
-            ImGui::BeginGroup();
-            if (KnobEdit("##kSPan", &pv, 0, 256, /*bipolar=*/true)) {
+            if (KnobEdit("##kSPan", &pv, 0, 256, /*bipolar=*/true, "Pan")) {
                 m_data.pan        = (uint16_t)pv;
                 m_data.panEnabled = true;
                 m_dirty           = true;
             }
-            float lw = ImGui::CalcTextSize("Pan").x;
-            ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (36.f - lw) * 0.5f);
-            ImGui::TextColored(kDim, "Pan");
-            ImGui::EndGroup();
             ImGui::SameLine(0, 12);
         }
 
         // Pitch bend display
-        {
-            ImGui::BeginGroup();
-            KnobDisplay("##pb", (m_pitchBend - 8192) / 8192.f);
-            float lw = ImGui::CalcTextSize("P.Bend").x;
-            ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (36.f - lw) * 0.5f);
-            ImGui::TextColored(kDim, "P.Bend");
-            ImGui::EndGroup();
-        }
+        KnobDisplay("##pb", (m_pitchBend - 8192) / 8192.f, "P.Bend");
 
         ImGui::Spacing();
 

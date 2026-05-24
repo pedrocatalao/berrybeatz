@@ -981,7 +981,7 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
             float cellY = 0.f;
             auto recordPos = [&](int col) {
                 ImVec2 cp = ImGui::GetCursorScreenPos();
-                subX[col] = cp.x + 1.f;
+                subX[col] = cp.x + 0.5f;
                 if (col == 0) cellY = cp.y;
             };
 

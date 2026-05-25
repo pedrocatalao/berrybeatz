@@ -31,10 +31,11 @@ private:
         int  id;
         int  depth;
         bool isGroup;
-        bool enabled;   // false = dimmed + non-activatable (unused patterns)
-        std::string label;
-        int  tab{-1};   // leaf: tab to switch to
-        int  idx{-1};   // leaf: 0-based item index
+        bool enabled;      // false = dimmed + non-activatable (unused patterns)
+        std::string name;  // display name only (no number, no leading spaces)
+        int  displayNum{-1}; // -1 = none; shown in yellow before the name
+        int  tab{-1};      // leaf: tab to switch to
+        int  idx{-1};      // leaf: 0-based item index
     };
 
     void buildNodes(std::vector<Node>& out, const SidebarData& d) const;

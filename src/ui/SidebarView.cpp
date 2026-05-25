@@ -48,61 +48,52 @@ void SidebarView::buildNodes(std::vector<Node>& out, const SidebarData& d) const
     out.clear();
 
     // ── Song root ─────────────────────────────────────────────────────────────
-    // Leading spaces reserve room for the RenderArrow drawn in render().
-    char rootLabel[256];
-    snprintf(rootLabel, sizeof(rootLabel), "   %s",
-             d.songTitle.empty() ? "(untitled)" : d.songTitle.c_str());
-    out.push_back({kIdSongRoot, 0, true, true, rootLabel, -1, -1});
+    out.push_back({kIdSongRoot, 0, true, true,
+                   d.songTitle.empty() ? "(untitled)" : d.songTitle, -1, -1, -1});
     if (!isExpanded(kIdSongRoot)) return;
 
     // ── Instruments ──────────────────────────────────────────────────────────
     if (!d.instrNames.empty()) {
-        char grpLabel[64];
-        snprintf(grpLabel, sizeof(grpLabel), "     Instruments (%d)",
-                 (int)d.instrNames.size());
-        out.push_back({kIdInstrGroup, 1, true, true, grpLabel, -1, -1});
+        char grp[64];
+        snprintf(grp, sizeof(grp), "Instruments (%d)", (int)d.instrNames.size());
+        out.push_back({kIdInstrGroup, 1, true, true, grp, -1, -1, -1});
 
         if (isExpanded(kIdInstrGroup)) {
             for (int i = 0; i < (int)d.instrNames.size(); ++i) {
-                char row[256];
-                snprintf(row, sizeof(row), "      %02d  %s", i + 1,
-                         d.instrNames[i].empty() ? "---" : d.instrNames[i].c_str());
-                out.push_back({kBaseInstr + i, 2, false, true, row, 3, i});
+                out.push_back({kBaseInstr + i, 2, false, true,
+                               d.instrNames[i].empty() ? "---" : d.instrNames[i],
+                               i + 1, 3, i});
             }
         }
     }
 
     // ── Samples ──────────────────────────────────────────────────────────────
     {
-        char grpLabel[64];
-        snprintf(grpLabel, sizeof(grpLabel), "     Samples (%d)",
-                 (int)d.sampleNames.size());
-        out.push_back({kIdSampleGroup, 1, true, true, grpLabel, -1, -1});
+        char grp[64];
+        snprintf(grp, sizeof(grp), "Samples (%d)", (int)d.sampleNames.size());
+        out.push_back({kIdSampleGroup, 1, true, true, grp, -1, -1, -1});
 
         if (isExpanded(kIdSampleGroup)) {
             for (int i = 0; i < (int)d.sampleNames.size(); ++i) {
-                char row[256];
-                snprintf(row, sizeof(row), "      %02d  %s", i + 1,
-                         d.sampleNames[i].empty() ? "---" : d.sampleNames[i].c_str());
-                out.push_back({kBaseSample + i, 2, false, true, row, 2, i});
+                out.push_back({kBaseSample + i, 2, false, true,
+                               d.sampleNames[i].empty() ? "---" : d.sampleNames[i],
+                               i + 1, 2, i});
             }
         }
     }
 
     // ── Patterns ─────────────────────────────────────────────────────────────
     {
-        char grpLabel[64];
-        snprintf(grpLabel, sizeof(grpLabel), "     Patterns (%d)",
-                 (int)d.patNames.size());
-        out.push_back({kIdPatGroup, 1, true, true, grpLabel, -1, -1});
+        char grp[64];
+        snprintf(grp, sizeof(grp), "Patterns (%d)", (int)d.patNames.size());
+        out.push_back({kIdPatGroup, 1, true, true, grp, -1, -1, -1});
 
         if (isExpanded(kIdPatGroup)) {
             for (int i = 0; i < (int)d.patNames.size(); ++i) {
                 bool used = d.usedPats.count(i) > 0;
-                char row[256];
-                snprintf(row, sizeof(row), "    %02d  %s", i,
-                         d.patNames[i].empty() ? "---" : d.patNames[i].c_str());
-                out.push_back({kBasePat + i, 2, false, used, row, 1, i});
+                out.push_back({kBasePat + i, 2, false, used,
+                               d.patNames[i].empty() ? "---" : d.patNames[i],
+                               i, 1, i});
             }
         }
     }
@@ -257,74 +248,72 @@ void SidebarView::render(float x, float y, float w, float h,
     }
 
     // ── Render nodes ──────────────────────────────────────────────────────────
-    // All ImGui selection visuals are transparent (pushed globally above).
-    // We draw our own full-width highlight rect before each Selectable.
-
     ImGui::PushStyleColor(ImGuiCol_Header,        IM_COL32(0, 0, 0, 0));
     ImGui::PushStyleColor(ImGuiCol_HeaderHovered, IM_COL32(0, 0, 0, 0));
     ImGui::PushStyleColor(ImGuiCol_NavHighlight,  IM_COL32(0, 0, 0, 0));
 
-    const ImU32 hlFocused = IM_COL32(50,  95, 165, 255);
-    const ImU32 hlDim     = IM_COL32(45,  45,  75, 255);
+    const ImU32 kHlFocused = IM_COL32( 50,  95, 165, 255);
+    const ImU32 kHlDim     = IM_COL32( 45,  45,  75, 255);
+    const ImU32 kArrowCol  = IM_COL32(180, 200, 230, 220);
+    const ImU32 kTextNorm  = IM_COL32(208, 208, 224, 255);
+    const ImU32 kTextDim   = IM_COL32( 80,  80,  90, 255);
+    const ImU32 kNumYellow = IM_COL32(224, 224,  64, 255);  // same as kCellTextNormal
+
+    const float sz        = ImGui::GetTextLineHeight();
+    const float rowH      = ImGui::GetTextLineHeightWithSpacing();
+    const float kIndent   = sz + 2.f;   // one level of indent = arrow width + small gap
+    const float numW      = ImGui::CalcTextSize("00").x + 6.f;  // fixed number column
 
     for (int i = 0; i < (int)nodes.size(); ++i) {
         const Node& n = nodes[i];
-
         ImGui::PushID(n.id);
 
         const bool isCursor = (i == cursorIdx);
+        ImDrawList* dl   = ImGui::GetWindowDrawList();
+        ImVec2 rowPos    = ImGui::GetCursorScreenPos();
+        float  winLeft   = ImGui::GetWindowPos().x;
+        float  winRight  = winLeft + ImGui::GetWindowWidth();
 
-        // Draw highlight rect spanning the full window width
+        // Full-width highlight rect
         if (isCursor) {
-            ImVec2 p       = ImGui::GetCursorScreenPos();
-            float  rowH    = ImGui::GetTextLineHeightWithSpacing();
-            float  winLeft = ImGui::GetWindowPos().x;
-            float  winRight = winLeft + ImGui::GetWindowWidth();
-            ImU32  hlColor = focused ? hlFocused : hlDim;
-            ImGui::GetWindowDrawList()->AddRectFilled(
-                {winLeft, p.y}, {winRight, p.y + rowH}, hlColor);
+            ImU32 hlColor = focused ? kHlFocused : kHlDim;
+            dl->AddRectFilled({winLeft, rowPos.y}, {winRight, rowPos.y + rowH}, hlColor);
         }
+
+        // Invisible hit area (transparent selectable, explicit row height)
+        float hitW = ImGui::GetContentRegionAvail().x;
+        ImGuiSelectableFlags selFlags = (!n.isGroup && !n.enabled)
+                                        ? ImGuiSelectableFlags_Disabled : 0;
+        bool clicked = ImGui::Selectable("##node", false, selFlags, {hitW, rowH});
+
+        // Content drawn on the draw list — independent of ImGui cursor position
+        float cx   = rowPos.x + n.depth * kIndent;   // content start X for this depth
+        float textY = rowPos.y + (rowH - sz) * 0.5f; // vertically centred
 
         if (n.isGroup) {
-            // Draw ImGui-style arrow — same style as TreeNodeEx (full scale, text color)
-            {
-                ImVec2 p    = ImGui::GetCursorScreenPos();
-                float  sz   = ImGui::GetTextLineHeight();
-                float  rowH = ImGui::GetTextLineHeightWithSpacing();
-                float  yOff = (rowH - sz * 0.7f) * 0.5f;
-                ImGui::RenderArrow(ImGui::GetWindowDrawList(),
-                    {p.x + n.depth * sz, p.y + yOff},
-                    IM_COL32(180, 200, 230, 220),
-                    isExpanded(n.id) ? ImGuiDir_Down : ImGuiDir_Right,
-                    0.7f);
-            }
-            // Group row: clicking toggles expand/collapse
-            if (ImGui::Selectable(n.label.c_str(), false, 0, {0.f, 0.f})) {
-                m_expanded[n.id] = !isExpanded(n.id);
-                m_cursorId = n.id;
-                cursorIdx  = i;
-            }
+            float arrowY = rowPos.y + (rowH - sz * 0.7f) * 0.5f;
+            ImGui::RenderArrow(dl, {cx, arrowY}, kArrowCol,
+                isExpanded(n.id) ? ImGuiDir_Down : ImGuiDir_Right, 0.7f);
+            dl->AddText({cx + sz + 2.f, textY}, kTextNorm, n.name.c_str());
         } else {
-            // Leaf row
-            if (!n.enabled) {
-                ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(180, 180, 200, 200));
+            if (n.displayNum >= 0) {
+                char numBuf[8];
+                snprintf(numBuf, sizeof(numBuf), "%02d", n.displayNum);
+                dl->AddText({cx, textY}, n.enabled ? kNumYellow : kTextDim, numBuf);
             }
+            dl->AddText({cx + numW, textY}, n.enabled ? kTextNorm : kTextDim, n.name.c_str());
+        }
 
-            ImGuiSelectableFlags selFlags = n.enabled ? 0 : ImGuiSelectableFlags_Disabled;
-            if (ImGui::Selectable(n.label.c_str(), false, selFlags, {0.f, 0.f})) {
-                m_cursorId = n.id;
-                cursorIdx  = i;
-                if (n.enabled && onLeafActivated) {
-                    onLeafActivated(n.tab, n.idx);
-                }
-            }
-
-            if (!n.enabled) {
-                ImGui::PopStyleColor();
+        if (clicked) {
+            m_cursorId = n.id;
+            cursorIdx  = i;
+            if (n.isGroup) {
+                m_expanded[n.id] = !isExpanded(n.id);
+            } else if (n.enabled && onLeafActivated) {
+                onLeafActivated(n.tab, n.idx);
             }
         }
 
-        // Scroll to keep cursor visible after keyboard movement
         if (scrollToCursor && isCursor) {
             ImGui::SetScrollHereY(0.5f);
             scrollToCursor = false;

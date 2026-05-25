@@ -85,9 +85,6 @@ set(SOURCES
     assets/img/banner.png
     assets/img/speaker.png
     assets/AppIcon.icns
-    assets/ttf/BigBlueTermPlusNerdFontMono-Regular.ttf
-    assets/ttf/Ac437_IBM_VGA_8x16.ttf
-    assets/ttf/unscii-16-full.ttf
     assets/ttf/Michroma.ttf
     assets/ttf/35px2.ttf
     assets/ttf/terminal-6-mono.ttf
@@ -111,9 +108,6 @@ set_source_files_properties(
     assets/img/banner.png
     assets/img/speaker.png
     assets/AppIcon.icns
-    assets/ttf/BigBlueTermPlusNerdFontMono-Regular.ttf
-    assets/ttf/Ac437_IBM_VGA_8x16.ttf
-    assets/ttf/unscii-16-full.ttf
     assets/ttf/Michroma.ttf
     assets/ttf/35px2.ttf
     assets/ttf/terminal-6-mono.ttf

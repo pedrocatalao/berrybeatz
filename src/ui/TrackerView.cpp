@@ -960,17 +960,23 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
 
             std::string note  = m_mod->format_pattern_row_channel_command(slot.pat, localR, ch, openmpt::module::command_note);
             std::string inst  = showInst ? m_mod->format_pattern_row_channel_command(slot.pat, localR, ch, openmpt::module::command_instrument) : "";
-            std::string volFx = showVol  ? m_mod->format_pattern_row_channel_command(slot.pat, localR, ch, openmpt::module::command_volumeffect) : "";
-            std::string volV  = showVol  ? m_mod->format_pattern_row_channel_command(slot.pat, localR, ch, openmpt::module::command_volume)       : "";
-            std::string vol   = volFx + volV;
             std::string fx    = showFx   ? m_mod->format_pattern_row_channel_command(slot.pat, localR, ch, openmpt::module::command_effect)       : "";
             std::string fxp   = showFx   ? m_mod->format_pattern_row_channel_command(slot.pat, localR, ch, openmpt::module::command_parameter)    : "";
 
+            // libopenmpt formats vol as hex; read raw cell and format as decimal to match OpenMPT
+            PatternCell rawCell{};
+            if (showVol) pe_get_cell(m_mod, slot.pat, localR, ch, rawCell);
+            bool hasVol = showVol && rawCell.volcmd != VOLCMD_NONE;
+            char volBuf[8] = {};
+            if (hasVol) {
+                static constexpr char kVolCmdLetters[] = " vpcdabuhlrgfe:o";
+                char letter = (rawCell.volcmd < 16) ? kVolCmdLetters[rawCell.volcmd] : '?';
+                snprintf(volBuf, sizeof(volBuf), "%c%02d", letter, (int)rawCell.vol);
+            }
+            std::string vol = hasVol ? volBuf : "";
+
             bool hasNote = !note.empty() && note != "..." && note != "---";
             bool hasInst = showInst && !inst.empty() && inst != ".." && inst != "00";
-            bool hasVol  = showVol
-                        && !volFx.empty() && volFx != "." && volFx != "..."
-                        && !volV.empty()  && volV  != ".." && volV != ".";
             bool hasFx   = showFx && !fx.empty() && fx != ".";
 
             auto dimColor = [dimFactor](const ImVec4& c) -> ImVec4 {

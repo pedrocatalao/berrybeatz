@@ -570,7 +570,8 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
 
     int rpb = m_mod->get_pattern_rows_per_beat(curPat);
     if (rpb <= 0) rpb = 4;
-    int rpm = rpb * 4;
+    int rpm = m_mod->get_pattern_rows_per_measure(curPat);
+    if (rpm <= 0) rpm = 16;
 
     int totalCols = 1 + nch;
     ImGuiTableFlags tFlags =

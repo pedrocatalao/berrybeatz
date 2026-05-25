@@ -95,8 +95,8 @@ static constexpr ImU32 kClrScrollActive = IM_COL32( 66, 130, 205, 255);
 // ── Pattern editor cell colours ───────────────────────────────────────────────
 static constexpr ImVec4 kCellBgNormal   = {20/255.f,  20/255.f,  33/255.f, 1.f};
 static constexpr ImVec4 kCellBgCurRow   = {40/255.f,  85/255.f, 145/255.f, 0.85f};
-static constexpr ImVec4 kCellBgBeat     = {64/255.f,  64/255.f, 128/255.f, 1.f};
-static constexpr ImVec4 kCellBgMeasure  = {46/255.f,  46/255.f,  90/255.f, 1.f};
+static constexpr ImVec4 kCellBgBeat     = {46/255.f,  46/255.f,  90/255.f, 0.4f};
+static constexpr ImVec4 kCellBgMeasure  = {64/255.f,  64/255.f, 128/255.f, 0.4f};
 static constexpr ImVec4 kCellTextNormal = {224/255.f, 224/255.f,  64/255.f, 1.f};
 static constexpr ImVec4 kCellTextCurRow = {240/255.f, 240/255.f,  80/255.f, 1.f};
 static constexpr ImVec4 kCellNote       = {100/255.f, 210/255.f, 220/255.f, 1.f};  // soft cyan

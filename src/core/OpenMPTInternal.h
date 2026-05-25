@@ -96,7 +96,7 @@ void       bb_build_sample_waveform(openmpt::module_ext* mod, int sampleIndex, s
 
 // Disable FT2-style 5ms volume ramping (kFT2VolumeRamping playBehaviour).
 // libopenmpt enables this by default for genuine FT2 XM files; OpenMPT desktop does not.
-void bb_disable_ft2_volume_ramping(openmpt::module_ext* mod);
+void bb_set_ft2_volume_ramping(openmpt::module_ext* mod, bool enabled);
 
 // Call BEFORE read() to arm per-channel capture.
 void bb_setup_channel_capture(openmpt::module_ext* mod, int nChannels);

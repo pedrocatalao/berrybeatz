@@ -50,6 +50,7 @@ public:
 
     // Audio device configuration (takes effect on next start())
     void setAudioConfig(int deviceIndex, int sampleRate);
+    void setFT2VolumeRamping(bool enabled);
     std::vector<AudioDeviceInfo> getDevices() const;
 
     // Pattern-specific playback
@@ -79,6 +80,7 @@ private:
     std::atomic<bool>        m_running {false};
     std::atomic<bool>        m_stop    {false};
     std::atomic<bool>        m_paused  {false};
+    bool                     m_ft2VolumeRamping {false};
     std::atomic<double>      m_seek       {-1.0};
     std::atomic<int32_t>     m_seek_order {-1};
     std::atomic<int32_t>     m_subsong    {-2};   // -2 = no change

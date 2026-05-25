@@ -16,6 +16,7 @@ struct Settings {
     bool followPlayback    {true};
     bool wrapCursor        {false};
     bool continuousScroll  {false};
+    bool ft2VolumeRamping  {false};
     int  glowLogo    {5};   // 0 = off, 1–10 intensity
     int  glowVU      {5};
     int  glowPattern {5};

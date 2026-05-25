@@ -233,6 +233,18 @@ void SettingsView::drawEditorTab()
         if (onApply) onApply(m_pending);
     if (ImGui::Checkbox("Continuous pattern scroll", &m_pending.continuousScroll))
         if (onApply) onApply(m_pending);
+
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+    ImGui::TextUnformatted("Playback");
+    ImGui::Spacing();
+    if (ImGui::Checkbox("FT2 accurate volume ramping", &m_pending.ft2VolumeRamping))
+        if (onApply) onApply(m_pending);
+    ImGui::SameLine();
+    ImGui::TextDisabled("(?)");
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Enables 5ms note attack ramps as in original FastTracker 2.\nDisabled matches OpenMPT desktop default (punchier attacks).");
 }
 
 void SettingsView::drawGeneralTab()

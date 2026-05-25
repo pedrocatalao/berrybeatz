@@ -90,6 +90,7 @@ App::App() : m_audio(m_state), m_tracker(m_state), m_generalView(m_state)
     g_glowPattern = m_settings.glowPattern / 5.f;
     g_glowKnobs   = m_settings.glowKnobs   / 5.f;
     m_tracker.setContinuousScroll(m_settings.continuousScroll);
+    m_audio.setFT2VolumeRamping(m_settings.ft2VolumeRamping);
     m_audio.setAudioConfig(m_settings.audioDeviceIndex, m_settings.sampleRate);
     m_midi.setSource(m_settings.midiInputIndex);
 
@@ -108,6 +109,7 @@ App::App() : m_audio(m_state), m_tracker(m_state), m_generalView(m_state)
         g_glowPattern = s.glowPattern / 5.f;
         g_glowKnobs   = s.glowKnobs   / 5.f;
         m_tracker.setContinuousScroll(s.continuousScroll);
+        m_audio.setFT2VolumeRamping(s.ft2VolumeRamping);
         m_audio.setAudioConfig(s.audioDeviceIndex, s.sampleRate);
         if (audioChanged && m_audio.isRunning()) {
             m_audio.stop();

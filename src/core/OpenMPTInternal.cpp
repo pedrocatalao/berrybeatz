@@ -339,9 +339,9 @@ void bb_setup_channel_capture(openmpt::module_ext* mod, int nChannels) {
     sf.m_bbCaptureEnabled = true;
 }
 
-void bb_disable_ft2_volume_ramping(openmpt::module_ext* mod) {
+void bb_set_ft2_volume_ramping(openmpt::module_ext* mod, bool enabled) {
     if (!mod) return;
-    getSF(mod).m_playBehaviour.reset(OpenMPT::kFT2VolumeRamping);
+    getSF(mod).m_playBehaviour.set(OpenMPT::kFT2VolumeRamping, enabled);
 }
 
 void bb_capture_channel_waves(openmpt::module_ext* mod,

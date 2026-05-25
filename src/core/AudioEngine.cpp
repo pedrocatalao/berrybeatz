@@ -68,7 +68,7 @@ bool AudioEngine::loadFile(const std::string& path) {
     }
     try {
         m_mod = std::make_unique<openmpt::module_ext>(f);
-        bb_disable_ft2_volume_ramping(m_mod.get());
+        bb_set_ft2_volume_ramping(m_mod.get(), m_ft2VolumeRamping);
         fillState();
         return true;
     } catch (const std::exception& e) {
@@ -151,6 +151,13 @@ void AudioEngine::setAudioConfig(int deviceIndex, int sampleRate)
 {
     m_deviceIndex = deviceIndex;
     m_samplerate  = sampleRate;
+}
+
+void AudioEngine::setFT2VolumeRamping(bool enabled)
+{
+    m_ft2VolumeRamping = enabled;
+    if (m_mod)
+        bb_set_ft2_volume_ramping(m_mod.get(), enabled);
 }
 
 std::vector<AudioDeviceInfo> AudioEngine::getDevices() const

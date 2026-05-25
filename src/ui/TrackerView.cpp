@@ -841,7 +841,7 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
     // Animate per-slot dim factors (1.0 = active, 0.5 = fully dim, 900ms linear fade)
     {
         const float dt       = ImGui::GetIO().DeltaTime;
-        const float fadeStep = 0.5f * std::min(dt / 0.9f, 1.0f);
+        const float fadeStep = 0.5f * std::min(dt / 0.3f, 1.0f);
         for (auto& s : slots) {
             if (s.orderIdx == curOrder) {
                 m_slotDim[s.orderIdx] = 1.0f;

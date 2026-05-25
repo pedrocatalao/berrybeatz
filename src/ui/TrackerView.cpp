@@ -539,28 +539,6 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
         return;
     }
 
-    // Handle click to move edit cursor (single-pattern mode only).
-    if (!m_continuousScroll && ImGui::IsMouseClicked(0) && ImGui::IsWindowHovered(ImGuiHoveredFlags_RootAndChildWindows) && m_rowH > 0.f && m_tableOriginY > 0.f) {
-        ImVec2 mp = ImGui::GetIO().MousePos;
-        ImVec2 wp = ImGui::GetWindowPos();
-        ImVec2 ws = ImGui::GetWindowSize();
-        bool inGrid = ImGui::IsMouseHoveringRect(
-            {wp.x, wp.y + m_chanH}, {wp.x + ws.x, wp.y + ws.y}, false);
-        if (inGrid) {
-            float relY = mp.y - m_tableOriginY + m_scrollY;
-            float step  = m_colStep > 0.f ? m_colStep : (m_cellW + 2.f * ImGui::GetStyle().CellPadding.x);
-            float relX  = mp.x - (m_tableOriginX - m_hscroll);
-            int32_t nch   = m_state.num_channels.load();
-            int32_t nrows = pe_num_rows(m_mod, m_state.current_pattern.load());
-            int row = int(relY / m_rowH);
-            int ch  = int(relX / step);
-            if (row >= 0 && row < nrows && ch >= 0 && ch < nch) {
-                m_cur.row = row; m_cur.channel = ch; m_cur.col = EditCol::Note;
-                m_editMode = true;
-            }
-        }
-    }
-
     int32_t curPat  = m_state.current_pattern.load();
     int32_t curRow  = m_state.current_row.load();
     int32_t nch     = m_state.num_channels.load();
@@ -596,6 +574,40 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
         slots.push_back({curPat, nrows, 0, curOrder, rpb, rpm});
         totalRows = nrows;
         curAbsRow = curRow;
+    }
+
+    // Click to move edit cursor — works in both modes.
+    if (ImGui::IsMouseClicked(0) && ImGui::IsWindowHovered(ImGuiHoveredFlags_RootAndChildWindows) && m_rowH > 0.f && m_tableOriginY > 0.f) {
+        ImVec2 mp = ImGui::GetIO().MousePos;
+        ImVec2 wp = ImGui::GetWindowPos();
+        ImVec2 ws = ImGui::GetWindowSize();
+        bool inGrid = ImGui::IsMouseHoveringRect(
+            {wp.x, wp.y + m_chanH}, {wp.x + ws.x, wp.y + ws.y}, false);
+        if (inGrid) {
+            float relY  = mp.y - m_tableOriginY + m_scrollY;
+            float step  = m_colStep > 0.f ? m_colStep : (m_cellW + 2.f * ImGui::GetStyle().CellPadding.x);
+            float relX  = mp.x - (m_tableOriginX - m_hscroll);
+            int   absRow = int(relY / m_rowH);
+            int   ch     = int(relX / step);
+            if (ch >= 0 && ch < nch && absRow >= 0 && absRow < totalRows) {
+                int32_t clickLocalR   = absRow;
+                if (m_continuousScroll) {
+                    for (auto& s : slots) {
+                        if (absRow >= s.startAbs && absRow < s.startAbs + s.nrows) {
+                            clickLocalR = absRow - s.startAbs;
+                            if (s.orderIdx != curOrder && onOrderSeekRequested)
+                                onOrderSeekRequested(s.orderIdx);
+                            m_cur.row = clickLocalR; m_cur.channel = ch; m_cur.col = EditCol::Note;
+                            m_editMode = true;
+                            break;
+                        }
+                    }
+                } else if (clickLocalR < nrows) {
+                    m_cur.row = clickLocalR; m_cur.channel = ch; m_cur.col = EditCol::Note;
+                    m_editMode = true;
+                }
+            }
+        }
     }
 
     int totalCols = 1 + nch;

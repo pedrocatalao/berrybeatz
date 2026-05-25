@@ -812,14 +812,16 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
         ImGui::TableNextColumn();
         {
             char rnBuf[8]; snprintf(rnBuf, sizeof(rnBuf), "%3d", r);
+            if (g_fontRowNum) ImGui::PushFont(g_fontRowNum);
             ImVec2 rnPos = ImGui::GetCursorScreenPos();
-            ImFont* rnFont = g_fontRowNum ? g_fontRowNum : ImGui::GetFont();
-            float cellH = ImGui::GetTextLineHeight();
-            rnPos.y += (cellH - rnFont->LegacySize) * 0.5f - 1.0f;
+            rnPos.x = floorf(rnPos.x);
+            rnPos.y = floorf(rnPos.y) - 1.f;
             ImU32 rnCol = ImGui::ColorConvertFloat4ToU32(
                 isCur ? kTextCurRow : (isBeat||isMeasure ? kTextNormal : kDim));
-            ImGui::GetWindowDrawList()->AddText(rnFont, rnFont->LegacySize, rnPos, rnCol, rnBuf);
-            ImGui::Dummy({m_rowNumW, ImGui::GetTextLineHeight()});
+            ImGui::GetWindowDrawList()->AddText(rnPos, rnCol, rnBuf);
+            float lineH = ImGui::GetTextLineHeight();
+            if (g_fontRowNum) ImGui::PopFont();
+            ImGui::Dummy({m_rowNumW, lineH});
         }
 
         for (int ch = 0; ch < nch; ch++) {

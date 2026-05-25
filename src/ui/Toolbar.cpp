@@ -209,12 +209,37 @@ float DrawToolbar(ToolbarState& state,
     if (!state.hasModule) ImGui::BeginDisabled();
 
     btnY();
+    const bool isStopped = !state.isPlaying;
+    if (isStopped) {
+        ImGui::PushStyleColor(ImGuiCol_Button,        kClrRed);
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, kClrRedHover);
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive,  IM_COL32(200, 60, 60, 255));
+        ImGui::PushStyleColor(ImGuiCol_Text,          IM_COL32(255, 200, 200, 255));
+    }
     if (ImGui::Button("Stop")) { if (state.onStop) state.onStop(); }
+    if (isStopped) ImGui::PopStyleColor(4);
     ImGui::SameLine();
     btnY();
-    const char* playLbl = (state.isPlaying && !state.isPaused) ? "Pause" : "Play";
-    const float playBtnW = ImGui::CalcTextSize("Pause").x + ImGui::GetStyle().FramePadding.x * 2.f;
+    const char* playLbl   = (state.isPlaying && !state.isPaused) ? "Pause" : "Play";
+    const float playBtnW  = ImGui::CalcTextSize("Pause").x + ImGui::GetStyle().FramePadding.x * 2.f;
+    const bool  isPlaying = state.isPlaying && !state.isPaused;
+    const bool  isPaused  = state.isPlaying &&  state.isPaused;
+    if (isPlaying) {
+        ImGui::PushStyleColor(ImGuiCol_Button,        IM_COL32( 60, 140,  75, 255));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32( 80, 165,  95, 255));
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive,  IM_COL32( 50, 120,  65, 255));
+        ImGui::PushStyleColor(ImGuiCol_Text,          IM_COL32(220, 255, 225, 255));
+    } else if (isPaused) {
+        ImVec4 tabCol = ImGui::GetStyle().Colors[ImGuiCol_TabSelected];
+        ImVec4 tabHov = {tabCol.x * 1.2f, tabCol.y * 1.2f, tabCol.z * 1.2f, 1.f};
+        ImVec4 tabAct = {tabCol.x * 0.8f, tabCol.y * 0.8f, tabCol.z * 0.8f, 1.f};
+        ImGui::PushStyleColor(ImGuiCol_Button,        tabCol);
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, tabHov);
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive,  tabAct);
+        ImGui::PushStyleColor(ImGuiCol_Text,          IM_COL32(200, 220, 255, 255));
+    }
     if (ImGui::Button(playLbl, {playBtnW, 0.f})) { if (state.onPlayPause) state.onPlayPause(); }
+    if (isPlaying || isPaused) ImGui::PopStyleColor(4);
     ImGui::SameLine();
     btnY();
     if (ImGui::Button("Restart")) { if (state.onPlayFromStart) state.onPlayFromStart(); }

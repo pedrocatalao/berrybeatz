@@ -838,6 +838,21 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
 
     if (m_fontMono) ImGui::PushFont(m_fontMono);
 
+    // Animate per-slot dim factors (1.0 = active, 0.5 = fully dim, 900ms linear fade)
+    {
+        const float dt       = ImGui::GetIO().DeltaTime;
+        const float fadeStep = 0.5f * std::min(dt / 0.9f, 1.0f);
+        for (auto& s : slots) {
+            if (s.orderIdx == curOrder) {
+                m_slotDim[s.orderIdx] = 1.0f;
+            } else {
+                auto [it, inserted] = m_slotDim.emplace(s.orderIdx, 0.5f);
+                if (!inserted)
+                    it->second = std::max(it->second - fadeStep, 0.5f);
+            }
+        }
+    }
+
     // For edit cursor: absolute row within the continuous scroll space
     int32_t curOrderSlotStart = 0;
     for (auto& s : slots)
@@ -860,7 +875,8 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
         const Slot&   slot     = slots[slotIdx];
         const int32_t localR   = absR - slot.startAbs;
         const bool    isActive = (slot.orderIdx == curOrder);
-        const float   dimFactor = isActive ? 1.0f : 0.50f;
+        auto          dimIt    = m_slotDim.find(slot.orderIdx);
+        const float   dimFactor = dimIt != m_slotDim.end() ? dimIt->second : (isActive ? 1.0f : 0.5f);
 
         bool isCur     = m_editMode ? (absR == editAbsRow) : (isActive && localR == curRow);
         bool isMeasure = (localR % slot.rpm == 0);

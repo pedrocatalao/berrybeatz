@@ -1,6 +1,7 @@
 #pragma once
 #include <functional>
 #include <cstdint>
+#include <unordered_map>
 #include <vector>
 #include "ModuleState.h"
 #include "PatternEditor.h"
@@ -151,6 +152,7 @@ private:
     bool    m_followSong         {true};
     float   m_scrollSuppressTimer {0.f};
     int32_t m_lastAbsRow          {0};
+    std::unordered_map<int32_t, float> m_slotDim;   // orderIdx → animated dim factor
     int32_t m_curInstrument {0};
     bool    m_overflowPaste {false};
     int     m_detailView    {0};     // 0=note+inst+vol+fx, 1=+vol, 2=+inst, 3=note

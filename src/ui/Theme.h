@@ -9,31 +9,17 @@
 
 
 // ── Fonts ─────────────────────────────────────────────────────────────────────
-inline ImFont* g_fontBtnTab    = nullptr;   // buttons, tabs, labels
-inline ImFont* g_fontKnob      = nullptr;   // knob values
-inline ImFont* g_fontRowNum    = nullptr;   // tracker row number column
-inline ImFont* g_fontTracker   = nullptr;   // tracker pattern cells (note/vol/fx columns)
-inline ImFont* g_fontOrderRow  = nullptr;   // ordered pattern list row (above channel headers)
-inline ImFont* g_fontSidebar   = nullptr;   // remaining UI (sidebar, etc.)
+inline ImFont* g_fontBtnTab    = nullptr;   // buttons, tabs, fields     — Michroma 13
+inline ImFont* g_fontKnobLabel = nullptr;   // knob labels               — Michroma 13
+inline ImFont* g_fontKnobValue = nullptr;   // knob value text           — 35px2 8
+inline ImFont* g_fontRowNum    = nullptr;   // tracker row number column — 35px2 11
+inline ImFont* g_fontTracker   = nullptr;   // tracker pattern cells     — terminal-6-mono 11
+inline ImFont* g_fontOrderRow  = nullptr;   // pattern order row         — 35px2 10
+inline ImFont* g_fontSidebar   = nullptr;   // sidebar                   — 35px2 9
 
 // Legacy aliases — existing code uses these; map to semantic globals above
 #define g_fontUI   g_fontBtnTab
 #define g_fontMono g_fontTracker
-
-static constexpr const char* kFontBtnTabFile   = "FiraMono-Regular.ttf";
-static constexpr const char* kFontKnobFile     = "FiraMono-Regular.ttf";
-static constexpr const char* kFontRowNumFile   = "unscii-16-full.ttf";
-static constexpr const char* kFontTrackerFile  = "unscii-16-full.ttf";
-static constexpr const char* kFontOrderRowFile = "unscii-16-full.ttf";
-static constexpr const char* kFontSidebarFile  = "FiraMono-Regular.ttf";
-
-static constexpr float kFontBtnTabSize   = 13.f;
-static constexpr float kFontKnobSize     = 13.f;
-static constexpr float kFontRowNumSize   = 14.f;
-static constexpr float kFontTrackerSize  = 14.f;
-static constexpr float kFontOrderRowSize = 14.f;
-static constexpr float kFontSidebarSize  = 13.f;
-static constexpr float kFontKeySize      =  8.f;  // keyboard labels (instrument/sample views)
 
 
 // ── Background surfaces ───────────────────────────────────────────────────────

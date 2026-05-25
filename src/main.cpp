@@ -85,44 +85,54 @@ int main(int argc, char* argv[])
     ImGui_ImplOpenGL3_Init("#version 150");
 
     // ── Fonts ─────────────────────────────────────────────────────────────
-    ImFont* fontMono = nullptr;
-    ImFont* fontUI   = nullptr;
-    {
-        // Pixel-sharp config for bitmap-style fonts — no oversampling
-        ImFontConfig pixCfg;
-        pixCfg.OversampleH = 1;
-        pixCfg.OversampleV = 1;
-        pixCfg.PixelSnapH  = true;
+    // Pixel-sharp config: no oversampling, snaps to pixel grid
+    ImFontConfig pixCfg;
+    pixCfg.OversampleH = 1;
+    pixCfg.OversampleV = 1;
+    pixCfg.PixelSnapH  = true;
 
-        // Smooth config for the UI font
-        ImFontConfig uiCfg;
-        uiCfg.OversampleH = 2;
-        uiCfg.OversampleV = 2;
+    // Smooth config for outline fonts (Michroma)
+    ImFontConfig smCfg;
+    smCfg.OversampleH = 2;
+    smCfg.OversampleV = 2;
 
-        // Unscii-16: Unicode bitmap font with full CP437 + extended coverage
-        {
-            std::string path = bundleResource("unscii-16-full.ttf");
-            if (!path.empty())
-                fontMono = io.Fonts->AddFontFromFileTTF(path.c_str(), 14.f, &pixCfg);
-        }
+    auto loadFont = [&](const char* file, float size, bool smooth) -> ImFont* {
+        std::string path = bundleResource(file);
+        if (path.empty()) return nullptr;
+        return io.Fonts->AddFontFromFileTTF(path.c_str(), size, smooth ? &smCfg : &pixCfg);
+    };
 
-        // Monaco: classic Mac monospace, clean retro feel for UI
-        fontUI = io.Fonts->AddFontFromFileTTF(
-            "/System/Library/Fonts/Monaco.ttf",
-            13.f, &uiCfg);
+    // Michroma 13 — buttons, tabs, fields, knob labels (same font+size → same pointer)
+    ImFont* michroma13 = loadFont("Michroma.ttf", 13.f, true);
+    if (!michroma13) michroma13 = io.Fonts->AddFontDefault();
 
-        // Fall back to default if fonts not found
-        if (!fontMono) fontMono = io.Fonts->AddFontDefault();
-        if (!fontUI)   fontUI   = io.Fonts->AddFontDefault();
+    // 35px2 — pixel font at four sizes used across tracker UI
+    ImFont* px2_8  = loadFont("35px2.ttf",  8.f, false);
+    ImFont* px2_9  = loadFont("35px2.ttf",  9.f, false);
+    ImFont* px2_10 = loadFont("35px2.ttf", 10.f, false);
+    ImFont* px2_11 = loadFont("35px2.ttf", 11.f, false);
+    if (!px2_8)  px2_8  = io.Fonts->AddFontDefault();
+    if (!px2_9)  px2_9  = px2_8;
+    if (!px2_10) px2_10 = px2_8;
+    if (!px2_11) px2_11 = px2_8;
 
-        io.Fonts->Build();
-        g_fontMono = fontMono;
-        g_fontUI   = fontUI;
-    }
+    // terminal-6-mono 11 — tracker pattern cells
+    ImFont* term11 = loadFont("terminal-6-mono.ttf", 11.f, false);
+    if (!term11) term11 = io.Fonts->AddFontDefault();
+
+    io.Fonts->Build();
+
+    g_fontBtnTab    = michroma13;   // buttons, tabs, fields
+    g_fontKnobLabel = michroma13;   // knob labels  (same font)
+    g_fontKnobValue = px2_8;        // knob value text
+    g_fontRowNum    = px2_11;       // tracker row number column
+    g_fontTracker   = term11;       // tracker pattern cells
+    g_fontOrderRow  = px2_10;       // pattern order row
+    g_fontSidebar   = px2_9;        // sidebar
 
     // ── Application ───────────────────────────────────────────────────────
     auto app = std::make_unique<App>();
-    app->setFonts(fontMono, fontUI);
+    app->setFonts(g_fontMono, g_fontUI);  // g_fontMono=g_fontTracker, g_fontUI=g_fontBtnTab
     g_app = app.get();
 
     app->setGLFWWindow(window);

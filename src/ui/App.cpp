@@ -251,7 +251,9 @@ void App::render(int winW, int winH)
                 int p = mod->get_order_pattern(o);
                 if (p >= 0) sd.usedPats.insert(p);
             }
+        if (g_fontSidebar) ImGui::PushFont(g_fontSidebar);
         m_sidebar.render(0.f, contentY, m_sidebarW, h - contentY, m_hasModule, sd, kTabBarH);
+        if (g_fontSidebar) ImGui::PopFont();
     }
 
     // ── Splitter (drag handle) ────────────────────────────────────────────

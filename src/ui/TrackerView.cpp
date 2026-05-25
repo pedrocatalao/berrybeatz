@@ -429,9 +429,12 @@ void TrackerView::drawOrderList(float /*x*/, float /*y*/, float /*w*/) {
     int32_t norders  = m_state.num_orders.load();
     int32_t curOrder = m_state.current_order.load();
 
+    if (g_fontOrderRow) ImGui::PushFont(g_fontOrderRow);
+
     if (norders <= 0) {
         ImGui::SetCursorPosY(4);
         ImGui::TextColored(kDim, "  Open a module file  (File > Open or drag & drop)");
+        if (g_fontOrderRow) ImGui::PopFont();
         return;
     }
 
@@ -462,6 +465,7 @@ void TrackerView::drawOrderList(float /*x*/, float /*y*/, float /*w*/) {
     }
 
     ImGui::PopStyleVar(3);
+    if (g_fontOrderRow) ImGui::PopFont();
 }
 
 // ── Stereo VU ─────────────────────────────────────────────────────────────────
@@ -806,7 +810,17 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
         }
 
         ImGui::TableNextColumn();
-        ImGui::TextColored(isCur ? kTextCurRow : (isBeat||isMeasure ? kTextNormal : kDim), "%3d", r);
+        {
+            char rnBuf[8]; snprintf(rnBuf, sizeof(rnBuf), "%3d", r);
+            ImVec2 rnPos = ImGui::GetCursorScreenPos();
+            ImFont* rnFont = g_fontRowNum ? g_fontRowNum : ImGui::GetFont();
+            float cellH = ImGui::GetTextLineHeight();
+            rnPos.y += (cellH - rnFont->LegacySize) * 0.5f - 1.0f;
+            ImU32 rnCol = ImGui::ColorConvertFloat4ToU32(
+                isCur ? kTextCurRow : (isBeat||isMeasure ? kTextNormal : kDim));
+            ImGui::GetWindowDrawList()->AddText(rnFont, rnFont->LegacySize, rnPos, rnCol, rnBuf);
+            ImGui::Dummy({m_rowNumW, ImGui::GetTextLineHeight()});
+        }
 
         for (int ch = 0; ch < nch; ch++) {
             ImGui::TableNextColumn();
@@ -882,24 +896,24 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
                 ImGui::SetCursorScreenPos({cur.x + 4.f, cur.y});
             }
             recordPos(0);
-            ImGui::TextColored(hasNote ? kColNote : kDim, "%-3s", hasNote ? note.c_str() : "\xc2\xb7\xc2\xb7\xc2\xb7");
+            ImGui::TextColored(hasNote ? kColNote : kDim, "%-3s", hasNote ? note.c_str() : "...");
             subW[0] = ImGui::GetItemRectSize().x + (showInst ? 6.f : 0.f);
             if (showInst) {
                 ImGui::SameLine(0, 6); recordPos(1);
-                ImGui::TextColored(hasInst ? kColInstr : kDim, "%-2s", hasInst ? inst.c_str() : "\xc2\xb7\xc2\xb7");
+                ImGui::TextColored(hasInst ? kColInstr : kDim, "%-2s", hasInst ? inst.c_str() : "..");
                 subW[1] = ImGui::GetItemRectSize().x + (showVol ? 6.f : 0.f);
             }
             if (showVol) {
                 ImGui::SameLine(0, 6); recordPos(2);
-                ImGui::TextColored(hasVol ? kColVolume : kDim, "%-3s", hasVol ? vol.c_str() : "\xc2\xb7\xc2\xb7\xc2\xb7");
+                ImGui::TextColored(hasVol ? kColVolume : kDim, "%-3s", hasVol ? vol.c_str() : "...");
                 subW[2] = ImGui::GetItemRectSize().x + (showFx ? 6.f : 0.f);
             }
             if (showFx) {
                 ImGui::SameLine(0, 6); recordPos(3);
-                ImGui::TextColored(hasFx ? kColGlobal : kDim, "%s",   hasFx ? fx.c_str()  : "\xc2\xb7");
+                ImGui::TextColored(hasFx ? kColGlobal : kDim, "%s",   hasFx ? fx.c_str()  : ".");
                 subW[3] = ImGui::GetItemRectSize().x;
                 ImGui::SameLine(0, 0); recordPos(4);
-                ImGui::TextColored(hasFx ? kColGlobal : kDim, "%-2s", hasFx ? fxp.c_str() : "\xc2\xb7\xc2\xb7");
+                ImGui::TextColored(hasFx ? kColGlobal : kDim, "%-2s", hasFx ? fxp.c_str() : "..");
                 subW[4] = ImGui::GetItemRectSize().x;
             }
 

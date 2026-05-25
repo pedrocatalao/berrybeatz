@@ -53,8 +53,10 @@ inline bool KnobWidget(const char* id,
     const float  SIZE    = 36.f;
     const float  LBL_GAP = 3.f;
 
-    const bool   hasLabel = label && label[0] && labelPos != KnobLabelPos::None;
-    const ImVec2 lblSz   = hasLabel ? ImGui::CalcTextSize(label) : ImVec2{0.f, 0.f};
+    const bool hasLabel = label && label[0] && labelPos != KnobLabelPos::None;
+    if (hasLabel && g_fontKnobLabel) ImGui::PushFont(g_fontKnobLabel);
+    const ImVec2 lblSz = hasLabel ? ImGui::CalcTextSize(label) : ImVec2{0.f, 0.f};
+    if (hasLabel && g_fontKnobLabel) ImGui::PopFont();
 
     // Full widget bounding box (knob + label)
     float totalW = SIZE, totalH = SIZE;
@@ -222,12 +224,14 @@ inline bool KnobWidget(const char* id,
         } else {
             snprintf(buf, sizeof(buf), "%d", *value);
         }
+        if (g_fontKnobValue) ImGui::PushFont(g_fontKnobValue);
         ImVec2 textSz = ImGui::CalcTextSize(buf);
         dl->AddText(
             {center.x - textSz.x * 0.5f, center.y - textSz.y * 0.5f},
             kClrTextValue,
             buf
         );
+        if (g_fontKnobValue) ImGui::PopFont();
     }
 
     // ---- Label --------------------------------------------------------
@@ -241,7 +245,9 @@ inline bool KnobWidget(const char* id,
             lp = {origin.x, origin.y + (SIZE - lblSz.y) * 0.5f};
         else  // Right
             lp = {knobPos.x + SIZE + LBL_GAP, origin.y + (SIZE - lblSz.y) * 0.5f};
+        if (g_fontKnobLabel) ImGui::PushFont(g_fontKnobLabel);
         dl->AddText(lp, kClrTextLabel, label);
+        if (g_fontKnobLabel) ImGui::PopFont();
     }
 
     // Claim full bounding box so surrounding layout accounts for label space
@@ -264,8 +270,10 @@ inline void KnobDisplay(const char* id, float t,
     const float  SIZE    = 36.f;
     const float  LBL_GAP = 3.f;
 
-    const bool   hasLabel = label && label[0] && labelPos != KnobLabelPos::None;
-    const ImVec2 lblSz   = hasLabel ? ImGui::CalcTextSize(label) : ImVec2{0.f, 0.f};
+    const bool hasLabel = label && label[0] && labelPos != KnobLabelPos::None;
+    if (hasLabel && g_fontKnobLabel) ImGui::PushFont(g_fontKnobLabel);
+    const ImVec2 lblSz = hasLabel ? ImGui::CalcTextSize(label) : ImVec2{0.f, 0.f};
+    if (hasLabel && g_fontKnobLabel) ImGui::PopFont();
 
     float totalW = SIZE, totalH = SIZE;
     if (hasLabel) {
@@ -359,7 +367,9 @@ inline void KnobDisplay(const char* id, float t,
             lp = {origin.x, origin.y + (SIZE - lblSz.y) * 0.5f};
         else
             lp = {knobPos.x + SIZE + LBL_GAP, origin.y + (SIZE - lblSz.y) * 0.5f};
+        if (g_fontKnobLabel) ImGui::PushFont(g_fontKnobLabel);
         dl->AddText(lp, kClrTextLabel, label);
+        if (g_fontKnobLabel) ImGui::PopFont();
     }
 
     ImGui::SetCursorScreenPos(origin);
@@ -390,8 +400,10 @@ inline bool KnobEdit(const char* id, int* value, int vmin, int vmax,
     const float SIZE = 36.f, LBL_GAP = 3.f;
 
     // Full widget size — mirrors KnobWidget's calculation for cursor restoration
-    const bool   hasLabel = label && label[0] && labelPos != KnobLabelPos::None;
-    const ImVec2 lblSz   = hasLabel ? ImGui::CalcTextSize(label) : ImVec2{0.f, 0.f};
+    const bool hasLabel = label && label[0] && labelPos != KnobLabelPos::None;
+    if (hasLabel && g_fontKnobLabel) ImGui::PushFont(g_fontKnobLabel);
+    const ImVec2 lblSz = hasLabel ? ImGui::CalcTextSize(label) : ImVec2{0.f, 0.f};
+    if (hasLabel && g_fontKnobLabel) ImGui::PopFont();
     float totalW = SIZE, totalH = SIZE;
     if (hasLabel) {
         if (labelPos == KnobLabelPos::Top || labelPos == KnobLabelPos::Bottom) {

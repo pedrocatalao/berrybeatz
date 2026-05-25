@@ -88,6 +88,9 @@ set(SOURCES
     assets/ttf/BigBlueTermPlusNerdFontMono-Regular.ttf
     assets/ttf/Ac437_IBM_VGA_8x16.ttf
     assets/ttf/unscii-16-full.ttf
+    assets/ttf/Michroma.ttf
+    assets/ttf/35px2.ttf
+    assets/ttf/terminal-6-mono.ttf
 )
 
 add_executable(BerryBeatz MACOSX_BUNDLE
@@ -111,6 +114,9 @@ set_source_files_properties(
     assets/ttf/BigBlueTermPlusNerdFontMono-Regular.ttf
     assets/ttf/Ac437_IBM_VGA_8x16.ttf
     assets/ttf/unscii-16-full.ttf
+    assets/ttf/Michroma.ttf
+    assets/ttf/35px2.ttf
+    assets/ttf/terminal-6-mono.ttf
     PROPERTIES MACOSX_PACKAGE_LOCATION Resources
 )
 

@@ -27,7 +27,8 @@ void Settings::load(const std::string& path)
             else if (key == "sampleRate")     sampleRate       = std::stoi(val);
             else if (key == "midiInput")      midiInputIndex   = std::stoi(val);
             else if (key == "followPlayback") followPlayback   = (val == "1");
-            else if (key == "wrapCursor")     wrapCursor       = (val == "1");
+            else if (key == "wrapCursor")       wrapCursor       = (val == "1");
+            else if (key == "continuousScroll") continuousScroll = (val == "1");
             else if (key == "glowLogo")    glowLogo    = std::stoi(val);
             else if (key == "glowVU")      glowVU      = std::stoi(val);
             else if (key == "glowPattern") glowPattern = std::stoi(val);
@@ -49,7 +50,8 @@ void Settings::save(const std::string& path) const
     f << "sampleRate="     << sampleRate               << "\n";
     f << "midiInput="      << midiInputIndex           << "\n";
     f << "followPlayback=" << (followPlayback ? "1" : "0") << "\n";
-    f << "wrapCursor="     << (wrapCursor    ? "1" : "0") << "\n";
+    f << "wrapCursor="       << (wrapCursor       ? "1" : "0") << "\n";
+    f << "continuousScroll=" << (continuousScroll ? "1" : "0") << "\n";
     f << "glowLogo="    << glowLogo    << "\n";
     f << "glowVU="      << glowVU      << "\n";
     f << "glowPattern=" << glowPattern << "\n";

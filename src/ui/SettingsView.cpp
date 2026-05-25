@@ -231,6 +231,8 @@ void SettingsView::drawEditorTab()
         if (onApply) onApply(m_pending);
     if (ImGui::Checkbox("Wrap cursor at pattern end", &m_pending.wrapCursor))
         if (onApply) onApply(m_pending);
+    if (ImGui::Checkbox("Continuous pattern scroll", &m_pending.continuousScroll))
+        if (onApply) onApply(m_pending);
 }
 
 void SettingsView::drawGeneralTab()

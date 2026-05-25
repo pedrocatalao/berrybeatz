@@ -539,10 +539,8 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
         return;
     }
 
-    // Handle click to move edit cursor.
-    // Uses m_tableOriginX/Y measured from inside the table loop last frame,
-    // which correctly accounts for table cell padding.
-    if (ImGui::IsMouseClicked(0) && ImGui::IsWindowHovered(ImGuiHoveredFlags_RootAndChildWindows) && m_rowH > 0.f && m_tableOriginY > 0.f) {
+    // Handle click to move edit cursor (single-pattern mode only).
+    if (!m_continuousScroll && ImGui::IsMouseClicked(0) && ImGui::IsWindowHovered(ImGuiHoveredFlags_RootAndChildWindows) && m_rowH > 0.f && m_tableOriginY > 0.f) {
         ImVec2 mp = ImGui::GetIO().MousePos;
         ImVec2 wp = ImGui::GetWindowPos();
         ImVec2 ws = ImGui::GetWindowSize();
@@ -572,6 +570,33 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
     if (rpb <= 0) rpb = 4;
     int rpm = m_mod->get_pattern_rows_per_measure(curPat);
     if (rpm <= 0) rpm = 16;
+
+    int32_t curOrder = m_state.current_order.load();
+
+    struct Slot { int32_t pat, nrows, startAbs, orderIdx; int rpb, rpm; };
+    std::vector<Slot> slots;
+    int32_t totalRows = 0;
+    int32_t curAbsRow = curRow;
+
+    if (m_continuousScroll) {
+        int32_t numOrders = m_state.num_orders.load();
+        slots.reserve(numOrders);
+        for (int32_t o = 0; o < numOrders; ++o) {
+            int32_t p  = (int32_t)m_mod->get_order_pattern(o);
+            int32_t pr = (p >= 0) ? (int32_t)m_mod->get_pattern_num_rows(p) : 0;
+            if (pr <= 0) continue;
+            int prpb = m_mod->get_pattern_rows_per_beat(p);    if (prpb <= 0) prpb = 4;
+            int prpm = m_mod->get_pattern_rows_per_measure(p); if (prpm <= 0) prpm = 16;
+            if (o == curOrder) curAbsRow = totalRows + curRow;
+            slots.push_back({p, pr, totalRows, o, prpb, prpm});
+            totalRows += pr;
+        }
+    }
+    if (slots.empty()) {
+        slots.push_back({curPat, nrows, 0, curOrder, rpb, rpm});
+        totalRows = nrows;
+        curAbsRow = curRow;
+    }
 
     int totalCols = 1 + nch;
     ImGuiTableFlags tFlags =
@@ -763,23 +788,29 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
 
     bool  playing    = m_state.is_playing.load();
     bool  patChanged = (curPat != m_lastPattern);
-    bool  rowRewound = (playing && !m_editMode && curRow < m_lastRow - 2);
+    bool  rowRewound = (playing && !m_editMode && curAbsRow < m_lastAbsRow - 2);
 
     bool  forceScroll = false;
     float newScrollY  = currentScrollY;
 
     if (patChanged || rowRewound) {
-        int32_t snapRow = m_editMode ? m_cur.row : curRow;
-        newScrollY  = float(snapRow) * rowH - visH * 0.5f + rowH * 0.5f;
+        int32_t snapAbsRow = curAbsRow;
+        if (m_editMode) {
+            // Snap to edit cursor absolute position
+            snapAbsRow = 0;
+            for (auto& s : slots)
+                if (s.orderIdx == curOrder) { snapAbsRow = s.startAbs + m_cur.row; break; }
+        }
+        newScrollY  = float(snapAbsRow) * rowH - visH * 0.5f + rowH * 0.5f;
         forceScroll = true;
     } else if (playing && !m_editMode && m_followSong && m_scrollSuppressTimer == 0.f) {
-        float targetY = float(curRow) * rowH - visH * 0.5f + rowH * 0.5f;
+        float targetY = float(curAbsRow) * rowH - visH * 0.5f + rowH * 0.5f;
         newScrollY  = currentScrollY + (targetY - currentScrollY) * std::min(1.0f, 8.0f * dt);
         forceScroll = true;
     }
 
     if (forceScroll) {
-        newScrollY = std::max(0.f, std::min(newScrollY, float(nrows) * rowH));
+        newScrollY = std::max(0.f, std::min(newScrollY, float(totalRows) * rowH));
         ImGui::SetScrollY(newScrollY);
         m_scrollY = newScrollY;
     } else {
@@ -788,17 +819,39 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
 
     m_lastPattern = curPat;
     m_lastRow     = curRow;
+    m_lastAbsRow  = curAbsRow;
 
     if (m_fontMono) ImGui::PushFont(m_fontMono);
 
+    // For edit cursor: absolute row within the continuous scroll space
+    int32_t curOrderSlotStart = 0;
+    for (auto& s : slots)
+        if (s.orderIdx == curOrder) { curOrderSlotStart = s.startAbs; break; }
+    int32_t editAbsRow = curOrderSlotStart + m_cur.row;
+
     ImGuiListClipper clipper;
-    clipper.Begin(nrows);
+    clipper.Begin(totalRows);
+    int slotIdx = 0;
     while (clipper.Step()) {
-    for (int r = clipper.DisplayStart; r < clipper.DisplayEnd; r++) {
+        // Walk slot pointer to the first slot covering DisplayStart
+        while (slotIdx + 1 < (int)slots.size() && slots[slotIdx + 1].startAbs <= clipper.DisplayStart)
+            ++slotIdx;
+
+    for (int absR = clipper.DisplayStart; absR < clipper.DisplayEnd; absR++) {
+        // Advance slot pointer as needed
+        while (slotIdx + 1 < (int)slots.size() && slots[slotIdx + 1].startAbs <= absR)
+            ++slotIdx;
+
+        const Slot&   slot     = slots[slotIdx];
+        const int32_t localR   = absR - slot.startAbs;
+        const bool    isActive = (slot.orderIdx == curOrder);
+        const float   dimFactor = isActive ? 1.0f : 0.50f;
+
+        bool isCur     = m_editMode ? (absR == editAbsRow) : (isActive && localR == curRow);
+        bool isMeasure = (localR % slot.rpm == 0);
+        bool isBeat    = (localR % slot.rpb == 0) && !isMeasure;
+
         ImGui::TableNextRow();
-        bool isCur     = (r == curRow);
-        bool isMeasure = (r % rpm == 0);
-        bool isBeat    = (r % rpb == 0) && !isMeasure;
 
         if (isCur) {
             ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, kClrPatCurRowBg);
@@ -812,13 +865,24 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
 
         ImGui::TableNextColumn();
         {
-            char rnBuf[8]; snprintf(rnBuf, sizeof(rnBuf), "%3d", r);
+            char rnBuf[8]; snprintf(rnBuf, sizeof(rnBuf), "%3d", localR);
             if (g_fontRowNum) ImGui::PushFont(g_fontRowNum);
             ImVec2 rnPos = ImGui::GetCursorScreenPos();
             rnPos.x = floorf(rnPos.x);
             rnPos.y = floorf(rnPos.y) - 1.f;
+
+            // Pattern boundary separator line
+            if (m_continuousScroll && localR == 0 && absR > 0) {
+                float winLeft  = ImGui::GetWindowPos().x;
+                float winRight = winLeft + ImGui::GetWindowWidth();
+                ImGui::GetWindowDrawList()->AddLine(
+                    {winLeft, rnPos.y - 2.f}, {winRight, rnPos.y - 2.f},
+                    IM_COL32(70, 70, 130, 220));
+            }
+
+            ImVec4 rnColV = isCur ? kTextCurRow : (isBeat||isMeasure ? kTextNormal : kDim);
             ImU32 rnCol = ImGui::ColorConvertFloat4ToU32(
-                isCur ? kTextCurRow : (isBeat||isMeasure ? kTextNormal : kDim));
+                {rnColV.x * dimFactor, rnColV.y * dimFactor, rnColV.z * dimFactor, rnColV.w});
             ImGui::GetWindowDrawList()->AddText(rnPos, rnCol, rnBuf);
             float lineH = ImGui::GetTextLineHeight();
             if (g_fontRowNum) ImGui::PopFont();
@@ -828,7 +892,7 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
         for (int ch = 0; ch < nch; ch++) {
             ImGui::TableNextColumn();
 
-            // Channel divider lines — right edge (original) + mirrored left edge + gap fill
+            // Channel divider lines
             {
                 ImVec2 cp   = ImGui::GetCursorScreenPos();
                 float  padX = ImGui::GetStyle().CellPadding.x;
@@ -842,23 +906,23 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
                 sdl->AddLine({cp.x + m_cellW - 1, top}, {cp.x + m_cellW - 1, top + rowH}, IM_COL32(46, 46, 92, 200));
             }
 
-            // Measure actual cell origins from the first two rendered cells.
-            if (r == clipper.DisplayStart) {
+            // Measure actual cell origins from the first rendered cell.
+            if (absR == clipper.DisplayStart) {
                 ImVec2 cp = ImGui::GetCursorScreenPos();
                 if (ch == 0) {
                     m_tableOriginX = cp.x + m_hscroll;
-                    m_tableOriginY = cp.y - float(r) * m_rowH + m_scrollY
+                    m_tableOriginY = cp.y - float(absR) * m_rowH + m_scrollY
                                    - ImGui::GetStyle().CellPadding.y;
                 } else if (ch == 1) {
                     m_colStep = (cp.x + m_hscroll) - m_tableOriginX;
                 }
             }
 
-            bool isEditCell = m_editMode && (r == m_cur.row) && (ch == m_cur.channel);
+            bool isEditCell = m_editMode && (absR == editAbsRow) && (ch == m_cur.channel);
 
-            // Selection highlight (tinted background, drawn before text)
-            bool isSelected = m_sel.active
-                && r >= m_sel.rowMin() && r <= m_sel.rowMax()
+            // Selection highlight — only within active pattern
+            bool isSelected = isActive && m_sel.active
+                && localR >= m_sel.rowMin() && localR <= m_sel.rowMax()
                 && ch >= m_sel.chMin() && ch <= m_sel.chMax();
             if (isSelected) {
                 ImVec2 rMin = ImGui::GetCursorScreenPos();
@@ -879,13 +943,13 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
                 if (col == 0) cellY = cp.y;
             };
 
-            std::string note  = m_mod->format_pattern_row_channel_command(curPat, r, ch, openmpt::module::command_note);
-            std::string inst  = showInst ? m_mod->format_pattern_row_channel_command(curPat, r, ch, openmpt::module::command_instrument) : "";
-            std::string volFx = showVol  ? m_mod->format_pattern_row_channel_command(curPat, r, ch, openmpt::module::command_volumeffect) : "";
-            std::string volV  = showVol  ? m_mod->format_pattern_row_channel_command(curPat, r, ch, openmpt::module::command_volume)       : "";
+            std::string note  = m_mod->format_pattern_row_channel_command(slot.pat, localR, ch, openmpt::module::command_note);
+            std::string inst  = showInst ? m_mod->format_pattern_row_channel_command(slot.pat, localR, ch, openmpt::module::command_instrument) : "";
+            std::string volFx = showVol  ? m_mod->format_pattern_row_channel_command(slot.pat, localR, ch, openmpt::module::command_volumeffect) : "";
+            std::string volV  = showVol  ? m_mod->format_pattern_row_channel_command(slot.pat, localR, ch, openmpt::module::command_volume)       : "";
             std::string vol   = volFx + volV;
-            std::string fx    = showFx   ? m_mod->format_pattern_row_channel_command(curPat, r, ch, openmpt::module::command_effect)       : "";
-            std::string fxp   = showFx   ? m_mod->format_pattern_row_channel_command(curPat, r, ch, openmpt::module::command_parameter)    : "";
+            std::string fx    = showFx   ? m_mod->format_pattern_row_channel_command(slot.pat, localR, ch, openmpt::module::command_effect)       : "";
+            std::string fxp   = showFx   ? m_mod->format_pattern_row_channel_command(slot.pat, localR, ch, openmpt::module::command_parameter)    : "";
 
             bool hasNote = !note.empty() && note != "..." && note != "---";
             bool hasInst = showInst && !inst.empty() && inst != ".." && inst != "00";
@@ -894,29 +958,33 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
                         && !volV.empty()  && volV  != ".." && volV != ".";
             bool hasFx   = showFx && !fx.empty() && fx != ".";
 
+            auto dimColor = [dimFactor](const ImVec4& c) -> ImVec4 {
+                return {c.x * dimFactor, c.y * dimFactor, c.z * dimFactor, c.w};
+            };
+
             {
                 ImVec2 cur = ImGui::GetCursorScreenPos();
                 ImGui::SetCursorScreenPos({cur.x + 4.f, cur.y});
             }
             recordPos(0);
-            ImGui::TextColored(hasNote ? kColNote : kDim, "%-3s", hasNote ? note.c_str() : "...");
+            ImGui::TextColored(dimColor(hasNote ? kColNote : kDim), "%-3s", hasNote ? note.c_str() : "...");
             subW[0] = ImGui::GetItemRectSize().x + (showInst ? 6.f : 0.f);
             if (showInst) {
                 ImGui::SameLine(0, 6); recordPos(1);
-                ImGui::TextColored(hasInst ? kColInstr : kDim, "%-2s", hasInst ? inst.c_str() : "..");
+                ImGui::TextColored(dimColor(hasInst ? kColInstr : kDim), "%-2s", hasInst ? inst.c_str() : "..");
                 subW[1] = ImGui::GetItemRectSize().x + (showVol ? 6.f : 0.f);
             }
             if (showVol) {
                 ImGui::SameLine(0, 6); recordPos(2);
-                ImGui::TextColored(hasVol ? kColVolume : kDim, "%-3s", hasVol ? vol.c_str() : "...");
+                ImGui::TextColored(dimColor(hasVol ? kColVolume : kDim), "%-3s", hasVol ? vol.c_str() : "...");
                 subW[2] = ImGui::GetItemRectSize().x + (showFx ? 6.f : 0.f);
             }
             if (showFx) {
                 ImGui::SameLine(0, 6); recordPos(3);
-                ImGui::TextColored(hasFx ? kColGlobal : kDim, "%s",   hasFx ? fx.c_str()  : ".");
+                ImGui::TextColored(dimColor(hasFx ? kColGlobal : kDim), "%s",   hasFx ? fx.c_str()  : ".");
                 subW[3] = ImGui::GetItemRectSize().x;
                 ImGui::SameLine(0, 0); recordPos(4);
-                ImGui::TextColored(hasFx ? kColGlobal : kDim, "%-2s", hasFx ? fxp.c_str() : "..");
+                ImGui::TextColored(dimColor(hasFx ? kColGlobal : kDim), "%-2s", hasFx ? fxp.c_str() : "..");
                 subW[4] = ImGui::GetItemRectSize().x;
             }
 
@@ -934,8 +1002,8 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
                     {x0cell, y0-1}, {x1cell, y1+1}, IM_COL32(255,255,255,220));
             }
 
-            // Glow on non-empty cells — skip empty dots
-            if (g_glowPattern > 0.f && (hasNote || hasInst || hasVol || hasFx)) {
+            // Glow on non-empty cells — active pattern only
+            if (isActive && g_glowPattern > 0.f && (hasNote || hasInst || hasVol || hasFx)) {
                 ImDrawList* gdl  = ImGui::GetWindowDrawList();
                 ImFont*     font = ImGui::GetFont();
                 float       fsz  = ImGui::GetFontSize();

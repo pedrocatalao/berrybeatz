@@ -13,8 +13,9 @@ struct Settings {
     int  audioDeviceIndex {-1};   // -1 = PortAudio default
     int  sampleRate       {48000};
     int  midiInputIndex   {-1};   // -1 = none
-    bool followPlayback   {true};
-    bool wrapCursor       {false};
+    bool followPlayback    {true};
+    bool wrapCursor        {false};
+    bool continuousScroll  {false};
     int  glowLogo    {5};   // 0 = off, 1–10 intensity
     int  glowVU      {5};
     int  glowPattern {5};

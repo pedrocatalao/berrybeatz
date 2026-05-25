@@ -58,6 +58,7 @@ public:
     void setModule(openmpt::module_ext* mod) { m_mod = mod; }
     void clearModule() { m_mod = nullptr; m_undo.clear(); m_sel.active = false; }
     void setFonts(ImFont* mono, ImFont* ui) { m_fontMono = mono; m_fontUI = ui; }
+    void setContinuousScroll(bool v) { m_continuousScroll = v; }
 
     int  baseOctave() const    { return m_baseOctave; }
     void setBaseOctave(int o)  { m_baseOctave = std::clamp(o, 0, 8); }
@@ -146,8 +147,10 @@ private:
     bool    m_showWave      {true};
     bool    m_showPluginRow {true};
     bool    m_loopPattern   {false};
+    bool    m_continuousScroll   {false};
     bool    m_followSong         {true};
-    float   m_scrollSuppressTimer {0.f};  // seconds remaining before follow re-engages
+    float   m_scrollSuppressTimer {0.f};
+    int32_t m_lastAbsRow          {0};
     int32_t m_curInstrument {0};
     bool    m_overflowPaste {false};
     int     m_detailView    {0};     // 0=note+inst+vol+fx, 1=+vol, 2=+inst, 3=note

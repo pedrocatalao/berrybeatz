@@ -68,6 +68,7 @@ bool AudioEngine::loadFile(const std::string& path) {
     }
     try {
         m_mod = std::make_unique<openmpt::module_ext>(f);
+        bb_disable_ft2_volume_ramping(m_mod.get());
         fillState();
         return true;
     } catch (const std::exception& e) {

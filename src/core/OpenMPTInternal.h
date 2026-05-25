@@ -94,6 +94,10 @@ int32_t    bb_play_sample(openmpt::module_ext* mod, int sampleIndex, int note, d
 // Fills waveMin[width] and waveMax[width] with normalized [-1,1] sample data. outLen set to width on success.
 void       bb_build_sample_waveform(openmpt::module_ext* mod, int sampleIndex, std::vector<float>& waveMin, std::vector<float>& waveMax, int& outLen, int width = 1024);
 
+// Disable FT2-style 5ms volume ramping (kFT2VolumeRamping playBehaviour).
+// libopenmpt enables this by default for genuine FT2 XM files; OpenMPT desktop does not.
+void bb_disable_ft2_volume_ramping(openmpt::module_ext* mod);
+
 // Call BEFORE read() to arm per-channel capture.
 void bb_setup_channel_capture(openmpt::module_ext* mod, int nChannels);
 

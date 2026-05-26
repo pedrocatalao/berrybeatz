@@ -51,6 +51,22 @@ void LogoView::draw(float winX, float winY, float winW,
 
     drawQuad(0.f, 0.f, IM_COL32(255, 255, 255, 240));
 
+    // Gradient mask constrained to logo's visible pixels (texture alpha clips it)
+    {
+        ImU32 cL = IM_COL32(0, 0, 0, 90);
+        ImU32 cR = IM_COL32(0, 0, 0,  0);
+        fdl->PushTextureID((ImTextureID)(intptr_t)logoTex);
+        fdl->PrimReserve(6, 4);
+        ImDrawIdx base = (ImDrawIdx)fdl->_VtxCurrentIdx;
+        fdl->PrimWriteVtx({p0.x,      p0.y     }, {0.f, 0.f}, cL);
+        fdl->PrimWriteVtx({p0.x + lw, p0.y     }, {1.f, 0.f}, cR);
+        fdl->PrimWriteVtx({p0.x + lw, p0.y + lh}, {1.f, 1.f}, cR);
+        fdl->PrimWriteVtx({p0.x,      p0.y + lh}, {0.f, 1.f}, cL);
+        fdl->PrimWriteIdx(base+0); fdl->PrimWriteIdx(base+1); fdl->PrimWriteIdx(base+2);
+        fdl->PrimWriteIdx(base+0); fdl->PrimWriteIdx(base+2); fdl->PrimWriteIdx(base+3);
+        fdl->PopTextureID();
+    }
+
     if (speakerTex) {
         const float coneW = speakerW * (lh / 463.f) * kConeScale;
         const float coneH = speakerH * (lh / 463.f) * kConeScale;

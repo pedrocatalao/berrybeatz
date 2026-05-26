@@ -819,7 +819,7 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
         newScrollY  = float(snapAbsRow) * rowH - visH * 0.5f + rowH * 0.5f;
         forceScroll = true;
     } else if (playing && !m_editMode && m_followSong && m_scrollSuppressTimer == 0.f) {
-        float targetY = float(curAbsRow) * rowH - visH * 0.5f + rowH * 0.5f;
+        float targetY = float(curAbsRow) * rowH - visH * 0.5f + rowH * 2.5f;
         newScrollY  = currentScrollY + (targetY - currentScrollY) * std::min(1.0f, 8.0f * dt);
         forceScroll = true;
     }

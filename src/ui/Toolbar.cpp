@@ -2,6 +2,7 @@
 #include <OpenGL/gl3.h>
 #include "Theme.h"
 #include "Toolbar.h"
+#include "LogoView.h"
 #include "Knob.h"
 #include "RenderSettings.h"
 #include "imgui.h"
@@ -312,75 +313,13 @@ float DrawToolbar(ToolbarState& state,
     }
 
     // ─── Logo (top-right) ─────────────────────────────────────────────────────
-    if (state.logoTex && state.logoH > 0.f) {
-        const float lh  = 90.f;
-        const float lw  = lh * (state.logoW / state.logoH);
-        ImVec2 winPos   = ImGui::GetWindowPos();
-        float  winW     = ImGui::GetWindowSize().x;
-        ImVec2 p0       = {winPos.x + winW - lw - 6.f, winPos.y + 6.f};
-
-        ImDrawList* fdl = ImGui::GetForegroundDrawList();
-
-        auto drawQuad = [&](float ox, float oy, ImU32 col) {
-            fdl->AddImageQuad(
-                (ImTextureID)(intptr_t)state.logoTex,
-                {p0.x + ox,      p0.y + oy            },
-                {p0.x + lw + ox, p0.y + oy      },
-                {p0.x + lw + ox, p0.y + lh + oy },
-                {p0.x + ox,      p0.y + lh + oy        },
-                {0.f, 0.f}, {1.f, 0.f}, {1.f, 1.f}, {0.f, 1.f},
-                col);
-        };
-
-        // Glow passes use additive blending so they add light to the background
-        // rather than accumulating alpha over the main image.
-        fdl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {
-            glBlendFunc(GL_SRC_ALPHA, GL_ONE);
-        }, nullptr);
-
-        if (g_glowLogo > 0.f) {
-            auto ga = [](int a) { return (uint8_t)(a * g_glowLogo); };
-            static const float kDirs[8][2] = {
-                {-1.f, 0.f},{1.f, 0.f},{0.f,-1.f},{0.f, 1.f},
-                {-1.f,-1.f},{1.f,-1.f},{-1.f,1.f},{1.f, 1.f}
-            };
-            for (auto& d : kDirs) drawQuad(d[0]*5.f,  d[1]*5.f,  IM_COL32(160, 160, 255, ga( 8)));
-            for (auto& d : kDirs) drawQuad(d[0]*3.f,  d[1]*3.f,  IM_COL32(180, 180, 255, ga(13)));
-            for (auto& d : kDirs) drawQuad(d[0]*1.5f, d[1]*1.5f, IM_COL32(200, 200, 255, ga(18)));
-        }
-
-        // Restore normal blending before drawing the main image
-        fdl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {
-            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-        }, nullptr);
-
-        drawQuad(0.f, 0.f, IM_COL32(255, 255, 255, 240));
-
-        // ── Speaker-cone overlay ──────────────────────────────────────────────
-        // Position and size in screen pixels, relative to the logo rect's top-left (p0).
-        // Adjust kConeX / kConeY to move; kConeScale to resize.
-        static constexpr float kConeX     = 231.f;  // screen px from p0.x
-        static constexpr float kConeY     =  38.f;  // screen px from p0.y
-        static constexpr float kConeScale =   1.0f; // size multiplier
-
-        if (state.speakerConeTex) {
-            const float coneW = state.speakerConeW * (lh / 463.f) * kConeScale;
-            const float coneH = state.speakerConeH * (lh / 463.f) * kConeScale;
-
-            const float vuPeak = std::min((state.vuLeft + state.vuRight) * 0.5f, 1.0f);
-            const float vibX   = std::sin((float)ImGui::GetTime() * 2.f * 3.14159265f * 28.f) * vuPeak * 2.f;
-
-            ImVec2 cTL = {p0.x + kConeX + vibX,        p0.y + kConeY        };
-            ImVec2 cTR = {p0.x + kConeX + coneW + vibX, p0.y + kConeY        };
-            ImVec2 cBR = {p0.x + kConeX + coneW + vibX, p0.y + kConeY + coneH};
-            ImVec2 cBL = {p0.x + kConeX + vibX,        p0.y + kConeY + coneH};
-
-            fdl->AddImageQuad(
-                (ImTextureID)(intptr_t)state.speakerConeTex,
-                cTL, cTR, cBR, cBL,
-                {0.f,0.f}, {1.f,0.f}, {1.f,1.f}, {0.f,1.f},
-                IM_COL32(255, 255, 255, 255));
-        }
+    {
+        static LogoView logo;
+        ImVec2 winPos = ImGui::GetWindowPos();
+        logo.draw(winPos.x, winPos.y, ImGui::GetWindowSize().x,
+                  state.logoTex, state.logoW, state.logoH,
+                  state.speakerConeTex, state.speakerConeW, state.speakerConeH,
+                  state.vuLeft, state.vuRight);
     }
 
     ImGui::End();

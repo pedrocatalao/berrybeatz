@@ -74,6 +74,7 @@ set(SOURCES
     src/ui/SampleView.cpp
     src/ui/SettingsView.cpp
     src/ui/Toolbar.cpp
+    src/ui/LogoView.cpp
     src/ui/TrackerView.cpp
     src/ui/PatternInput.cpp
     # platform — macOS-specific

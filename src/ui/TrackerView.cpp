@@ -698,11 +698,32 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
             dl->AddText({p.x + (cw - ts.x) * 0.5f, p.y + (CHANNAME_H - textH) * 0.5f},
                         textCol, chNames[ch].c_str());
 
-            // Mute click target
+            // Mute / solo click target (both detected on press to avoid release-timing conflicts)
             ImGui::SetCursorScreenPos(p);
             ImGui::PushID(0x10000 + ch);
-            if (ImGui::InvisibleButton("##mute", {cw, CHANNAME_H}))
-                newMuteState ^= (uint64_t(1) << ch);
+            ImGui::InvisibleButton("##mute", {cw, CHANNAME_H});
+            {
+                ImVec2 pMax = {p.x + cw, p.y + float(CHANNAME_H)};
+                bool hov = ImGui::IsMouseHoveringRect(p, pMax);
+                bool dbl = hov && ImGui::IsMouseDoubleClicked(0);
+                bool sng = hov && ImGui::IsMouseClicked(0) && !dbl;
+                uint64_t allOthersMask = ((uint64_t(1) << nch) - 1) & ~(uint64_t(1) << ch);
+                if (dbl) {
+                    bool wasPlaying = !((m_preClickMuteState >> ch) & 1);
+                    bool wasSoloed  = wasPlaying && (m_preClickMuteState == allOthersMask);
+                    if (wasSoloed || !wasPlaying)
+                        newMuteState = 0;
+                    else
+                        newMuteState = allOthersMask;
+                } else if (sng) {
+                    m_preClickMuteState = m_muteState;
+                    bool isSoloed = m_muteState == allOthersMask;
+                    if (isSoloed)
+                        newMuteState = 0;
+                    else
+                        newMuteState ^= (uint64_t(1) << ch);
+                }
+            }
 
             // VU
             float vuTop = p.y + CHANNAME_H;

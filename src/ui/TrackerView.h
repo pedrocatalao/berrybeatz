@@ -121,7 +121,8 @@ private:
     float    m_colStep      {0.0f};  // screen pitch per channel column (content + padding)
     int32_t  m_lastPattern  {-1};
     int32_t  m_lastRow      {-1};
-    uint64_t m_muteState    {0};
+    uint64_t m_muteState          {0};
+    uint64_t m_preClickMuteState  {0};  // mute state before the last single-click press
 
     // Edit cursor
     bool       m_editCursorMoved  {false};

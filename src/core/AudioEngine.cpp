@@ -302,7 +302,7 @@ int AudioEngine::paCallback(const void*, void* output,
     if (nchForCapture > 0)
         bb_setup_channel_capture(d->mod, nchForCapture);
 
-    size_t count = d->mod->read(SAMPLE_RATE, frameCount,
+    size_t count = d->mod->read(d->sampleRate, frameCount,
                                 d->left.data(), d->right.data());
 
     // Interleave

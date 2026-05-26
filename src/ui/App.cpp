@@ -52,6 +52,7 @@ App::App() : m_audio(m_state), m_tracker(m_state), m_generalView(m_state)
         if (!mod) return;
         auto* ia = static_cast<openmpt::ext::interactive*>(
             mod->get_interface(openmpt::ext::interactive_id));
+        if (!ia) return;
         // set_current_tempo is deprecated but still the only per-song API available
         #pragma clang diagnostic push
         #pragma clang diagnostic ignored "-Wdeprecated-declarations"
@@ -71,6 +72,7 @@ App::App() : m_audio(m_state), m_tracker(m_state), m_generalView(m_state)
         if (!mod) return;
         auto* ia = static_cast<openmpt::ext::interactive*>(
             mod->get_interface(openmpt::ext::interactive_id));
+        if (!ia) return;
         ia->set_global_volume((double)v / 256.0);
     };
 
@@ -460,13 +462,12 @@ void App::drawCommentsTab()
     if (!m_hasModule) { ImGui::TextDisabled("No module loaded."); return; }
     auto* mod = m_audio.getModule();
     if (!mod) return;
-    static std::string msg;
-    static bool msgLoaded = false;
-    if (!msgLoaded) {
-        msg       = mod->get_metadata("message");
-        msgLoaded = true;
+    static std::string    msg;
+    static const void*    lastMod = nullptr;
+    if (mod != lastMod) {
+        msg     = mod->get_metadata("message");
+        lastMod = mod;
     }
-    // Reset on module change would clear msgLoaded — handled in clearModule()
     ImGui::InputTextMultiline("##msg", msg.data(), msg.size() + 1,
                               {-1.f, -1.f}, ImGuiInputTextFlags_ReadOnly);
 }

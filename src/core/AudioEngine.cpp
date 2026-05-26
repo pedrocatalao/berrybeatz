@@ -1,4 +1,5 @@
 #include "AudioEngine.h"
+#include "AudioDeviceMonitor.h"
 #include "OpenMPTInternal.h"
 #include <libopenmpt/libopenmpt_ext.hpp>
 #include <portaudio.h>
@@ -50,7 +51,9 @@ struct PaCallbackData {
 };
 
 AudioEngine::AudioEngine(ModuleState& state)
-    : m_state(state) {
+    : m_state(state)
+    , m_deviceMonitor([this]() { if (isRunning()) m_restartStream.store(true); })
+{
     Pa_Initialize();
 }
 
@@ -409,6 +412,10 @@ void AudioEngine::run() {
     m_running.store(true);
     m_state.is_playing.store(true);
 
+    // Refresh PortAudio's device list — stale after plug/unplug since Pa_Initialize()
+    Pa_Terminate();
+    Pa_Initialize();
+
     PaCallbackData cbData;
     cbData.mod               = m_mod.get();
     cbData.state             = &m_state;
@@ -422,40 +429,64 @@ void AudioEngine::run() {
     cbData.pat_play_loop     = &m_patPlayLoop;
     cbData.pat_play_single   = &m_patPlaySingle;
     cbData.preview_mode      = &m_previewMode;
+    cbData.sampleRate        = m_samplerate;
 
-    cbData.sampleRate = m_samplerate;
+    auto tryOpen = [&](PaStream*& stream) -> PaError {
+        const PaDeviceInfo* info = nullptr;
+        PaDeviceIndex dev = (m_deviceIndex >= 0)
+            ? (PaDeviceIndex)m_deviceIndex
+            : Pa_GetDefaultOutputDevice();
+        info = Pa_GetDeviceInfo(dev);
 
-    PaStream* stream = nullptr;
-    PaError   err    = paNoError;
+        // Fall back to default if the configured device is gone
+        if (!info && m_deviceIndex >= 0) {
+            dev  = Pa_GetDefaultOutputDevice();
+            info = Pa_GetDeviceInfo(dev);
+        }
+        if (!info) return paInvalidDevice;
 
-    auto tryOpen = [&](PaDeviceIndex dev) -> PaError {
-        const PaDeviceInfo* info = Pa_GetDeviceInfo(dev);
         PaStreamParameters params{};
         params.device                    = dev;
         params.channelCount              = 2;
         params.sampleFormat              = paFloat32;
-        params.suggestedLatency          = info ? info->defaultLowOutputLatency : 0.020;
+        params.suggestedLatency          = info->defaultLowOutputLatency;
         params.hostApiSpecificStreamInfo = nullptr;
         return Pa_OpenStream(&stream, nullptr, &params,
                              m_samplerate, FRAMES_BLOCK, paClipOff, paCallback, &cbData);
     };
-    if (m_deviceIndex >= 0)
-        err = tryOpen((PaDeviceIndex)m_deviceIndex);
-    if (m_deviceIndex < 0 || err != paNoError)
-        err = tryOpen(Pa_GetDefaultOutputDevice());
 
-    if (err != paNoError) {
-        m_state.is_playing.store(false);
-        m_running.store(false);
-        if (onLoadFailed) onLoadFailed(std::string("PortAudio: ") + Pa_GetErrorText(err));
-        return;
+    // Retry loop — recovers from device disconnects (e.g. headphone plug/unplug)
+    static constexpr int kMaxRetries = 5;
+    int retriesLeft = kMaxRetries;
+
+    while (!m_stop.load() && retriesLeft > 0) {
+        PaStream* stream = nullptr;
+        PaError   err    = tryOpen(stream);
+
+        if (err != paNoError) {
+            if (retriesLeft == kMaxRetries)   // first attempt — report error
+                if (onLoadFailed) onLoadFailed(std::string("PortAudio: ") + Pa_GetErrorText(err));
+            --retriesLeft;
+            std::this_thread::sleep_for(std::chrono::milliseconds(300));
+            continue;
+        }
+        retriesLeft = kMaxRetries;  // reset on successful open
+
+        Pa_StartStream(stream);
+        while (!m_stop.load() && !m_restartStream.load() && Pa_IsStreamActive(stream) > 0)
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+        Pa_StopStream(stream);
+        Pa_CloseStream(stream);
+
+        if (!m_stop.load()) {
+            // Device changed or stream died — reinit PA, wait for OS to settle, then retry.
+            m_restartStream.store(false);
+            Pa_Terminate();
+            Pa_Initialize();
+            std::this_thread::sleep_for(std::chrono::milliseconds(300));
+        }
     }
-
-    Pa_StartStream(stream);
-    while (!m_stop.load() && Pa_IsStreamActive(stream) > 0)
-        std::this_thread::sleep_for(std::chrono::milliseconds(50));
-
-    Pa_StopStream(stream);
 
     // Clear visual state now that audio has fully stopped
     m_state.master_vu_left .store(0.f);
@@ -465,8 +496,6 @@ void AudioEngine::run() {
         m_state.vu.fill({});
         m_state.masterWave = {};
     }
-
-    Pa_CloseStream(stream);
 
     m_state.is_playing.store(false);
     m_running.store(false);

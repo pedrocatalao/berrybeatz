@@ -1,5 +1,6 @@
 #pragma once
 #include "ModuleState.h"
+#include "AudioDeviceMonitor.h"
 #include <thread>
 #include <string>
 #include <functional>
@@ -94,4 +95,6 @@ private:
     std::atomic<bool>        m_patPlaySingle   {false};
 
     std::atomic<bool>        m_previewMode     {false};
+    std::atomic<bool>        m_restartStream   {false};
+    AudioDeviceMonitor       m_deviceMonitor;
 };

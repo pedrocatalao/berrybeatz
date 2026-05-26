@@ -75,7 +75,6 @@ private:
 
     ModuleState&                         m_state;
     std::unique_ptr<openmpt::module_ext> m_mod;
-    PaStream*                            m_stream  {nullptr};
 
     std::thread              m_thread;
     std::atomic<bool>        m_running {false};

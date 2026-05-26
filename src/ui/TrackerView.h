@@ -57,7 +57,7 @@ public:
     ~TrackerView() = default;
 
     void setModule(openmpt::module_ext* mod) { m_mod = mod; }
-    void clearModule() { m_mod = nullptr; m_undo.clear(); m_sel.active = false; }
+    void clearModule() { m_mod = nullptr; m_undo.clear(); m_sel.active = false; m_muteState = 0; }
     void setFonts(ImFont* mono, ImFont* ui) { m_fontMono = mono; m_fontUI = ui; }
     void setContinuousScroll(bool v) { m_continuousScroll = v; }
 

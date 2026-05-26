@@ -411,7 +411,9 @@ void AudioEngine::run() {
     m_running.store(true);
     m_state.is_playing.store(true);
 
-    // Refresh PortAudio's device list — stale after plug/unplug since Pa_Initialize()
+    // Refresh PortAudio's device list — stale after plug/unplug since last Pa_Initialize().
+    // Safe: ~AudioEngine() calls stop()+join() before its Pa_Terminate(), so this thread
+    // always finishes before the destructor touches PortAudio state.
     Pa_Terminate();
     Pa_Initialize();
 

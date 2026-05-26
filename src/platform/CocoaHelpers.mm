@@ -59,7 +59,7 @@ std::string nativeSaveFileDialog(const char* title, const char* defaultName)
 
 // ─── Smooth window drag via macOS compositor ──────────────────────────────────
 
-static NSEvent* s_lastMouseDown = nil;
+static __strong NSEvent* s_lastMouseDown = nil;
 static id       s_monitor       = nil;
 
 void setupWindowEventMonitor(GLFWwindow*)

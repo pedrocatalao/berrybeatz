@@ -37,6 +37,7 @@ void TrackerView::clampCursor() {
 void TrackerView::advanceCursor() {
     if (!m_mod || m_editStep == 0) return;
     int32_t nrows = pe_num_rows(m_mod, m_state.current_pattern.load());
+    if (nrows <= 0) return;
     m_cur.row = std::min(m_cur.row + m_editStep, nrows - 1);
 }
 
@@ -152,6 +153,7 @@ void TrackerView::processInput() {
 
     int32_t pat   = m_state.current_pattern.load();
     int32_t nrows = pe_num_rows(m_mod, pat);
+    if (nrows <= 0) return;
     int32_t nch   = m_state.num_channels.load();
     bool    shift = ImGui::GetIO().KeyShift;
     bool    ctrl  = ImGui::GetIO().KeyCtrl;

@@ -73,6 +73,7 @@ struct ModuleState {
         num_channels     = 0;
         num_orders       = 0;
         is_playing       = false;
+        channel_mute_mask= 0;
         master_vu_left   = 0.0f;
         master_vu_right  = 0.0f;
         {

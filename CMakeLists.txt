@@ -60,7 +60,7 @@ set(SOURCES
     src/main.cpp
     # core — platform-independent logic
     src/core/AudioEngine.cpp
-    src/core/AudioDeviceMonitor.cpp
+    src/platform/AudioDeviceMonitor.cpp
     src/core/PatternEditor.cpp
     src/core/Settings.cpp
     src/core/UndoManager.cpp

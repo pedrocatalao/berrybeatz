@@ -1,6 +1,6 @@
 #pragma once
 #include "ModuleState.h"
-#include "AudioDeviceMonitor.h"
+#include "../platform/AudioDeviceMonitor.h"
 #include <thread>
 #include <string>
 #include <functional>

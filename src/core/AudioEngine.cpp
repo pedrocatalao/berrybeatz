@@ -1,5 +1,4 @@
 #include "AudioEngine.h"
-#include "AudioDeviceMonitor.h"
 #include "OpenMPTInternal.h"
 #include <libopenmpt/libopenmpt_ext.hpp>
 #include <portaudio.h>

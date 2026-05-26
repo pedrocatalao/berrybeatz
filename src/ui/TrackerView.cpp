@@ -811,8 +811,10 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
     // backward jumps (loop restart / seek), not on natural forward progression.
     bool  needsSnap  = m_continuousScroll ? rowRewound : (patChanged || rowRewound);
 
-    bool  forceScroll = false;
-    float newScrollY  = currentScrollY;
+    bool  forceScroll  = false;
+    float newScrollY   = currentScrollY;
+    bool  forceScrollX = false;
+    float newScrollX   = m_hscroll;
 
     if (m_editMode) {
         int32_t editAbs = 0;
@@ -821,7 +823,7 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
         if (m_editCursorMoved) {
             int32_t rowDelta = editAbs - m_lastEditAbsRow;
             if (rowDelta != 0) {
-                const float kZone    = 3.f * rowH;
+                const float kZone     = 3.f * rowH;
                 float       cursorTop = float(editAbs) * rowH;
                 float       cursorBot = cursorTop + rowH;
                 bool nearBottom = cursorBot  > currentScrollY + visH - kZone;
@@ -831,8 +833,22 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
                     forceScroll = true;
                 }
             }
+            int32_t chDelta = m_cur.channel - m_lastEditChannel;
+            if (chDelta != 0 && m_colStep > 0.f) {
+                float visW      = avail.x - m_rowNumW - kSbSize;
+                float kZoneX    = 2.f * m_colStep;
+                float cursorL   = float(m_cur.channel) * m_colStep;
+                float cursorR   = cursorL + m_colStep;
+                bool nearRight  = cursorR > m_hscroll + visW - kZoneX;
+                bool nearLeft   = cursorL < m_hscroll + kZoneX;
+                if ((chDelta > 0 && nearRight) || (chDelta < 0 && nearLeft)) {
+                    newScrollX   = m_hscroll + float(chDelta) * m_colStep;
+                    forceScrollX = true;
+                }
+            }
         }
-        m_lastEditAbsRow = editAbs;
+        m_lastEditAbsRow  = editAbs;
+        m_lastEditChannel = m_cur.channel;
     } else if (needsSnap) {
         newScrollY  = float(curAbsRow) * rowH - visH * 0.5f + rowH * 2.5f;
         forceScroll = true;
@@ -848,6 +864,12 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
         m_scrollY = newScrollY;
     } else {
         m_scrollY = currentScrollY;
+    }
+    if (forceScrollX) {
+        float maxScrollX = std::max(0.f, float(nch) * (m_colStep > 0.f ? m_colStep : m_cellW) - (avail.x - m_rowNumW - kSbSize));
+        newScrollX = std::max(0.f, std::min(newScrollX, maxScrollX));
+        ImGui::SetScrollX(newScrollX);
+        m_hscroll = newScrollX;
     }
 
     m_lastPattern = curPat;

@@ -125,6 +125,7 @@ private:
     // Edit cursor
     bool       m_editCursorMoved  {false};
     int32_t    m_lastEditAbsRow   {0};
+    int32_t    m_lastEditChannel  {0};
     EditCursor m_cur;
     float      m_visualRow     {0.f};
     int32_t    m_baseOctave    {4};

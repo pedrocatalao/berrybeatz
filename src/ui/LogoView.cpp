@@ -53,7 +53,7 @@ void LogoView::draw(float winX, float winY, float winW,
 
     // Gradient mask constrained to logo's visible pixels (texture alpha clips it)
     {
-        ImU32 cL = IM_COL32(0, 0, 0, 90);
+        ImU32 cL = IM_COL32(50, 50, 60, 100);
         ImU32 cR = IM_COL32(0, 0, 0,  0);
         fdl->PushTextureID((ImTextureID)(intptr_t)logoTex);
         fdl->PrimReserve(6, 4);

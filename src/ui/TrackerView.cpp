@@ -11,7 +11,6 @@
 // ── OpenMPT "Blue (FT2)" colour scheme — sourced from Theme.h ─────────────────
 static constexpr ImVec4 kBgNormal   = kCellBgNormal;
 static constexpr ImVec4 kTextNormal = kCellTextNormal;
-static constexpr ImVec4 kBgCurRow   = kCellBgCurRow;
 static constexpr ImVec4 kTextCurRow = kCellTextCurRow;
 static constexpr ImVec4 kBgHilight  = kCellBgBeat;
 static constexpr ImVec4 kBgMeasure  = kCellBgMeasure;
@@ -1048,9 +1047,9 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
                     glBlendFunc(GL_SRC_ALPHA, GL_ONE);
                 }, nullptr);
                 auto addGlowText = [&](float gx, const ImVec4& c, const char* txt) {
-                    uint8_t a1 = (uint8_t)((isCur ? 25 : 15) * g_glowPattern);
-                    uint8_t a2 = (uint8_t)((isCur ?  8 :  7) * g_glowPattern);
-                    uint8_t a3 = (uint8_t)((isCur ?  5 :  0) * g_glowPattern);
+                    uint8_t a1 = (uint8_t)((isCur ? 25 : 12) * g_glowPattern);
+                    uint8_t a2 = (uint8_t)((isCur ? 12 :  7) * g_glowPattern);
+                    uint8_t a3 = (uint8_t)((isCur ?  9 :  0) * g_glowPattern);
                     ImU32 gc1 = IM_COL32((uint8_t)(c.x*255.f),(uint8_t)(c.y*255.f),(uint8_t)(c.z*255.f), a1);
                     ImU32 gc2 = IM_COL32((uint8_t)(c.x*255.f),(uint8_t)(c.y*255.f),(uint8_t)(c.z*255.f), a2);
                     ImU32 gc3 = IM_COL32((uint8_t)(c.x*255.f),(uint8_t)(c.y*255.f),(uint8_t)(c.z*255.f), a3);

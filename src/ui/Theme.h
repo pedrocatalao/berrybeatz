@@ -94,9 +94,8 @@ static constexpr ImU32 kClrScrollActive = IM_COL32( 66, 130, 205, 255);
 
 // ── Pattern editor cell colours ───────────────────────────────────────────────
 static constexpr ImVec4 kCellBgNormal   = {20/255.f,  20/255.f,  33/255.f, 1.f};
-static constexpr ImVec4 kCellBgCurRow   = {40/255.f,  85/255.f, 145/255.f, 0.85f};
-static constexpr ImVec4 kCellBgBeat     = {46/255.f,  46/255.f,  90/255.f, 0.4f};
-static constexpr ImVec4 kCellBgMeasure  = {64/255.f,  64/255.f, 128/255.f, 0.4f};
+static constexpr ImVec4 kCellBgBeat     = {46/255.f,  46/255.f,  90/255.f, 0.3f};
+static constexpr ImVec4 kCellBgMeasure  = {46/255.f,  46/255.f,  90/255.f, 0.4f};
 static constexpr ImVec4 kCellTextNormal = {224/255.f, 224/255.f,  64/255.f, 1.f};
 static constexpr ImVec4 kCellTextCurRow = {240/255.f, 240/255.f,  80/255.f, 1.f};
 static constexpr ImVec4 kCellNote       = {100/255.f, 210/255.f, 220/255.f, 1.f};  // soft cyan
@@ -114,7 +113,7 @@ static constexpr ImU32 kClrPatDivider    = IM_COL32( 46,  46,  92, 200);
 static constexpr ImU32 kClrPatSelection  = IM_COL32( 80,  80, 200,  60);
 static constexpr ImU32 kClrPatEditCell   = IM_COL32(255, 220,  80,  80);
 static constexpr ImU32 kClrPatEditBorder = IM_COL32(255, 255, 255, 220);
-static constexpr ImU32 kClrPatCurRowBg   = IM_COL32( 40,  85, 145, 128);
+static constexpr ImU32 kClrPatCurRowBg   = IM_COL32( 40,  85, 145, 155);
 static constexpr ImU32 kClrPatWaveform   = IM_COL32(190, 190, 200, 220);
 static constexpr ImU32 kClrPatWaveMuted  = IM_COL32( 80,  80,  80, 120);
 

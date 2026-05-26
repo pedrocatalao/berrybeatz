@@ -628,13 +628,9 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
     float visH  = avail.y - m_chanH - kSbSize;  // exclude frozen header and horizontal scrollbar
 
     // Fetch channel data for the frozen header row
-    std::array<ChannelVU,    MAX_CHANNELS> vu{};
-    std::array<WaveSnapshot, MAX_CHANNELS> channelWave{};
-    {
-        std::lock_guard<std::mutex> lk(m_state.vu_mutex);
-        vu          = m_state.vu;
-        channelWave = m_state.channelWave;
-    }
+    const VuSnapshot& snap = m_state.vuBuf[1 - m_state.vuWriteIdx.load(std::memory_order_acquire)];
+    const auto& vu          = snap.vu;
+    const auto& channelWave = snap.channelWave;
     std::vector<std::string> chNames(nch);
     {
         std::lock_guard<std::mutex> lk(m_state.meta_mutex);

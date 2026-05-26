@@ -13,11 +13,18 @@ struct ChannelVU {
     float right = 0.0f;
 };
 
-// Snapshot of actual signed audio samples from the last rendered block.
-// Used for oscilloscope display. Protected by vu_mutex.
 struct WaveSnapshot {
     float   samples[WAVE_BUF]{};
     int32_t count{0};
+};
+
+// Double-buffered VU + waveform snapshot — no mutex needed.
+// Audio callback writes to vuBuf[vuWriteIdx] then flips the index.
+// UI reads from vuBuf[1 - vuWriteIdx] (the buffer the callback is not touching).
+struct VuSnapshot {
+    std::array<ChannelVU,    MAX_CHANNELS> vu{};
+    std::array<WaveSnapshot, MAX_CHANNELS> channelWave{};
+    WaveSnapshot                           masterWave{};
 };
 
 struct ModuleState {
@@ -41,11 +48,9 @@ struct ModuleState {
     // Channel mute mask — UI writes atomically, audio thread applies (bit N = ch N muted)
     std::atomic<uint64_t> channel_mute_mask{0};
 
-    // Per-channel VU + oscilloscope snapshots (audio thread writes under vu_mutex)
-    std::mutex vu_mutex;
-    std::array<ChannelVU,    MAX_CHANNELS> vu{};
-    std::array<WaveSnapshot, MAX_CHANNELS> channelWave{};
-    WaveSnapshot masterWave{};
+    // Per-channel VU + waveform snapshots — double-buffered, lock-free
+    VuSnapshot           vuBuf[2];
+    std::atomic<int>     vuWriteIdx{0};
 
     // Module metadata (written once on load)
     std::mutex meta_mutex;
@@ -76,12 +81,9 @@ struct ModuleState {
         channel_mute_mask= 0;
         master_vu_left   = 0.0f;
         master_vu_right  = 0.0f;
-        {
-            std::lock_guard<std::mutex> lk(vu_mutex);
-            vu.fill({});
-            channelWave.fill({});
-            masterWave = {};
-        }
+        vuBuf[0] = {};
+        vuBuf[1] = {};
+        vuWriteIdx.store(0);
         {
             std::lock_guard<std::mutex> lk(meta_mutex);
             title.clear(); artist.clear(); type_long.clear(); tracker.clear();

@@ -147,7 +147,7 @@ vendor/openmpt/              — libopenmpt submodule (berrybeatz/pattern-editin
 
 ## Architecture
 
-**Audio thread:** PortAudio callback thread runs the libopenmpt decoder. `ModuleState` uses `std::atomic` throughout — the UI thread reads playback state lock-free. Two thin mutexes guard VU snapshot data and module metadata (written once on load).
+**Audio thread:** PortAudio callback thread runs the libopenmpt decoder. `ModuleState` uses `std::atomic` throughout for playback state. VU meters and waveform snapshots use a double-buffered `VuSnapshot[2]` with an atomic flip index — the callback writes to one buffer and exposes it to the UI with no mutex or allocation. Module metadata is guarded by a single mutex written once on load.
 
 **Rendering:** Pure ImGui immediate-mode over OpenGL 3.2 Core Profile. No retained scene graph. The toolbar glow effect switches to additive GL blending mid-draw-list via `AddCallback`.
 

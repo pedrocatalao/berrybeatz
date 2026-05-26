@@ -117,10 +117,9 @@ void AudioEngine::rewind() {
     m_paused.store(false);
     m_state.master_vu_left .store(0.f);
     m_state.master_vu_right.store(0.f);
-    {
-        std::lock_guard<std::mutex> lk(m_state.vu_mutex);
-        m_state.vu.fill({});
-    }
+    m_state.vuBuf[0] = {};
+    m_state.vuBuf[1] = {};
+    m_state.vuWriteIdx.store(0);
 }
 
 void AudioEngine::setPaused(bool p)         { m_paused.store(p); }
@@ -215,10 +214,10 @@ int AudioEngine::paCallback(const void*, void* output,
         std::memset(out, 0, frameCount * 2 * sizeof(float));
         d->state->master_vu_left .store(0.f);
         d->state->master_vu_right.store(0.f);
-        if (d->state->vu_mutex.try_lock()) {
-            d->state->vu.fill({});
-            d->state->masterWave = {};
-            d->state->vu_mutex.unlock();
+        {
+            int wi = d->state->vuWriteIdx.load(std::memory_order_relaxed);
+            d->state->vuBuf[wi] = {};
+            d->state->vuWriteIdx.store(wi ^ 1, std::memory_order_release);
         }
         return paContinue;
     }
@@ -370,22 +369,23 @@ int AudioEngine::paCallback(const void*, void* output,
             }
         }
 
-        if (!d->state->vu_mutex.try_lock()) return paContinue;
+        int wi = d->state->vuWriteIdx.load(std::memory_order_relaxed);
+        VuSnapshot& snap = d->state->vuBuf[wi];
         for (int32_t ch = 0; ch < nch && ch < MAX_CHANNELS; ++ch) {
             float rawL = d->mod->get_current_channel_vu_left(ch);
             float rawR = d->mod->get_current_channel_vu_right(ch);
-            d->state->vu[ch].left  = std::max(rawL, d->state->vu[ch].left  * 0.88f);
-            d->state->vu[ch].right = std::max(rawR, d->state->vu[ch].right * 0.88f);
+            snap.vu[ch].left  = std::max(rawL, snap.vu[ch].left  * 0.88f);
+            snap.vu[ch].right = std::max(rawR, snap.vu[ch].right * 0.88f);
 
             int wn = std::min(chanCnt[ch], WAVE_BUF);
             std::copy(chanBuf + ch * FRAMES_BLOCK, chanBuf + ch * FRAMES_BLOCK + wn,
-                      d->state->channelWave[ch].samples);
-            d->state->channelWave[ch].count = wn;
+                      snap.channelWave[ch].samples);
+            snap.channelWave[ch].count = wn;
         }
         int n = (int)std::min(count, (size_t)WAVE_BUF);
-        std::copy(d->left.begin(), d->left.begin() + n, d->state->masterWave.samples);
-        d->state->masterWave.count = n;
-        d->state->vu_mutex.unlock();
+        std::copy(d->left.begin(), d->left.begin() + n, snap.masterWave.samples);
+        snap.masterWave.count = n;
+        d->state->vuWriteIdx.store(wi ^ 1, std::memory_order_release);
     }
 
     // Master VU (peak of interleaved buffer)
@@ -487,11 +487,9 @@ void AudioEngine::run() {
     // Clear visual state now that audio has fully stopped
     m_state.master_vu_left .store(0.f);
     m_state.master_vu_right.store(0.f);
-    {
-        std::lock_guard<std::mutex> lk(m_state.vu_mutex);
-        m_state.vu.fill({});
-        m_state.masterWave = {};
-    }
+    m_state.vuBuf[0] = {};
+    m_state.vuBuf[1] = {};
+    m_state.vuWriteIdx.store(0);
 
     m_state.is_playing.store(false);
     m_running.store(false);

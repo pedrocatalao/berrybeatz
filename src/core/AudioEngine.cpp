@@ -215,10 +215,10 @@ int AudioEngine::paCallback(const void*, void* output,
         std::memset(out, 0, frameCount * 2 * sizeof(float));
         d->state->master_vu_left .store(0.f);
         d->state->master_vu_right.store(0.f);
-        {
-            std::lock_guard<std::mutex> lk(d->state->vu_mutex);
+        if (d->state->vu_mutex.try_lock()) {
             d->state->vu.fill({});
             d->state->masterWave = {};
+            d->state->vu_mutex.unlock();
         }
         return paContinue;
     }
@@ -233,9 +233,6 @@ int AudioEngine::paCallback(const void*, void* output,
             for (int ch = 0; ch < nc; ++ch)
                 ia->set_channel_mute_status(ch, true);
         }
-
-        if (d->left.size()  < frameCount) d->left.resize(frameCount);
-        if (d->right.size() < frameCount) d->right.resize(frameCount);
 
         size_t count = d->mod->read(d->sampleRate, frameCount,
                                     d->left.data(), d->right.data());
@@ -294,9 +291,6 @@ int AudioEngine::paCallback(const void*, void* output,
         d->mod->set_position_order_row(ppTrigger, d->patPlayStartRow);
         d->patPrevRow       = d->patPlayStartRow;
     }
-
-    if (d->left.size()  < frameCount) d->left.resize(frameCount);
-    if (d->right.size() < frameCount) d->right.resize(frameCount);
 
     int32_t nchForCapture = d->state->num_channels.load();
     if (nchForCapture > 0)
@@ -376,7 +370,7 @@ int AudioEngine::paCallback(const void*, void* output,
             }
         }
 
-        std::lock_guard<std::mutex> lk(d->state->vu_mutex);
+        if (!d->state->vu_mutex.try_lock()) return paContinue;
         for (int32_t ch = 0; ch < nch && ch < MAX_CHANNELS; ++ch) {
             float rawL = d->mod->get_current_channel_vu_left(ch);
             float rawR = d->mod->get_current_channel_vu_right(ch);
@@ -391,6 +385,7 @@ int AudioEngine::paCallback(const void*, void* output,
         int n = (int)std::min(count, (size_t)WAVE_BUF);
         std::copy(d->left.begin(), d->left.begin() + n, d->state->masterWave.samples);
         d->state->masterWave.count = n;
+        d->state->vu_mutex.unlock();
     }
 
     // Master VU (peak of interleaved buffer)

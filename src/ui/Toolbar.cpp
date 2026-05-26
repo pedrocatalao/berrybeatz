@@ -354,25 +354,7 @@ float DrawToolbar(ToolbarState& state,
             glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         }, nullptr);
 
-        // ── Logo drawn as dot grid — gaps are transparent to the BG ─────────
-        {
-            static constexpr float kPitch = 3.f;
-            static constexpr float kDot   = 2.f;
-            ImTextureID texId = (ImTextureID)(intptr_t)state.logoTex;
-            for (float dy = 0.f; dy < lh; dy += kPitch) {
-                float dh = std::min(kDot, lh - dy);
-                float v0 = dy / lh, v1 = (dy + dh) / lh;
-                for (float dx = 0.f; dx < lw; dx += kPitch) {
-                    float dw = std::min(kDot, lw - dx);
-                    float u0 = dx / lw, u1 = (dx + dw) / lw;
-                    fdl->AddImage(texId,
-                        {p0.x + dx,       p0.y + dy},
-                        {p0.x + dx + dw,  p0.y + dy + dh},
-                        {u0, v0}, {u1, v1},
-                        IM_COL32(255, 255, 255, 240));
-                }
-            }
-        }
+        drawQuad(0.f, 0.f, IM_COL32(255, 255, 255, 240));
 
         // ── Speaker-cone overlay ──────────────────────────────────────────────
         // Position and size in screen pixels, relative to the logo rect's top-left (p0).

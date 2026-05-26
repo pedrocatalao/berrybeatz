@@ -173,8 +173,13 @@ void TrackerView::render(float x, float y, float w, float h) {
     ImGui::PopStyleVar(1);   // WindowPadding — no longer needed after Begin
     ImGui::PopStyleColor(1); // WindowBg — no longer needed after Begin
 
-    if (!ImGui::GetIO().WantTextInput)
+    if (!ImGui::GetIO().WantTextInput) {
+        auto prevCur = m_cur;
         processInput();
+        m_editCursorMoved = (m_cur.row != prevCur.row || m_cur.channel != prevCur.channel);
+    } else {
+        m_editCursorMoved = false;
+    }
 
     drawPatternPanel(x, chanY, w, patH);
     ImGui::End();
@@ -580,8 +585,9 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
         ImVec2 mp = ImGui::GetIO().MousePos;
         ImVec2 wp = ImGui::GetWindowPos();
         ImVec2 ws = ImGui::GetWindowSize();
+        const float sb = ImGui::GetStyle().ScrollbarSize;
         bool inGrid = ImGui::IsMouseHoveringRect(
-            {wp.x, wp.y + m_chanH}, {wp.x + ws.x, wp.y + ws.y}, false);
+            {wp.x, wp.y + m_chanH}, {wp.x + ws.x - sb, wp.y + ws.y - sb}, false);
         if (inGrid) {
             float relY  = mp.y - m_tableOriginY + m_scrollY;
             float step  = m_colStep > 0.f ? m_colStep : (m_cellW + 2.f * ImGui::GetStyle().CellPadding.x);
@@ -616,7 +622,8 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
 
     float rowH  = m_rowH;  // pre-computed with mono font in render()
     ImVec2 avail = ImGui::GetContentRegionAvail();
-    float visH  = avail.y - m_chanH;  // exclude frozen header row from scroll math
+    const float kSbSize = ImGui::GetStyle().ScrollbarSize;
+    float visH  = avail.y - m_chanH - kSbSize;  // exclude frozen header and horizontal scrollbar
 
     // Fetch channel data for the frozen header row
     std::array<ChannelVU,    MAX_CHANNELS> vu{};
@@ -807,15 +814,27 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
     bool  forceScroll = false;
     float newScrollY  = currentScrollY;
 
-    if (needsSnap) {
-        int32_t snapAbsRow = curAbsRow;
-        if (m_editMode) {
-            // Snap to edit cursor absolute position
-            snapAbsRow = 0;
-            for (auto& s : slots)
-                if (s.orderIdx == curOrder) { snapAbsRow = s.startAbs + m_cur.row; break; }
+    if (m_editMode) {
+        int32_t editAbs = 0;
+        for (auto& s : slots)
+            if (s.orderIdx == curOrder) { editAbs = s.startAbs + m_cur.row; break; }
+        if (m_editCursorMoved) {
+            int32_t rowDelta = editAbs - m_lastEditAbsRow;
+            if (rowDelta != 0) {
+                const float kZone    = 3.f * rowH;
+                float       cursorTop = float(editAbs) * rowH;
+                float       cursorBot = cursorTop + rowH;
+                bool nearBottom = cursorBot  > currentScrollY + visH - kZone;
+                bool nearTop    = cursorTop  < currentScrollY + kZone;
+                if ((rowDelta > 0 && nearBottom) || (rowDelta < 0 && nearTop)) {
+                    newScrollY  = currentScrollY + float(rowDelta) * rowH;
+                    forceScroll = true;
+                }
+            }
         }
-        newScrollY  = float(snapAbsRow) * rowH - visH * 0.5f + rowH * 0.5f;
+        m_lastEditAbsRow = editAbs;
+    } else if (needsSnap) {
+        newScrollY  = float(curAbsRow) * rowH - visH * 0.5f + rowH * 2.5f;
         forceScroll = true;
     } else if (playing && !m_editMode && m_followSong && m_scrollSuppressTimer == 0.f) {
         float targetY = float(curAbsRow) * rowH - visH * 0.5f + rowH * 2.5f;

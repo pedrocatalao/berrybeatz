@@ -123,6 +123,8 @@ private:
     uint64_t m_muteState    {0};
 
     // Edit cursor
+    bool       m_editCursorMoved  {false};
+    int32_t    m_lastEditAbsRow   {0};
     EditCursor m_cur;
     float      m_visualRow     {0.f};
     int32_t    m_baseOctave    {4};

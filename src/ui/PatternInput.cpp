@@ -24,6 +24,13 @@ static constexpr NoteKey kHexKeys[] = {
     {ImGuiKey_D,13},{ImGuiKey_E,14},{ImGuiKey_F,15},
 };
 
+void TrackerView::setEditMode(bool on) {
+    if (on == m_editMode) return;
+    m_editMode = on;
+    if (on) { m_followSongSaved = m_followSong; m_followSong = false; }
+    else      m_followSong = m_followSongSaved;
+}
+
 // ── Cursor helpers ────────────────────────────────────────────────────────────
 
 void TrackerView::clampCursor() {
@@ -241,7 +248,7 @@ void TrackerView::processInput() {
     if (ImGui::IsKeyPressed(ImGuiKey_Minus)) { m_editStep = std::max(0, m_editStep - 1); return; }
     if (ImGui::IsKeyPressed(ImGuiKey_Equal)) { m_editStep = std::min(16, m_editStep + 1); return; }
     if (ImGui::IsKeyPressed(ImGuiKey_Enter) || ImGui::IsKeyPressed(ImGuiKey_KeypadEnter))
-        { m_editMode = !m_editMode; return; }
+        { setEditMode(!m_editMode); return; }
 
     if (!m_editMode) return;
 

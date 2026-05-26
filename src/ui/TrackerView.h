@@ -87,6 +87,7 @@ private:
     void drawPatternPanel(float x, float y, float w, float h);
     void drawStereoVU(ImDrawList* dl, float x, float y, float w, float h, float lvlL, float lvlR);
 
+    void setEditMode(bool on);
     void enterNote(uint8_t note);
     void advanceCursor();
     void clampCursor();
@@ -153,6 +154,7 @@ private:
     bool    m_loopPattern   {false};
     bool    m_continuousScroll   {false};
     bool    m_followSong         {true};
+    bool    m_followSongSaved    {true};   // saved when entering edit mode
     float   m_scrollSuppressTimer {0.f};
     int32_t m_lastAbsRow          {0};
     std::unordered_map<int32_t, float> m_slotDim;   // orderIdx → animated dim factor

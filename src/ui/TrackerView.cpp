@@ -252,7 +252,7 @@ void TrackerView::drawPatternToolbar1(float /*x*/, float /*y*/, float /*w*/) {
         ImGui::PushStyleColor(ImGuiCol_Button,        IM_COL32(160, 30, 30, 255));
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(190, 50, 50, 255));
     }
-    if (actBtn("Record##rec", has)) m_editMode = !m_editMode;
+    if (actBtn("Record##rec", has)) setEditMode(!m_editMode);
     if (wasRec) ImGui::PopStyleColor(2);
     tip("Toggle record mode (Enter)");
 
@@ -293,7 +293,9 @@ void TrackerView::drawPatternToolbar3(float /*x*/, float /*y*/, float /*w*/) {
     tbSep();
     { bool prev = m_loopPattern; togBtn("Loop##lp", m_loopPattern); if (m_loopPattern != prev && onLoopToggled) onLoopToggled(m_loopPattern); }    tip("Loop current pattern");
     ImGui::SameLine();
-    togBtn("Follow##fw",         m_followSong);     tip("Follow playback cursor");
+    if (m_editMode) ImGui::BeginDisabled();
+    togBtn("Follow##fw", m_followSong);             tip("Follow playback cursor");
+    if (m_editMode) ImGui::EndDisabled();
     tbSep();
     {
         bool wasActive = m_detailView > 0;
@@ -603,13 +605,13 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
                             if (s.orderIdx != curOrder && onOrderSeekRequested)
                                 onOrderSeekRequested(s.orderIdx);
                             m_cur.row = clickLocalR; m_cur.channel = ch; m_cur.col = EditCol::Note;
-                            m_editMode = true;
+                            setEditMode(true);
                             break;
                         }
                     }
                 } else if (clickLocalR < nrows) {
                     m_cur.row = clickLocalR; m_cur.channel = ch; m_cur.col = EditCol::Note;
-                    m_editMode = true;
+                    setEditMode(true);
                 }
             }
         }

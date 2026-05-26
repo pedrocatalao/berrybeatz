@@ -670,15 +670,8 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
         ImGui::TableNextRow(ImGuiTableRowFlags_None, m_chanH);
         ImGui::TableSetBgColor(ImGuiTableBgTarget_CellBg, IM_COL32(20, 20, 40, 255), 0);
 
-        // Column 0: "Row" label
         ImGui::TableSetColumnIndex(0);
-        {
-            ImVec2 p    = ImGui::GetCursorScreenPos();
-            float textH = ImGui::GetTextLineHeight();
-            dl->AddText({p.x + 2, p.y + (m_chanH - textH) * 0.5f},
-                        ImGui::ColorConvertFloat4ToU32(kDim), "Row");
-            ImGui::Dummy({m_rowNumW, m_chanH});
-        }
+        ImGui::Dummy({m_rowNumW, m_chanH});
 
         for (int ch = 0; ch < nch; ch++) {
             ImGui::TableSetColumnIndex(ch + 1);
@@ -941,7 +934,8 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
             char rnBuf[8]; snprintf(rnBuf, sizeof(rnBuf), "%3d", localR);
             if (g_fontRowNum) ImGui::PushFont(g_fontRowNum);
             ImVec2 rnPos = ImGui::GetCursorScreenPos();
-            rnPos.x = floorf(rnPos.x);
+            float  rnW   = ImGui::CalcTextSize(rnBuf).x;
+            rnPos.x = floorf(rnPos.x + m_rowNumW - rnW - 2.f);
             rnPos.y = floorf(rnPos.y) - 1.f;
 
             // Pattern boundary separator line

@@ -4,7 +4,7 @@
 #include <deque>
 #include <vector>
 
-namespace openmpt { class module_ext; }
+class ModuleController;
 
 struct CellEdit {
     int32_t     pat, row, ch;
@@ -16,8 +16,8 @@ using UndoEntry = std::vector<CellEdit>;
 class UndoManager {
 public:
     void push(UndoEntry e);
-    void undo(openmpt::module_ext* mod);
-    void redo(openmpt::module_ext* mod);
+    void undo(ModuleController& ctrl);
+    void redo(ModuleController& ctrl);
     void clear();
     bool canUndo() const { return !m_undoStack.empty(); }
     bool canRedo() const { return !m_redoStack.empty(); }

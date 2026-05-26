@@ -3,6 +3,7 @@
 #include "Theme.h"
 #include "RenderSettings.h"
 #include "TrackerView.h"
+#include "ModuleController.h"
 #include "PatternEditor.h"
 #include <libopenmpt/libopenmpt_ext.hpp>
 #include <imgui.h>
@@ -205,7 +206,7 @@ void TrackerView::render(float x, float y, float w, float h) {
 // ── Pattern toolbar row 1 ─────────────────────────────────────────────────────
 
 void TrackerView::drawPatternToolbar1(float /*x*/, float /*y*/, float /*w*/) {
-    bool has = m_mod != nullptr;
+    bool has = m_ctrl != nullptr;
     if (m_fontUI) ImGui::PushFont(m_fontUI);
     pushToolbarStyle();
     ImGui::SetCursorPosY((ImGui::GetWindowHeight() - ImGui::GetFrameHeight()) * 0.5f);
@@ -270,7 +271,7 @@ void TrackerView::drawPatternToolbar1(float /*x*/, float /*y*/, float /*w*/) {
 // ── Pattern toolbar row 3 ─────────────────────────────────────────────────────
 
 void TrackerView::drawPatternToolbar3(float /*x*/, float /*y*/, float /*w*/) {
-    bool has = m_mod != nullptr;
+    bool has = m_ctrl != nullptr;
     if (m_fontUI) ImGui::PushFont(m_fontUI);
     pushToolbarStyle();
     ImGui::SetCursorPosY((ImGui::GetWindowHeight() - ImGui::GetFrameHeight()) * 0.5f);
@@ -282,7 +283,7 @@ void TrackerView::drawPatternToolbar3(float /*x*/, float /*y*/, float /*w*/) {
         return r;
     };
 
-    if (actBtn("Undo##undo", has && m_undo.canUndo())) { m_undo.undo(m_mod); } tip("Undo");
+    if (actBtn("Undo##undo", has && m_undo.canUndo())) { m_undo.undo(*m_ctrl); } tip("Undo");
     ImGui::SameLine();
     if (actBtn("Props##props",  has)) {} tip("Pattern properties");
     ImGui::SameLine();
@@ -324,7 +325,7 @@ void TrackerView::drawPatternToolbar3(float /*x*/, float /*y*/, float /*w*/) {
 // ── Pattern toolbar row 2 ─────────────────────────────────────────────────────
 
 void TrackerView::drawPatternToolbar2(float /*x*/, float /*y*/, float /*w*/) {
-    bool has = m_mod != nullptr;
+    bool has = m_ctrl != nullptr;
     if (m_fontUI) ImGui::PushFont(m_fontUI);
     pushToolbarStyle();
     ImGui::SetCursorPosY((ImGui::GetWindowHeight() - ImGui::GetFrameHeight()) * 0.5f);
@@ -411,7 +412,7 @@ void TrackerView::drawPatternToolbar2(float /*x*/, float /*y*/, float /*w*/) {
 
     ImGui::TextColored(kDim, "Pattern");
     ImGui::SameLine(0, 4);
-    int32_t curPat = m_mod ? m_state.current_pattern.load() : -1;
+    int32_t curPat = m_ctrl ? m_state.current_pattern.load() : -1;
     std::string patName;
     if (curPat >= 0) {
         std::lock_guard<std::mutex> lk(m_state.meta_mutex);
@@ -460,7 +461,7 @@ void TrackerView::drawOrderList(float /*x*/, float /*y*/, float /*w*/) {
         ImGui::PushStyleColor(ImGuiCol_ButtonActive,  {btnBg.x+.2f, btnBg.y+.2f, btnBg.z+.3f, 1.f});
         ImGui::PushStyleColor(ImGuiCol_Text,          isCur ? kTextCurRow : kTextNormal);
 
-        int32_t pat = m_mod ? m_mod->get_order_pattern(i) : i;
+        int32_t pat = m_ctrl ? m_ctrl->module()->get_order_pattern(i) : i;
         char label[12];
         snprintf(label, sizeof(label), "%02d##o%d", pat, i);
         if (ImGui::Button(label, {boxW, boxH}))
@@ -540,19 +541,20 @@ void TrackerView::drawStereoVU(ImDrawList* dl, float x, float y, float w, float 
 // ── Pattern panel ─────────────────────────────────────────────────────────────
 
 void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float /*h*/) {
-    if (!m_mod || m_state.num_channels.load() <= 0) {
+    if (!m_ctrl || m_state.num_channels.load() <= 0) {
         ImGui::TextColored(kDim, " No module loaded.");
         return;
     }
+    auto* mod = m_ctrl->module();
 
     int32_t curPat  = m_state.current_pattern.load();
     int32_t curRow  = m_state.current_row.load();
     int32_t nch     = m_state.num_channels.load();
-    int32_t nrows   = m_mod->get_pattern_num_rows(curPat);
+    int32_t nrows   = mod->get_pattern_num_rows(curPat);
 
-    int rpb = m_mod->get_pattern_rows_per_beat(curPat);
+    int rpb = mod->get_pattern_rows_per_beat(curPat);
     if (rpb <= 0) rpb = 4;
-    int rpm = m_mod->get_pattern_rows_per_measure(curPat);
+    int rpm = mod->get_pattern_rows_per_measure(curPat);
     if (rpm <= 0) rpm = 16;
 
     int32_t curOrder = m_state.current_order.load();
@@ -566,11 +568,11 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
         int32_t numOrders = m_state.num_orders.load();
         slots.reserve(numOrders);
         for (int32_t o = 0; o < numOrders; ++o) {
-            int32_t p  = (int32_t)m_mod->get_order_pattern(o);
-            int32_t pr = (p >= 0) ? (int32_t)m_mod->get_pattern_num_rows(p) : 0;
+            int32_t p  = (int32_t)mod->get_order_pattern(o);
+            int32_t pr = (p >= 0) ? (int32_t)mod->get_pattern_num_rows(p) : 0;
             if (pr <= 0) continue;
-            int prpb = m_mod->get_pattern_rows_per_beat(p);    if (prpb <= 0) prpb = 4;
-            int prpm = m_mod->get_pattern_rows_per_measure(p); if (prpm <= 0) prpm = 16;
+            int prpb = mod->get_pattern_rows_per_beat(p);    if (prpb <= 0) prpb = 4;
+            int prpm = mod->get_pattern_rows_per_measure(p); if (prpm <= 0) prpm = 16;
             if (o == curOrder) curAbsRow = totalRows + curRow;
             slots.push_back({p, pr, totalRows, o, prpb, prpm});
             totalRows += pr;
@@ -1027,14 +1029,14 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
                 if (col == 0) cellY = cp.y;
             };
 
-            std::string note  = m_mod->format_pattern_row_channel_command(slot.pat, localR, ch, openmpt::module::command_note);
-            std::string inst  = showInst ? m_mod->format_pattern_row_channel_command(slot.pat, localR, ch, openmpt::module::command_instrument) : "";
-            std::string fx    = showFx   ? m_mod->format_pattern_row_channel_command(slot.pat, localR, ch, openmpt::module::command_effect)       : "";
-            std::string fxp   = showFx   ? m_mod->format_pattern_row_channel_command(slot.pat, localR, ch, openmpt::module::command_parameter)    : "";
+            std::string note  = mod->format_pattern_row_channel_command(slot.pat, localR, ch, openmpt::module::command_note);
+            std::string inst  = showInst ? mod->format_pattern_row_channel_command(slot.pat, localR, ch, openmpt::module::command_instrument) : "";
+            std::string fx    = showFx   ? mod->format_pattern_row_channel_command(slot.pat, localR, ch, openmpt::module::command_effect)       : "";
+            std::string fxp   = showFx   ? mod->format_pattern_row_channel_command(slot.pat, localR, ch, openmpt::module::command_parameter)    : "";
 
             // libopenmpt formats vol as hex; read raw cell and format as decimal to match OpenMPT
             PatternCell rawCell{};
-            if (showVol) pe_get_cell(m_mod, slot.pat, localR, ch, rawCell);
+            if (showVol) pe_get_cell(mod, slot.pat, localR, ch, rawCell);
             bool hasVol = showVol && rawCell.volcmd != VOLCMD_NONE;
             char volBuf[8] = {};
             if (hasVol) {

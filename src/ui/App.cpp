@@ -16,7 +16,7 @@
 
 // ─── Constructor / Destructor ─────────────────────────────────────────────────
 
-App::App() : m_audio(m_state), m_tracker(m_state), m_generalView(m_state)
+App::App() : m_controller(m_state), m_audio(m_state), m_tracker(m_state), m_generalView(m_state)
 {
     // ── Toolbar callbacks ──────────────────────────────────────────────────
     // ── Window control callbacks ───────────────────────────────────────────
@@ -47,33 +47,11 @@ App::App() : m_audio(m_state), m_tracker(m_state), m_generalView(m_state)
     m_toolbarState.onOctaveChange = [this](int v) {
         m_tracker.setBaseOctave(v);
     };
-    m_toolbarState.onTempoChange = [this](int v) {
-        auto* mod = m_audio.getModule();
-        if (!mod) return;
-        auto* ia = static_cast<openmpt::ext::interactive*>(
-            mod->get_interface(openmpt::ext::interactive_id));
-        if (!ia) return;
-        // set_current_tempo is deprecated but still the only per-song API available
-        #pragma clang diagnostic push
-        #pragma clang diagnostic ignored "-Wdeprecated-declarations"
-        ia->set_current_tempo(v);
-        #pragma clang diagnostic pop
-    };
-    m_toolbarState.onSpeedChange = [this](int v) {
-        auto* mod = m_audio.getModule();
-        if (!mod) return;
-        auto* ia = static_cast<openmpt::ext::interactive*>(
-            mod->get_interface(openmpt::ext::interactive_id));
-        if (ia) ia->set_current_speed(v);
-    };
+    m_toolbarState.onTempoChange = [this](int v) { m_controller.setTempo(v); };
+    m_toolbarState.onSpeedChange = [this](int v) { m_controller.setSpeed(v); };
     m_toolbarState.onRPBChange       = [](int) {};  // determined by pattern data
     m_toolbarState.onGlobalVolChange = [this](int v) {
-        auto* mod = m_audio.getModule();
-        if (!mod) return;
-        auto* ia = static_cast<openmpt::ext::interactive*>(
-            mod->get_interface(openmpt::ext::interactive_id));
-        if (!ia) return;
-        ia->set_global_volume((double)v / 256.0);
+        m_controller.setGlobalVolume(v / 256.0);
     };
 
     // ── AudioEngine callbacks ──────────────────────────────────────────────
@@ -195,8 +173,9 @@ void App::openFile(const std::string& path)
         m_hasModule  = true;
         m_loadedPath = path;
         auto* mod = m_audio.getModule();
-        m_tracker.setModule(mod);
-        m_generalView.setModule(mod);
+        m_controller.setModule(mod);
+        m_tracker.setController(&m_controller);
+        m_generalView.setController(&m_controller);
 
         int nSamp, nInstr;
         {
@@ -206,14 +185,14 @@ void App::openFile(const std::string& path)
         }
 
         m_sampleView.setFonts(m_fontMono, m_fontUI);
-        m_sampleView.setModule(mod, nSamp);
+        m_sampleView.setController(&m_controller, nSamp);
         m_sampleView.onNeedAudio = [this]() {
             if (!m_hasModule) return;
             m_audio.startPreview();
         };
 
         m_instrView.setFonts(m_fontMono, m_fontUI);
-        m_instrView.setModule(mod, nInstr);
+        m_instrView.setController(&m_controller, nInstr);
         m_instrView.onNeedAudio = [this]() {
             if (!m_hasModule) return;
             m_audio.startPreview();
@@ -477,21 +456,18 @@ void App::drawCommentsTab()
 void App::saveModule()
 {
     if (!m_hasModule || m_loadedPath.empty()) return;
-    auto* mod = m_audio.getModule();
+    auto* mod = m_controller.module();
     if (!mod) return;
     std::string type = mod->get_metadata("type");
-    bb_save_module(mod, m_loadedPath, type);
+    m_controller.save(m_loadedPath, type);
 }
 
 void App::insertPattern()
 {
     if (!m_hasModule) return;
-    auto* mod = m_audio.getModule();
-    if (!mod) return;
-    int idx = bb_insert_pattern(mod, 64);
+    int idx = m_controller.insertPattern(64);
     if (idx >= 0) {
         std::lock_guard<std::mutex> lk(m_state.meta_mutex);
-        // Ensure pattern_names is large enough for the new index
         if (idx >= (int)m_state.pattern_names.size())
             m_state.pattern_names.resize(idx + 1);
         m_state.num_patterns = std::max(m_state.num_patterns, idx + 1);
@@ -508,6 +484,7 @@ void App::clearModule()
 {
     m_audio.stop();
     m_audio.join();
+    m_controller.clearModule();
     m_tracker.clearModule();
     m_generalView.clearModule();
     m_instrView.clearModule();

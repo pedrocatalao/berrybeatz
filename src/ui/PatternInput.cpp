@@ -1,6 +1,6 @@
 #include "TrackerView.h"
+#include "ModuleController.h"
 #include "PatternEditor.h"
-#include <libopenmpt/libopenmpt_ext.hpp>
 #include <imgui.h>
 #include <algorithm>
 
@@ -34,16 +34,16 @@ void TrackerView::setEditMode(bool on) {
 // ── Cursor helpers ────────────────────────────────────────────────────────────
 
 void TrackerView::clampCursor() {
-    if (!m_mod) return;
-    int32_t nrows = pe_num_rows(m_mod, m_state.current_pattern.load());
+    if (!m_ctrl) return;
+    int32_t nrows = pe_num_rows(m_ctrl->module(), m_state.current_pattern.load());
     int32_t nch   = m_state.num_channels.load();
     m_cur.row     = std::clamp(m_cur.row,     0, std::max(0, nrows-1));
     m_cur.channel = std::clamp(m_cur.channel, 0, std::max(0, nch-1));
 }
 
 void TrackerView::advanceCursor() {
-    if (!m_mod || m_editStep == 0) return;
-    int32_t nrows = pe_num_rows(m_mod, m_state.current_pattern.load());
+    if (!m_ctrl || m_editStep == 0) return;
+    int32_t nrows = pe_num_rows(m_ctrl->module(), m_state.current_pattern.load());
     if (nrows <= 0) return;
     m_cur.row = std::min(m_cur.row + m_editStep, nrows - 1);
 }
@@ -52,8 +52,8 @@ void TrackerView::advanceCursor() {
 
 void TrackerView::setCell(int32_t pat, int32_t row, int32_t ch, const PatternCell& cell) {
     PatternCell before;
-    pe_get_cell(m_mod, pat, row, ch, before);
-    pe_set_cell(m_mod, pat, row, ch, cell);
+    pe_get_cell(m_ctrl->module(), pat, row, ch, before);
+    m_ctrl->setPatternCell(pat, row, ch, cell);
     UndoEntry e;
     e.push_back({pat, row, ch, before, cell});
     m_undo.push(std::move(e));
@@ -62,7 +62,7 @@ void TrackerView::setCell(int32_t pat, int32_t row, int32_t ch, const PatternCel
 // ── Block operations ──────────────────────────────────────────────────────────
 
 void TrackerView::selCopy() {
-    if (!m_sel.active || !m_mod) return;
+    if (!m_sel.active || !m_ctrl) return;
     int32_t pat  = m_state.current_pattern.load();
     int32_t rMin = m_sel.rowMin(), rMax = m_sel.rowMax();
     int32_t cMin = m_sel.chMin(),  cMax = m_sel.chMax();
@@ -71,13 +71,13 @@ void TrackerView::selCopy() {
     m_clip.cells.assign(m_clip.rows, std::vector<PatternCell>(m_clip.chans));
     for (int32_t r = 0; r < m_clip.rows; r++)
         for (int32_t c = 0; c < m_clip.chans; c++)
-            pe_get_cell(m_mod, pat, rMin + r, cMin + c, m_clip.cells[r][c]);
+            pe_get_cell(m_ctrl->module(), pat, rMin + r, cMin + c, m_clip.cells[r][c]);
 }
 
 void TrackerView::selPaste() {
-    if (m_clip.rows <= 0 || m_clip.chans <= 0 || !m_mod) return;
+    if (m_clip.rows <= 0 || m_clip.chans <= 0 || !m_ctrl) return;
     int32_t pat   = m_state.current_pattern.load();
-    int32_t nrows = pe_num_rows(m_mod, pat);
+    int32_t nrows = pe_num_rows(m_ctrl->module(), pat);
     int32_t nch   = m_state.num_channels.load();
     UndoEntry e;
     for (int32_t r = 0; r < m_clip.rows; r++) {
@@ -87,8 +87,8 @@ void TrackerView::selPaste() {
             int32_t dc = m_cur.channel + c;
             if (dc >= nch) break;
             PatternCell before;
-            pe_get_cell(m_mod, pat, dr, dc, before);
-            pe_set_cell(m_mod, pat, dr, dc, m_clip.cells[r][c]);
+            pe_get_cell(m_ctrl->module(), pat, dr, dc, before);
+            m_ctrl->setPatternCell(pat, dr, dc, m_clip.cells[r][c]);
             e.push_back({pat, dr, dc, before, m_clip.cells[r][c]});
         }
     }
@@ -96,7 +96,7 @@ void TrackerView::selPaste() {
 }
 
 void TrackerView::selDelete() {
-    if (!m_sel.active || !m_mod) return;
+    if (!m_sel.active || !m_ctrl) return;
     int32_t pat  = m_state.current_pattern.load();
     int32_t rMin = m_sel.rowMin(), rMax = m_sel.rowMax();
     int32_t cMin = m_sel.chMin(),  cMax = m_sel.chMax();
@@ -104,9 +104,9 @@ void TrackerView::selDelete() {
     for (int32_t r = rMin; r <= rMax; r++) {
         for (int32_t c = cMin; c <= cMax; c++) {
             PatternCell before;
-            pe_get_cell(m_mod, pat, r, c, before);
+            pe_get_cell(m_ctrl->module(), pat, r, c, before);
             static const PatternCell kEmpty{};
-            pe_set_cell(m_mod, pat, r, c, kEmpty);
+            m_ctrl->setPatternCell(pat, r, c, kEmpty);
             e.push_back({pat, r, c, before, kEmpty});
         }
     }
@@ -114,52 +114,52 @@ void TrackerView::selDelete() {
 }
 
 void TrackerView::insertRow() {
-    if (!m_mod) return;
+    if (!m_ctrl) return;
     int32_t pat   = m_state.current_pattern.load();
     int32_t nch   = m_state.num_channels.load();
-    int32_t nrows = pe_num_rows(m_mod, pat);
+    int32_t nrows = pe_num_rows(m_ctrl->module(), pat);
     UndoEntry e;
     e.reserve((nrows - m_cur.row) * nch);
     for (int32_t r = m_cur.row; r < nrows; r++) {
         for (int32_t c = 0; c < nch; c++) {
             PatternCell before;
-            pe_get_cell(m_mod, pat, r, c, before);
+            pe_get_cell(m_ctrl->module(), pat, r, c, before);
             e.push_back({pat, r, c, before, PatternCell{}});
         }
     }
-    pe_insert_row(m_mod, pat, m_cur.row, nch);
+    m_ctrl->insertPatternRow(pat, m_cur.row, nch);
     for (auto& ce : e)
-        pe_get_cell(m_mod, pat, ce.row, ce.ch, ce.after);
+        pe_get_cell(m_ctrl->module(), pat, ce.row, ce.ch, ce.after);
     m_undo.push(std::move(e));
 }
 
 void TrackerView::deleteRow() {
-    if (!m_mod) return;
+    if (!m_ctrl) return;
     int32_t pat   = m_state.current_pattern.load();
     int32_t nch   = m_state.num_channels.load();
-    int32_t nrows = pe_num_rows(m_mod, pat);
+    int32_t nrows = pe_num_rows(m_ctrl->module(), pat);
     UndoEntry e;
     e.reserve((nrows - m_cur.row) * nch);
     for (int32_t r = m_cur.row; r < nrows; r++) {
         for (int32_t c = 0; c < nch; c++) {
             PatternCell before;
-            pe_get_cell(m_mod, pat, r, c, before);
+            pe_get_cell(m_ctrl->module(), pat, r, c, before);
             e.push_back({pat, r, c, before, PatternCell{}});
         }
     }
-    pe_delete_row(m_mod, pat, m_cur.row, nch);
+    m_ctrl->deletePatternRow(pat, m_cur.row, nch);
     for (auto& ce : e)
-        pe_get_cell(m_mod, pat, ce.row, ce.ch, ce.after);
+        pe_get_cell(m_ctrl->module(), pat, ce.row, ce.ch, ce.after);
     m_undo.push(std::move(e));
 }
 
 // ── Input processing ──────────────────────────────────────────────────────────
 
 void TrackerView::processInput() {
-    if (!m_mod) return;
+    if (!m_ctrl) return;
 
     int32_t pat   = m_state.current_pattern.load();
-    int32_t nrows = pe_num_rows(m_mod, pat);
+    int32_t nrows = pe_num_rows(m_ctrl->module(), pat);
     if (nrows <= 0) return;
     int32_t nch   = m_state.num_channels.load();
     bool    shift = ImGui::GetIO().KeyShift;
@@ -168,10 +168,10 @@ void TrackerView::processInput() {
     // ── Ctrl shortcuts (Undo/Redo/Copy/Paste/Cut) ─────────────────────────────
     if (ctrl) {
         if (ImGui::IsKeyPressed(ImGuiKey_Z)) {
-            if (shift) m_undo.redo(m_mod); else m_undo.undo(m_mod);
+            if (shift) m_undo.redo(*m_ctrl); else m_undo.undo(*m_ctrl);
             return;
         }
-        if (ImGui::IsKeyPressed(ImGuiKey_Y)) { m_undo.redo(m_mod); return; }
+        if (ImGui::IsKeyPressed(ImGuiKey_Y)) { m_undo.redo(*m_ctrl); return; }
         if (ImGui::IsKeyPressed(ImGuiKey_C)) { selCopy(); return; }
         if (ImGui::IsKeyPressed(ImGuiKey_X)) { selCopy(); selDelete(); return; }
         if (ImGui::IsKeyPressed(ImGuiKey_V)) { selPaste(); return; }
@@ -256,8 +256,8 @@ void TrackerView::processInput() {
     if (ImGui::IsKeyPressed(ImGuiKey_Delete)) {
         if (m_sel.active) { selDelete(); return; }
         PatternCell before;
-        pe_get_cell(m_mod, pat, m_cur.row, m_cur.channel, before);
-        pe_clear_cell(m_mod, pat, m_cur.row, m_cur.channel);
+        pe_get_cell(m_ctrl->module(), pat, m_cur.row, m_cur.channel, before);
+        m_ctrl->clearPatternCell(pat, m_cur.row, m_cur.channel);
         PatternCell after{};
         UndoEntry e;
         e.push_back({pat, m_cur.row, m_cur.channel, before, after});
@@ -266,7 +266,7 @@ void TrackerView::processInput() {
     }
 
     PatternCell cell;
-    pe_get_cell(m_mod, pat, m_cur.row, m_cur.channel, cell);
+    pe_get_cell(m_ctrl->module(), pat, m_cur.row, m_cur.channel, cell);
 
     if (m_cur.col == EditCol::Note) {
         if (ImGui::IsKeyPressed(ImGuiKey_1)) {

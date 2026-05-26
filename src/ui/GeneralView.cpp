@@ -9,13 +9,14 @@
 
 GeneralView::GeneralView(ModuleState& state) : m_state(state) {}
 
-void GeneralView::setModule(openmpt::module_ext* mod) { m_mod = mod; }
-void GeneralView::clearModule()                        { m_mod = nullptr; }
-void GeneralView::setFonts(ImFont* mono, ImFont* ui)   { m_fontMono = mono; m_fontUI = ui; }
+void GeneralView::setController(ModuleController* ctrl) { m_ctrl = ctrl; }
+void GeneralView::clearModule()                          { m_ctrl = nullptr; }
+void GeneralView::setFonts(ImFont* mono, ImFont* ui)     { m_fontMono = mono; m_fontUI = ui; }
 
 void GeneralView::render(float /*x*/, float /*y*/, float /*w*/, float /*h*/)
 {
-    if (!m_mod) {
+    auto* mod = m_ctrl ? m_ctrl->module() : nullptr;
+    if (!mod) {
         ImVec2 av = ImGui::GetContentRegionAvail();
         ImGui::SetCursorPos({av.x * 0.5f - 50.f, av.y * 0.5f - 8.f});
         ImGui::TextDisabled("No module loaded.");
@@ -23,9 +24,9 @@ void GeneralView::render(float /*x*/, float /*y*/, float /*w*/, float /*h*/)
     }
 
     auto* ia  = static_cast<openmpt::ext::interactive*>(
-                    m_mod->get_interface(openmpt::ext::interactive_id));
+                    mod->get_interface(openmpt::ext::interactive_id));
     auto* ia3 = static_cast<openmpt::ext::interactive3*>(
-                    m_mod->get_interface(openmpt::ext::interactive3_id));
+                    mod->get_interface(openmpt::ext::interactive3_id));
 
     const ImVec4 kHdr = {0.55f, 0.75f, 1.00f, 1.f};
     const ImVec4 kDim = {0.50f, 0.50f, 0.65f, 1.f};
@@ -129,18 +130,18 @@ void GeneralView::render(float /*x*/, float /*y*/, float /*w*/, float /*h*/)
         ImGui::Spacing();
 
         if (ia && ia3) {
-            int tempo = (int)std::round(m_mod->get_current_tempo2());
-            int speed = (int)m_mod->get_current_speed();
+            int tempo = (int)std::round(mod->get_current_tempo2());
+            int speed = (int)mod->get_current_speed();
             int gvol  = (int)std::round(ia->get_global_volume() * 100.0);
 
             if (KnobWidget("##kTempo", &tempo, 32, 512, nullptr, false, false, "Tempo"))
-                ia3->set_current_tempo2((double)tempo);
+                m_ctrl->setTempo(tempo);
             ImGui::SameLine(0, 16);
             if (KnobWidget("##kSpeed", &speed, 1, 32, nullptr, false, false, "Speed"))
-                ia->set_current_speed(speed);
+                m_ctrl->setSpeed(speed);
             ImGui::SameLine(0, 16);
             if (KnobWidget("##kGVol", &gvol, 0, 100, nullptr, false, false, "G.Vol"))
-                ia->set_global_volume(gvol / 100.0);
+                m_ctrl->setGlobalVolume(gvol / 100.0);
 
             ImGui::Spacing();
             double bpm = m_state.bpm.load();
@@ -166,7 +167,7 @@ void GeneralView::render(float /*x*/, float /*y*/, float /*w*/, float /*h*/)
                 ImGui::TableSetColumnIndex(1);
                 ImGui::SetNextItemWidth(-1.f);
                 if (ImGui::SliderInt("##tempofact", &tempoFactPct, 25, 400, "%d%%"))
-                    ia->set_tempo_factor(tempoFactPct / 100.0);
+                    m_ctrl->setTempoFactor(tempoFactPct / 100.0);
 
                 ImGui::TableNextRow();
                 ImGui::TableSetColumnIndex(0);
@@ -175,7 +176,7 @@ void GeneralView::render(float /*x*/, float /*y*/, float /*w*/, float /*h*/)
                 ImGui::TableSetColumnIndex(1);
                 ImGui::SetNextItemWidth(-1.f);
                 if (ImGui::SliderInt("##pitchfact", &pitchFactPct, 25, 400, "%d%%"))
-                    ia->set_pitch_factor(pitchFactPct / 100.0);
+                    m_ctrl->setPitchFactor(pitchFactPct / 100.0);
 
                 ImGui::EndTable();
             }
@@ -197,7 +198,7 @@ void GeneralView::render(float /*x*/, float /*y*/, float /*w*/, float /*h*/)
             ImGui::TableSetupColumn("##rl", ImGuiTableColumnFlags_WidthFixed, 95.f);
             ImGui::TableSetupColumn("##rc", ImGuiTableColumnFlags_WidthStretch);
 
-            int masterGain = m_mod->get_render_param(openmpt::module::RENDER_MASTERGAIN_MILLIBEL);
+            int masterGain = mod->get_render_param(openmpt::module::RENDER_MASTERGAIN_MILLIBEL);
             ImGui::TableNextRow();
             ImGui::TableSetColumnIndex(0);
             ImGui::AlignTextToFramePadding();
@@ -206,9 +207,9 @@ void GeneralView::render(float /*x*/, float /*y*/, float /*w*/, float /*h*/)
             ImGui::SetNextItemWidth(-1.f);
             char gainLbl[24]; snprintf(gainLbl, sizeof(gainLbl), "%.1f dB", masterGain / 100.f);
             if (ImGui::SliderInt("##mastergain", &masterGain, -2400, 2400, gainLbl))
-                m_mod->set_render_param(openmpt::module::RENDER_MASTERGAIN_MILLIBEL, masterGain);
+                m_ctrl->setMasterGain(masterGain);
 
-            int stereoSep = m_mod->get_render_param(openmpt::module::RENDER_STEREOSEPARATION_PERCENT);
+            int stereoSep = mod->get_render_param(openmpt::module::RENDER_STEREOSEPARATION_PERCENT);
             ImGui::TableNextRow();
             ImGui::TableSetColumnIndex(0);
             ImGui::AlignTextToFramePadding();
@@ -216,11 +217,11 @@ void GeneralView::render(float /*x*/, float /*y*/, float /*w*/, float /*h*/)
             ImGui::TableSetColumnIndex(1);
             ImGui::SetNextItemWidth(-1.f);
             if (ImGui::SliderInt("##stereosep", &stereoSep, 0, 200, "%d%%"))
-                m_mod->set_render_param(openmpt::module::RENDER_STEREOSEPARATION_PERCENT, stereoSep);
+                m_ctrl->setStereoSeparation(stereoSep);
 
             static const char* kInterpNames[] = {"Default", "None (ZOH)", "Linear", "Cubic", "Sinc 8x"};
             static const int   kInterpVals[]  = {0, 1, 2, 4, 8};
-            int interp    = m_mod->get_render_param(openmpt::module::RENDER_INTERPOLATIONFILTER_LENGTH);
+            int interp    = mod->get_render_param(openmpt::module::RENDER_INTERPOLATIONFILTER_LENGTH);
             int interpIdx = 0;
             for (int i = 0; i < 5; ++i) if (kInterpVals[i] == interp) { interpIdx = i; break; }
             ImGui::TableNextRow();
@@ -230,9 +231,9 @@ void GeneralView::render(float /*x*/, float /*y*/, float /*w*/, float /*h*/)
             ImGui::TableSetColumnIndex(1);
             ImGui::SetNextItemWidth(-1.f);
             if (ImGui::Combo("##interp", &interpIdx, kInterpNames, 5))
-                m_mod->set_render_param(openmpt::module::RENDER_INTERPOLATIONFILTER_LENGTH, kInterpVals[interpIdx]);
+                m_ctrl->setInterpolation(kInterpVals[interpIdx]);
 
-            int ramping = m_mod->get_render_param(openmpt::module::RENDER_VOLUMERAMPING_STRENGTH);
+            int ramping = mod->get_render_param(openmpt::module::RENDER_VOLUMERAMPING_STRENGTH);
             ImGui::TableNextRow();
             ImGui::TableSetColumnIndex(0);
             ImGui::AlignTextToFramePadding();
@@ -241,7 +242,7 @@ void GeneralView::render(float /*x*/, float /*y*/, float /*w*/, float /*h*/)
             ImGui::SetNextItemWidth(-1.f);
             char rampLbl[16]; snprintf(rampLbl, sizeof(rampLbl), ramping < 0 ? "Default" : "%d", ramping);
             if (ImGui::SliderInt("##ramping", &ramping, -1, 10, rampLbl))
-                m_mod->set_render_param(openmpt::module::RENDER_VOLUMERAMPING_STRENGTH, ramping);
+                m_ctrl->setVolumeRamping(ramping);
 
             ImGui::EndTable();
         }

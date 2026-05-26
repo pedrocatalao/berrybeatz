@@ -10,7 +10,7 @@
 
 struct ImFont;
 struct ImDrawList;
-namespace openmpt { class module; class module_ext; }
+class ModuleController;
 
 struct KnobEditState {
     bool                      pendingOpen {false};
@@ -56,8 +56,8 @@ public:
     explicit TrackerView(ModuleState& state);
     ~TrackerView() = default;
 
-    void setModule(openmpt::module_ext* mod) { m_mod = mod; }
-    void clearModule() { m_mod = nullptr; m_undo.clear(); m_sel.active = false; m_muteState = 0; }
+    void setController(ModuleController* ctrl) { m_ctrl = ctrl; }
+    void clearModule() { m_ctrl = nullptr; m_undo.clear(); m_sel.active = false; m_muteState = 0; }
     void setFonts(ImFont* mono, ImFont* ui) { m_fontMono = mono; m_fontUI = ui; }
     void setContinuousScroll(bool v) { m_continuousScroll = v; }
 
@@ -103,8 +103,8 @@ private:
     // Helper: set a cell with undo tracking
     void setCell(int32_t pat, int32_t row, int32_t ch, const PatternCell& cell);
 
-    ModuleState&          m_state;
-    openmpt::module_ext*  m_mod      {nullptr};
+    ModuleState&      m_state;
+    ModuleController* m_ctrl     {nullptr};
     ImFont*               m_fontMono {nullptr};
     ImFont*               m_fontUI   {nullptr};
 

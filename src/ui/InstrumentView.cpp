@@ -1,7 +1,6 @@
 #include "InstrumentView.h"
 #include "Knob.h"
 #include "imgui.h"
-#include <libopenmpt/libopenmpt_ext.hpp>
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
@@ -24,8 +23,8 @@ static void noteToStr(int note, char* buf, int bufsz) {
 
 // ─── Module / font setup ─────────────────────────────────────────────────────
 
-void InstrumentView::setModule(openmpt::module_ext* mod, int instrCount) {
-    m_mod        = mod;
+void InstrumentView::setController(ModuleController* ctrl, int instrCount) {
+    m_ctrl       = ctrl;
     m_instrCount = instrCount;
     m_sel        = 1;
     m_dirty      = false;
@@ -33,20 +32,16 @@ void InstrumentView::setModule(openmpt::module_ext* mod, int instrCount) {
     m_playChannel = -1;
     m_playNote    = -1;
     std::fill(m_kbChannels, m_kbChannels + 128, -1);
-    if (m_mod && m_instrCount > 0) loadInstrument();
+    if (m_ctrl && m_instrCount > 0) loadInstrument();
 }
 
 void InstrumentView::clearModule() {
-    if (m_mod) {
-        auto* ia = static_cast<openmpt::ext::interactive*>(
-            m_mod->get_interface(openmpt::ext::interactive_id));
-        if (ia) {
-            if (m_playChannel >= 0) ia->stop_note(m_playChannel);
-            for (int i = 0; i < 128; ++i)
-                if (m_kbChannels[i] >= 0) ia->stop_note(m_kbChannels[i]);
-        }
+    if (m_ctrl) {
+        if (m_playChannel >= 0) m_ctrl->stopNote(m_playChannel);
+        for (int i = 0; i < 128; ++i)
+            if (m_kbChannels[i] >= 0) m_ctrl->stopNote(m_kbChannels[i]);
     }
-    m_mod         = nullptr;
+    m_ctrl        = nullptr;
     m_instrCount  = 0;
     m_sel         = 1;
     m_dirty       = false;
@@ -58,40 +53,32 @@ void InstrumentView::clearModule() {
 
 void InstrumentView::midiNoteOn(int midiNote, int vel)
 {
-    if (!m_mod || midiNote < 0 || midiNote > 127) return;
-    auto* ia = static_cast<openmpt::ext::interactive*>(
-        m_mod->get_interface(openmpt::ext::interactive_id));
-    if (!ia) return;
+    if (!m_ctrl || midiNote < 0 || midiNote > 127) return;
     if (m_kbChannels[midiNote] >= 0) {
-        ia->stop_note(m_kbChannels[midiNote]);
+        m_ctrl->stopNote(m_kbChannels[midiNote]);
         m_kbChannels[midiNote] = -1;
     }
     double v = vel / 127.0;
-    m_kbChannels[midiNote] = ia->play_note(m_sel - 1, midiNote, v, 0.5);
+    m_kbChannels[midiNote] = m_ctrl->playInstrumentNote(m_sel - 1, midiNote, v, 0.5);
     if (onNeedAudio) onNeedAudio();
 }
 
 void InstrumentView::midiNoteOff(int midiNote)
 {
-    if (!m_mod || midiNote < 0 || midiNote > 127) return;
+    if (!m_ctrl || midiNote < 0 || midiNote > 127) return;
     if (m_kbChannels[midiNote] < 0) return;
-    auto* ia = static_cast<openmpt::ext::interactive*>(
-        m_mod->get_interface(openmpt::ext::interactive_id));
-    if (ia) ia->stop_note(m_kbChannels[midiNote]);
+    m_ctrl->stopNote(m_kbChannels[midiNote]);
     m_kbChannels[midiNote] = -1;
 }
 
 void InstrumentView::midiPitchBend(int raw14)
 {
     m_pitchBend = raw14;
-    if (!m_mod) return;
-    auto* ia2 = static_cast<openmpt::ext::interactive2*>(
-        m_mod->get_interface(openmpt::ext::interactive2_id));
-    if (!ia2) return;
+    if (!m_ctrl) return;
     double finetune = (raw14 - 8192) / 8192.0;
     for (int i = 0; i < 128; ++i)
-        if (m_kbChannels[i] >= 0) ia2->set_note_finetune(m_kbChannels[i], finetune);
-    if (m_playChannel >= 0) ia2->set_note_finetune(m_playChannel, finetune);
+        if (m_kbChannels[i] >= 0) m_ctrl->setNotePitch(m_kbChannels[i], finetune);
+    if (m_playChannel >= 0) m_ctrl->setNotePitch(m_playChannel, finetune);
 }
 
 void InstrumentView::setFonts(ImFont* mono, ImFont* ui) {
@@ -102,21 +89,21 @@ void InstrumentView::setFonts(ImFont* mono, ImFont* ui) {
 // ─── Load / save ─────────────────────────────────────────────────────────────
 
 void InstrumentView::loadInstrument() {
-    if (!m_mod) return;
-    m_data  = bb_get_instrument_data(m_mod, m_sel);
+    if (!m_ctrl || !m_ctrl->module()) return;
+    m_data  = bb_get_instrument_data(m_ctrl->module(), m_sel);
     m_dirty = false;
 }
 
 void InstrumentView::saveInstrument() {
-    if (!m_mod || !m_dirty) return;
-    bb_set_instrument_data(m_mod, m_sel, m_data);
+    if (!m_ctrl || !m_ctrl->module() || !m_dirty) return;
+    bb_set_instrument_data(m_ctrl->module(), m_sel, m_data);
     m_dirty = false;
 }
 
 // ─── Top-level render ────────────────────────────────────────────────────────
 
 void InstrumentView::setSelection(int idx) {
-    if (!m_mod || m_instrCount == 0) return;
+    if (!m_ctrl || m_instrCount == 0) return;
     idx = std::max(1, std::min(idx, m_instrCount));
     if (idx == m_sel) return;
     if (m_dirty) saveInstrument();
@@ -125,7 +112,7 @@ void InstrumentView::setSelection(int idx) {
 }
 
 void InstrumentView::render(float x, float y, float w, float h) {
-    if (!m_mod || m_instrCount == 0) return;
+    if (!m_ctrl || m_instrCount == 0) return;
     drawEditor(x, y, w, h);
     if (m_dirty) saveInstrument();
 }
@@ -664,8 +651,7 @@ void InstrumentView::drawNoteKeyboard(float w, float h) {
     bool kbActive      = ImGui::IsItemActive();
     bool kbDeactivated = ImGui::IsItemDeactivated();
 
-    auto* ia = m_mod ? static_cast<openmpt::ext::interactive*>(
-        m_mod->get_interface(openmpt::ext::interactive_id)) : nullptr;
+    bool hasCtrl = (m_ctrl != nullptr);
 
     // Determine which key is under the cursor (black keys take priority over white)
     // Only while the button is held so we don't trigger on unrelated clicks.
@@ -809,22 +795,22 @@ void InstrumentView::drawNoteKeyboard(float w, float h) {
     }
 
     // ── Mouse play / stop logic ───────────────────────────────────────────────
-    if (ia) {
+    if (hasCtrl) {
         if (hitNote > 0 && hitNote != m_playNote) {
-            if (m_playChannel >= 0) ia->stop_note(m_playChannel);
+            if (m_playChannel >= 0) m_ctrl->stopNote(m_playChannel);
             if (onNeedAudio) onNeedAudio();
-            m_playChannel = ia->play_note(m_sel - 1, hitNote - 1, 0.85, 0.5);
+            m_playChannel = m_ctrl->playInstrumentNote(m_sel - 1, hitNote - 1, 0.85, 0.5);
             m_playNote    = hitNote;
         }
         if (kbDeactivated && m_playChannel >= 0) {
-            ia->stop_note(m_playChannel);
+            m_ctrl->stopNote(m_playChannel);
             m_playChannel = -1;
             m_playNote    = -1;
         }
     }
 
     // ── Computer keyboard play / stop logic ───────────────────────────────────
-    if (ia && !ImGui::GetIO().WantTextInput) {
+    if (hasCtrl && !ImGui::GetIO().WantTextInput) {
         struct NoteKey { ImGuiKey key; int semi; };
         static constexpr NoteKey kKeys[] = {
             {ImGuiKey_Z,0},{ImGuiKey_S,1},{ImGuiKey_X,2},{ImGuiKey_D,3},
@@ -839,10 +825,10 @@ void InstrumentView::drawNoteKeyboard(float w, float h) {
             if (note < 1 || note > 128) continue;
             if (ImGui::IsKeyPressed(k.key, false) && m_kbChannels[note-1] < 0) {
                 if (onNeedAudio) onNeedAudio();
-                m_kbChannels[note-1] = ia->play_note(m_sel - 1, note - 1, 0.85, 0.5);
+                m_kbChannels[note-1] = m_ctrl->playInstrumentNote(m_sel - 1, note - 1, 0.85, 0.5);
             }
             if (ImGui::IsKeyReleased(k.key) && m_kbChannels[note-1] >= 0) {
-                ia->stop_note(m_kbChannels[note-1]);
+                m_ctrl->stopNote(m_kbChannels[note-1]);
                 m_kbChannels[note-1] = -1;
             }
         }

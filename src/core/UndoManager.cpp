@@ -1,6 +1,5 @@
 #include "UndoManager.h"
-#include "PatternEditor.h"
-#include <libopenmpt/libopenmpt_ext.hpp>
+#include "ModuleController.h"
 
 void UndoManager::push(UndoEntry e) {
     m_redoStack.clear();
@@ -9,21 +8,21 @@ void UndoManager::push(UndoEntry e) {
         m_undoStack.pop_front();
 }
 
-void UndoManager::undo(openmpt::module_ext* mod) {
-    if (m_undoStack.empty() || !mod) return;
+void UndoManager::undo(ModuleController& ctrl) {
+    if (m_undoStack.empty()) return;
     UndoEntry e = std::move(m_undoStack.back());
     m_undoStack.pop_back();
     for (auto& c : e)
-        pe_set_cell(mod, c.pat, c.row, c.ch, c.before);
+        ctrl.setPatternCell(c.pat, c.row, c.ch, c.before);
     m_redoStack.push_back(std::move(e));
 }
 
-void UndoManager::redo(openmpt::module_ext* mod) {
-    if (m_redoStack.empty() || !mod) return;
+void UndoManager::redo(ModuleController& ctrl) {
+    if (m_redoStack.empty()) return;
     UndoEntry e = std::move(m_redoStack.back());
     m_redoStack.pop_back();
     for (auto& c : e)
-        pe_set_cell(mod, c.pat, c.row, c.ch, c.after);
+        ctrl.setPatternCell(c.pat, c.row, c.ch, c.after);
     m_undoStack.push_back(std::move(e));
 }
 

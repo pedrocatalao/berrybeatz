@@ -1,15 +1,15 @@
 #pragma once
 #include "OpenMPTInternal.h"
+#include "ModuleController.h"
 #include <cstdint>
 #include <functional>
 #include <vector>
 
-namespace openmpt { class module_ext; }
 struct ImFont;
 
 class SampleView {
 public:
-    void setModule(openmpt::module_ext* mod, int sampleCount);
+    void setController(ModuleController* ctrl, int sampleCount);
     void clearModule();
     void setFonts(ImFont* mono, ImFont* ui);
     void setSelection(int idx);   // 1-based
@@ -29,7 +29,7 @@ private:
     void drawWaveform(float w, float h);
     void drawNoteKeyboard(float w, float h);
 
-    openmpt::module_ext* m_mod{nullptr};
+    ModuleController* m_ctrl{nullptr};
     ImFont* m_fontMono{nullptr};
     ImFont* m_fontUI{nullptr};
     int m_sampleCount{0};

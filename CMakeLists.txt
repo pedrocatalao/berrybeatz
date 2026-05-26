@@ -62,6 +62,7 @@ set(SOURCES
     # core — platform-independent logic
     src/core/AudioEngine.cpp
     src/platform/AudioDeviceMonitor.cpp
+    src/core/ModuleController.cpp
     src/core/PatternEditor.cpp
     src/core/Settings.cpp
     src/core/UndoManager.cpp

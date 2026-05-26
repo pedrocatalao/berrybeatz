@@ -1,14 +1,14 @@
 #pragma once
 #include "OpenMPTInternal.h"
+#include "ModuleController.h"
 #include <cstdint>
 #include <functional>
 
-namespace openmpt { class module_ext; }
 struct ImFont;
 
 class InstrumentView {
 public:
-    void setModule(openmpt::module_ext* mod, int instrCount);
+    void setController(ModuleController* ctrl, int instrCount);
     void clearModule();
     void setFonts(ImFont* mono, ImFont* ui);
     void setSelection(int idx);   // 1-based; clamps to valid range
@@ -29,7 +29,7 @@ private:
     void drawEnvelopeGraph(InstrumentEnvData& env, const char* typeLabel, float w, float h);
     void drawNoteKeyboard(float w, float h);
 
-    openmpt::module_ext* m_mod{nullptr};
+    ModuleController* m_ctrl{nullptr};
     ImFont* m_fontMono{nullptr};
     ImFont* m_fontUI{nullptr};
     int m_instrCount{0};

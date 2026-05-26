@@ -2,6 +2,7 @@
 #define GL_SILENCE_DEPRECATION
 #include <OpenGL/gl3.h>
 #include "ModuleState.h"
+#include "ModuleController.h"
 #include "AudioEngine.h"
 #include "TrackerView.h"
 #include "GeneralView.h"
@@ -46,10 +47,11 @@ private:
     void seekTo(float frac);
     void dispatchMidiCC(int cc, int value);
 
-    ModuleState    m_state;
-    AudioEngine    m_audio;
-    TrackerView    m_tracker;
-    GeneralView    m_generalView;
+    ModuleState      m_state;
+    ModuleController m_controller;
+    AudioEngine      m_audio;
+    TrackerView      m_tracker;
+    GeneralView      m_generalView;
     InstrumentView m_instrView;
     SampleView     m_sampleView;
 

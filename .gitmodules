@@ -4,4 +4,4 @@
 [submodule "vendor/openmpt"]
 	path = vendor/openmpt
 	url = git@github.com:pedrocatalao/openmpt.git
-	branch = berrybeatz/pattern-editing
+	branch = berrybeatz/main

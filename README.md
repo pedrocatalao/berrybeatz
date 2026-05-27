@@ -140,7 +140,7 @@ src/
     WindowChrome             — borderless window, edge resize, fullscreen
 
 external/imgui/              — Dear ImGui submodule
-vendor/openmpt/              — libopenmpt submodule (berrybeatz/pattern-editing branch)
+vendor/openmpt/              — libopenmpt submodule (berrybeatz/main branch)
 ```
 
 ---
@@ -153,7 +153,7 @@ vendor/openmpt/              — libopenmpt submodule (berrybeatz/pattern-editin
 
 **Window chrome:** `GLFW_DECORATED = false`. All controls (close/min/max/fullscreen) are drawn in ImGui. Resizing is cursor-pos hit-tested in the GLFW callback. Dragging delegates to `performWindowDragWithEvent:` for smooth, compositor-driven movement with no tearing.
 
-**libopenmpt fork:** BerryBeatz uses a custom fork on the `berrybeatz/pattern-editing` branch that exposes pattern editing APIs not available in the upstream release.
+**libopenmpt fork:** BerryBeatz uses a custom fork on the `berrybeatz/main` branch that exposes pattern editing APIs not available in the upstream release.
 
 ---
 

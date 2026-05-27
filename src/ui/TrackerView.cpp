@@ -1060,16 +1060,16 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
             }
             recordPos(0);
             ImGui::TextColored(dimColor(hasNote ? kColNote : kDim), "%-3s", hasNote ? note.c_str() : "...");
-            subW[0] = ImGui::GetItemRectSize().x + (showInst ? 6.f : 0.f);
+            subW[0] = ImGui::GetItemRectSize().x;
             if (showInst) {
                 ImGui::SameLine(0, 6); recordPos(1);
                 ImGui::TextColored(dimColor(hasInst ? kColInstr : kDim), "%-2s", hasInst ? inst.c_str() : "..");
-                subW[1] = ImGui::GetItemRectSize().x + (showVol ? 6.f : 0.f);
+                subW[1] = ImGui::GetItemRectSize().x;
             }
             if (showVol) {
                 ImGui::SameLine(0, 6); recordPos(2);
                 ImGui::TextColored(dimColor(hasVol ? kColVolume : kDim), "%-3s", hasVol ? vol.c_str() : "...");
-                subW[2] = ImGui::GetItemRectSize().x + (showFx ? 6.f : 0.f);
+                subW[2] = ImGui::GetItemRectSize().x;
             }
             if (showFx) {
                 ImGui::SameLine(0, 6); recordPos(3);

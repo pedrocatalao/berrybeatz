@@ -224,6 +224,7 @@ SampleData bb_get_sample_data(openmpt::module_ext* mod, int sampleIndex) {
     d.is16bit   = smp.uFlags[OpenMPT::CHN_16BIT];
     d.isStereo  = smp.uFlags[OpenMPT::CHN_STEREO];
     d.hasData   = smp.HasSampleData();
+    d.isOPL     = smp.uFlags[OpenMPT::CHN_ADLIB];
     d.valid     = true;
     return d;
 }

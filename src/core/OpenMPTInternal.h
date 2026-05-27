@@ -83,6 +83,7 @@ struct SampleData {
     bool     is16bit{false};
     bool     isStereo{false};
     bool     hasData{false};
+    bool     isOPL{false};
     bool     valid{false};
 };
 

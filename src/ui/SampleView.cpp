@@ -413,8 +413,7 @@ void SampleView::drawWaveform(float w, float h) {
             dl->AddLine({sx1, origin.y}, {sx1, origin.y + h}, IM_COL32(0, 200, 100, 200), 1.f);
         }
     } else {
-        // No sample data label
-        const char* msg = "No sample data";
+        const char* msg = m_data.isOPL ? "OPL / FM Instrument" : "No sample data";
         ImVec2 tsz = ImGui::CalcTextSize(msg);
         dl->AddText({origin.x + (w - tsz.x) * 0.5f, origin.y + (h - tsz.y) * 0.5f},
                     IM_COL32(80, 80, 100, 255), msg);

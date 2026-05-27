@@ -373,6 +373,9 @@ int AudioEngine::paCallback(const void*, void* output,
             }
         }
 
+        // OPL channels: overwrite with direct per-voice data, isolated from d->left[].
+        bb_apply_opl_channel_waves(d->mod, chanBuf, nch, FRAMES_BLOCK);
+
         int wi = d->state->vuWriteIdx.load(std::memory_order_relaxed);
         VuSnapshot& snap = d->state->vuBuf[wi];
         for (int32_t ch = 0; ch < nch && ch < MAX_CHANNELS; ++ch) {

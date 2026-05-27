@@ -107,3 +107,8 @@ void bb_setup_channel_capture(openmpt::module_ext* mod, int nChannels);
 void bb_capture_channel_waves(openmpt::module_ext* mod,
                                float* samplesOut, int32_t* countsOut,
                                int nChannels, int perChannel);
+
+// Call AFTER ratio normalisation. Writes OPL per-voice data directly into chanBuf,
+// bypassing d->left[] multiplication so OPL channel waveforms are truly isolated.
+void bb_apply_opl_channel_waves(openmpt::module_ext* mod,
+                                 float* chanBuf, int nChannels, int perChannel);

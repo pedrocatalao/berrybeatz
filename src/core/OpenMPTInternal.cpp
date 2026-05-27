@@ -367,23 +367,30 @@ void bb_capture_channel_waves(openmpt::module_ext* mod,
         countsOut[ch] = n;
     }
 
-    // Merge OPL per-channel capture for FM/OPL instruments.
-    // OPL channels produce no PCM delta, so their slots in samplesOut are zero above.
-    // We fill them here with raw per-voice samples (int16 scale); the ratio
-    // normalisation in AudioEngine.cpp handles the actual amplitude correctly.
-    if (!sf.m_opl)
-        return;
+}
+
+void bb_apply_opl_channel_waves(openmpt::module_ext* mod,
+                                 float* chanBuf, int nChannels, int perChannel) {
+    if (!mod || !chanBuf || nChannels <= 0 || perChannel <= 0) return;
+    auto& sf = getSF(mod);
+    if (!sf.m_opl) return;
+
     OpenMPT::OPL* opl = sf.m_opl.get();
-    int nf = std::min(opl->BbGetFrameCount(), n);
-    if (nf <= 0)
-        return;
+    int nf = std::min(opl->BbGetFrameCount(), perChannel);
+    if (nf <= 0) return;
+
+    const float scale = sf.m_bbGlobalVolScale;
+
+    // Write each OPL voice's captured data directly — no ratio normalisation.
+    // snap[v] * factor is already in mix-amplitude space; * scale gives output amplitude.
+    // This is the voice's isolated contribution regardless of what other voices are doing.
     for (int v = 0; v < OpenMPT::OPL::BB_OPL_VOICES; ++v) {
         OpenMPT::CHANNELINDEX trackerCh = opl->BbGetTrackerChan(v);
         if (trackerCh == OpenMPT::CHANNELINDEX_INVALID || (int)trackerCh >= nChannels)
             continue;
         const float* vframes = opl->BbGetChanFrames(v);
-        float* out = samplesOut + (int)trackerCh * perChannel;
+        float* out = chanBuf + (int)trackerCh * perChannel;
         for (int s = 0; s < nf; ++s)
-            out[s] += vframes[s];
+            out[s] += vframes[s] * scale;
     }
 }

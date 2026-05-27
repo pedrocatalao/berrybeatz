@@ -756,10 +756,10 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
                 float peak = 0.f;
                 for (int i = start; i < start + displayN; ++i)
                     peak = std::max(peak, std::abs(channelWave[ch].samples[i]));
-                float norm = (peak > 0.0001f) ? halfH / std::max(peak, 0.3f) : 0.f;
+                float norm = (peak > 0.0001f) ? halfH / std::max(peak, 0.15f) : 0.f;
                 // Fade when channel is silent
                 float chAmp = (vu[ch].left + vu[ch].right) * 0.5f;
-                norm *= std::min(chAmp * 30.0f, 1.0f);
+                norm *= std::min(chAmp * 50.0f, 1.0f);
 
                 ImU32 wavCol = muted ? IM_COL32(80, 80, 80, 120) : IM_COL32(190, 190, 200, 220);
                 float xscale = (cw - 2.f) / float(displayN);

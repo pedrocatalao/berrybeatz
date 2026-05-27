@@ -153,7 +153,7 @@ vendor/openmpt/              — libopenmpt submodule (berrybeatz/main branch)
 
 **Window chrome:** `GLFW_DECORATED = false`. All controls (close/min/max/fullscreen) are drawn in ImGui. Resizing is cursor-pos hit-tested in the GLFW callback. Dragging delegates to `performWindowDragWithEvent:` for smooth, compositor-driven movement with no tearing.
 
-**libopenmpt fork:** BerryBeatz uses a custom fork on the `berrybeatz/main` branch that exposes pattern editing APIs not available in the upstream release.
+**libopenmpt fork:** BerryBeatz uses a custom fork on the `berrybeatz/main` branch that adds BerryBeatz-specific extensions: pattern editing APIs, per-channel PCM audio capture, and OPL/FM voice isolation for waveform display.
 
 ---
 

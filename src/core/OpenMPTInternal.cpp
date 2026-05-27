@@ -379,11 +379,11 @@ void bb_apply_opl_channel_waves(openmpt::module_ext* mod,
     int nf = std::min(opl->BbGetFrameCount(), perChannel);
     if (nf <= 0) return;
 
-    const float scale = sf.m_bbGlobalVolScale;
+    // snap[v] * factor is in int32 mix-buffer space; divide by MIXING_SCALEF (2^27)
+    // to match the float [-1,1] space that PCM data occupies after ratio normalisation.
+    constexpr float INV_MIXING_SCALEF = 1.0f / 134217728.0f;
+    const float scale = sf.m_bbGlobalVolScale * INV_MIXING_SCALEF;
 
-    // Write each OPL voice's captured data directly — no ratio normalisation.
-    // snap[v] * factor is already in mix-amplitude space; * scale gives output amplitude.
-    // This is the voice's isolated contribution regardless of what other voices are doing.
     for (int v = 0; v < OpenMPT::OPL::BB_OPL_VOICES; ++v) {
         OpenMPT::CHANNELINDEX trackerCh = opl->BbGetTrackerChan(v);
         if (trackerCh == OpenMPT::CHANNELINDEX_INVALID || (int)trackerCh >= nChannels)

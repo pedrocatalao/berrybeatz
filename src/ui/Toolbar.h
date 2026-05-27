@@ -20,6 +20,7 @@ struct ToolbarState {
     int   speed     {6};
     int   rpb       {4};
     int   globalVol {128};
+    int   gvolMax   {128};
 
     // Window controls (Toolbar → App)
     std::function<void()>           onWindowClose;

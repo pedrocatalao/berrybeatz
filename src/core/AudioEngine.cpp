@@ -81,6 +81,7 @@ bool AudioEngine::loadFile(const std::string& path) {
 
 void AudioEngine::fillState() {
     if (!m_mod) return;
+    m_state.gvol_max.store(ModuleState::gvolMaxForType(m_mod->get_metadata("type")));
     std::lock_guard<std::mutex> lk(m_state.meta_mutex);
     m_state.title             = m_mod->get_metadata("title");
     m_state.artist            = m_mod->get_metadata("artist");

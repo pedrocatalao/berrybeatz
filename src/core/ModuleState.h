@@ -52,6 +52,9 @@ struct ModuleState {
     VuSnapshot           vuBuf[2];
     std::atomic<int>     vuWriteIdx{0};
 
+    // Global volume range for the loaded format (set on load, read by UI)
+    std::atomic<int> gvol_max {128};
+
     // Module metadata (written once on load)
     std::mutex meta_mutex;
     std::string title;
@@ -65,6 +68,12 @@ struct ModuleState {
     std::vector<std::string> instrument_names;
     std::vector<std::string> sample_names;
     std::vector<std::string> pattern_names;
+
+    static int gvolMaxForType(const std::string& type) {
+        if (type == "mptm")                            return 256;
+        if (type == "s3m" || type == "xm" || type == "mod") return 64;
+        return 128; // it and everything else
+    }
 
     void reset() {
         current_row      = 0;
@@ -84,6 +93,7 @@ struct ModuleState {
         vuBuf[0] = {};
         vuBuf[1] = {};
         vuWriteIdx.store(0);
+        gvol_max.store(128);
         {
             std::lock_guard<std::mutex> lk(meta_mutex);
             title.clear(); artist.clear(); type_long.clear(); tracker.clear();

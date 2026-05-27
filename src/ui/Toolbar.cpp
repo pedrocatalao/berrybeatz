@@ -289,7 +289,7 @@ float DrawToolbar(ToolbarState& state,
     ImGui::SameLine(0.f, 6.f);
     doKnob("RPB", &state.rpb,       1,   32,  state.onRPBChange);
     ImGui::SameLine(0.f, 6.f);
-    doKnob("Vol", &state.globalVol, 0,   256, state.onGlobalVolChange);
+    doKnob("Vol", &state.globalVol, 0,   state.gvolMax, state.onGlobalVolChange);
 
     // ─── VU meters (knob row) ─────────────────────────────────────────────────
     {

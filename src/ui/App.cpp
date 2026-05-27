@@ -51,7 +51,8 @@ App::App() : m_controller(m_state), m_audio(m_state), m_tracker(m_state), m_gene
     m_toolbarState.onSpeedChange = [this](int v) { m_controller.setSpeed(v); };
     m_toolbarState.onRPBChange       = [](int) {};  // determined by pattern data
     m_toolbarState.onGlobalVolChange = [this](int v) {
-        m_controller.setGlobalVolume(v / 256.0);
+        int mx = m_state.gvol_max.load();
+        if (mx > 0) m_controller.setGlobalVolume(v / (double)mx);
     };
 
     // ── AudioEngine callbacks ──────────────────────────────────────────────
@@ -402,6 +403,15 @@ void App::syncToolbarState()
         m_toolbarState.tempo    = (int)std::round(m_state.bpm.load());
         m_toolbarState.speed    = (int)m_state.current_speed.load();
         m_toolbarState.rpb      = (int)m_state.rows_per_beat.load();
+
+        int gvolMax = m_state.gvol_max.load();
+        m_toolbarState.gvolMax  = gvolMax;
+        if (auto* mod = m_controller.module()) {
+            auto* ia = static_cast<openmpt::ext::interactive*>(
+                mod->get_interface(openmpt::ext::interactive_id));
+            if (ia)
+                m_toolbarState.globalVol = (int)std::round(ia->get_global_volume() * gvolMax);
+        }
     }
 }
 

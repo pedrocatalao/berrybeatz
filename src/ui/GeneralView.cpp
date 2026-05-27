@@ -130,9 +130,10 @@ void GeneralView::render(float /*x*/, float /*y*/, float /*w*/, float /*h*/)
         ImGui::Spacing();
 
         if (ia && ia3) {
-            int tempo = (int)std::round(mod->get_current_tempo2());
-            int speed = (int)mod->get_current_speed();
-            int gvol  = (int)std::round(ia->get_global_volume() * 100.0);
+            int tempo   = (int)std::round(mod->get_current_tempo2());
+            int speed   = (int)mod->get_current_speed();
+            int gvolMax = m_state.gvol_max.load();
+            int gvol    = (gvolMax > 0) ? (int)std::round(ia->get_global_volume() * gvolMax) : 0;
 
             if (KnobWidget("##kTempo", &tempo, 32, 512, nullptr, false, false, "Tempo"))
                 m_ctrl->setTempo(tempo);
@@ -140,8 +141,10 @@ void GeneralView::render(float /*x*/, float /*y*/, float /*w*/, float /*h*/)
             if (KnobWidget("##kSpeed", &speed, 1, 32, nullptr, false, false, "Speed"))
                 m_ctrl->setSpeed(speed);
             ImGui::SameLine(0, 16);
-            if (KnobWidget("##kGVol", &gvol, 0, 100, nullptr, false, false, "G.Vol"))
-                m_ctrl->setGlobalVolume(gvol / 100.0);
+            if (gvolMax > 0) {
+                if (KnobWidget("##kVol", &gvol, 0, gvolMax, nullptr, false, false, "Vol"))
+                    m_ctrl->setGlobalVolume(gvol / (double)gvolMax);
+            }
 
             ImGui::Spacing();
             double bpm = m_state.bpm.load();

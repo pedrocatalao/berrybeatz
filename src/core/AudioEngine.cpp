@@ -352,49 +352,23 @@ int AudioEngine::paCallback(const void*, void* output,
         // All post-processing (global volume, DSP, reverb) applies a uniform transform to
         // MixSoundBuffer. Each channel's fraction of the total is preserved, so:
         //   channelOut[ch][s] = d->left[s] * (rawCapture[ch][s] / sumCapture[s])
-        // This is exact for linear mixing with no guessing about internal scale factors.
+        // Ratio normalisation: each channel's captured value (PCM delta or OPL snap)
+        // is a proportional contribution to the mixed output d->left[s].
+        // Dividing by the summed total and scaling by the actual output sample gives
+        // the correct per-channel waveform with no magic scale factors.
         {
             int ns = chanCnt[0];
-            bool hasPCM = false;
-            for (int s = 0; s < ns && !hasPCM; ++s)
-                for (int ch = 0; ch < nch && !hasPCM; ++ch)
-                    if (chanBuf[ch * FRAMES_BLOCK + s] != 0.f)
-                        hasPCM = true;
-
-            if (hasPCM) {
-                for (int s = 0; s < ns; ++s) {
-                    float total = 0.f;
+            for (int s = 0; s < ns; ++s) {
+                float total = 0.f;
+                for (int ch = 0; ch < nch; ++ch)
+                    total += chanBuf[ch * FRAMES_BLOCK + s];
+                if (std::abs(total) > 1e-9f) {
+                    float out = d->left[s];
                     for (int ch = 0; ch < nch; ++ch)
-                        total += chanBuf[ch * FRAMES_BLOCK + s];
-                    if (std::abs(total) > 1e-9f) {
-                        float out = d->left[s];
-                        for (int ch = 0; ch < nch; ++ch)
-                            chanBuf[ch * FRAMES_BLOCK + s] = out * chanBuf[ch * FRAMES_BLOCK + s] / total;
-                    } else {
-                        for (int ch = 0; ch < nch; ++ch)
-                            chanBuf[ch * FRAMES_BLOCK + s] = 0.f;
-                    }
-                }
-            } else {
-                // OPL/plugin mix: per-channel PCM capture is empty.
-                // Distribute the master output proportionally to each channel's VU.
-                float vuW[MAX_CHANNELS]{};
-                float totalVU = 0.f;
-                for (int ch = 0; ch < nch; ++ch) {
-                    vuW[ch] = d->mod->get_current_channel_vu_left(ch)
-                            + d->mod->get_current_channel_vu_right(ch);
-                    totalVU += vuW[ch];
-                }
-                if (totalVU > 1e-6f) {
-                    for (int ch = 0; ch < nch; ++ch) {
-                        float w = vuW[ch] / totalVU;
-                        for (int s = 0; s < ns; ++s)
-                            chanBuf[ch * FRAMES_BLOCK + s] = d->left[s] * w;
-                    }
+                        chanBuf[ch * FRAMES_BLOCK + s] = out * chanBuf[ch * FRAMES_BLOCK + s] / total;
                 } else {
                     for (int ch = 0; ch < nch; ++ch)
-                        for (int s = 0; s < ns; ++s)
-                            chanBuf[ch * FRAMES_BLOCK + s] = 0.f;
+                        chanBuf[ch * FRAMES_BLOCK + s] = 0.f;
                 }
             }
         }

@@ -12,6 +12,7 @@
 #include "soundlib/Sndfile.h"
 #include "soundlib/patternContainer.h"
 #include "soundlib/pattern.h"
+#include "soundlib/OPL.h"
 
 #include "OpenMPTInternal.h"
 
@@ -338,6 +339,8 @@ void bb_setup_channel_capture(openmpt::module_ext* mod, int nChannels) {
     sf.m_bbNumChannels    = static_cast<OpenMPT::CHANNELINDEX>(
                                 std::min(nChannels, (int)OpenMPT::CSoundFile::BB_MAX_CHANNELS));
     sf.m_bbCaptureEnabled = true;
+    if (sf.m_opl)
+        sf.m_opl->BbSetupCapture(true, nChannels);
 }
 
 void bb_set_ft2_volume_ramping(openmpt::module_ext* mod, bool enabled) {
@@ -362,5 +365,25 @@ void bb_capture_channel_waves(openmpt::module_ext* mod,
         for (int s = 0; s < n; ++s)
             out[s] = src[s * 2] * scale;   // left channel, scaled to output amplitude
         countsOut[ch] = n;
+    }
+
+    // Merge OPL per-channel capture for FM/OPL instruments.
+    // OPL channels produce no PCM delta, so their slots in samplesOut are zero above.
+    // We fill them here with raw per-voice samples (int16 scale); the ratio
+    // normalisation in AudioEngine.cpp handles the actual amplitude correctly.
+    if (!sf.m_opl)
+        return;
+    OpenMPT::OPL* opl = sf.m_opl.get();
+    int nf = std::min(opl->BbGetFrameCount(), n);
+    if (nf <= 0)
+        return;
+    for (int v = 0; v < OpenMPT::OPL::BB_OPL_VOICES; ++v) {
+        OpenMPT::CHANNELINDEX trackerCh = opl->BbGetTrackerChan(v);
+        if (trackerCh == OpenMPT::CHANNELINDEX_INVALID || (int)trackerCh >= nChannels)
+            continue;
+        const float* vframes = opl->BbGetChanFrames(v);
+        float* out = samplesOut + (int)trackerCh * perChannel;
+        for (int s = 0; s < nf; ++s)
+            out[s] += vframes[s];
     }
 }

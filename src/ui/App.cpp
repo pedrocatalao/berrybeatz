@@ -51,7 +51,6 @@ App::App() : m_controller(m_state), m_audio(m_state), m_tracker(m_state), m_gene
         m_toolbarState.tempo = (int)std::round(m_state.bpm.load());
         m_toolbarState.speed = (int)m_state.current_speed.load();
         m_toolbarState.rpb   = (int)m_state.rows_per_beat.load();
-        startPlayback();
     };
 
     m_toolbarState.onOpen = [this]() { openFileDialog(); };
@@ -226,7 +225,6 @@ void App::openFile(const std::string& path)
         m_toolbarState.tempo = (int)std::round(m_state.bpm.load());
         m_toolbarState.speed = (int)m_state.current_speed.load();
         m_toolbarState.rpb   = (int)m_state.rows_per_beat.load();
-        startPlayback();
     }
 }
 

@@ -17,6 +17,7 @@ public:
     SoundModule& operator=(const SoundModule&) = delete;
 
     bool loadFile(const std::string& path);
+    bool newModule(int channels = 8);   // create empty IT-based module (.btz)
     bool isLoaded() const { return m_loaded; }
 
     // Render param IDs (mirrors openmpt::module::RENDER_* values)

@@ -1049,7 +1049,7 @@ public:
 
 	void ProcessFinetune(PATTERNINDEX pattern, ROWINDEX row, CHANNELINDEX channel, bool isSmooth);
 
-protected:
+public:
 	// Global variable initializer for loader functions
 	void SetType(MODTYPE type);
 	void InitializeGlobals(MODTYPE type, CHANNELINDEX numChannels);

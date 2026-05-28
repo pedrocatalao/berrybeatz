@@ -94,6 +94,7 @@ set(SOURCES
     src/ui/InstrumentView.cpp
     src/ui/SampleView.cpp
     src/ui/SettingsView.cpp
+    src/ui/NewModuleDialog.cpp
     src/ui/Toolbar.cpp
     src/ui/LogoView.cpp
     src/ui/TrackerView.cpp

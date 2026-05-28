@@ -26,6 +26,7 @@ public:
     ~AudioEngine();
 
     bool    loadFile(const std::string& path);
+    bool    newModule(int channels = 8);
 
     void    start();            // launch audio thread
     void    stop();             // signal thread to stop (non-blocking)

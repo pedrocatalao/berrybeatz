@@ -154,6 +154,32 @@ bool SoundModule::loadFile(const std::string& path) {
     return true;
 }
 
+bool SoundModule::newModule(int channels) {
+    m_impl->sf.Destroy();
+    m_impl->mixerInitialized = false;
+    m_loaded     = false;
+    m_posSeconds = 0.0;
+    m_subsongs.clear();
+    m_subsong = 0;
+
+    auto& sf = m_impl->sf;
+    sf.InitializeGlobals(OpenMPT::MOD_TYPE_IT, static_cast<OpenMPT::CHANNELINDEX>(channels));
+    sf.m_PlayState.m_nMusicTempo = OpenMPT::TEMPO(125, 0);
+    sf.m_PlayState.m_nMusicSpeed = 6;
+    sf.m_nDefaultGlobalVolume    = OpenMPT::MAX_GLOBAL_VOLUME;
+    sf.m_SongFlags.set(OpenMPT::SONG_ITOLDEFFECTS);
+    sf.m_SongFlags.set(OpenMPT::SONG_ITCOMPATGXX);
+    sf.m_songName = "Untitled";
+
+    // One empty 64-row pattern, order 0 → pattern 0
+    sf.Patterns.Insert(0, 64);
+    sf.Order().assign(1, 0);
+
+    m_loaded = true;
+    computeSubsongs();
+    return true;
+}
+
 void SoundModule::computeSubsongs() {
     m_subsongs.clear();
     auto& sf = m_impl->sf;

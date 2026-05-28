@@ -70,6 +70,16 @@ bool AudioEngine::loadFile(const std::string& path) {
     return true;
 }
 
+bool AudioEngine::newModule(int channels)
+{
+    auto mod = std::make_unique<SoundModule>();
+    if (!mod->newModule(channels)) return false;
+    m_mod = std::move(mod);
+    bb_set_ft2_volume_ramping(m_mod.get(), m_ft2VolumeRamping);
+    fillState();
+    return true;
+}
+
 void AudioEngine::fillState() {
     if (!m_mod) return;
     m_state.gvol_max.store(ModuleState::gvolMaxForType(m_mod->getType()));

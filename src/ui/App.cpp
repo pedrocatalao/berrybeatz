@@ -28,7 +28,32 @@ App::App() : m_controller(m_state), m_audio(m_state), m_tracker(m_state), m_gene
         m_settingsView.open(m_settings, m_audio.getDevices(), enumerateMidiSources());
     };
 
-    m_toolbarState.onNew  = [this]() { clearModule(); };
+    m_toolbarState.onNew  = [this]() { m_newModuleDialog.open(); };
+
+    m_newModuleDialog.onCreate = [this](int fmt) {
+        static constexpr const char* kExts[] = {".btz", ".it", ".xm", ".s3m", ".mod"};
+        clearModule();
+        if (!m_audio.newModule()) return;
+        m_hasModule  = true;
+        m_loadedPath = std::string("untitled") + kExts[fmt];
+        auto* mod = m_audio.getModule();
+        m_controller.setModule(mod);
+        m_tracker.setController(&m_controller);
+        m_generalView.setController(&m_controller);
+        int nSamp, nInstr;
+        { std::lock_guard<std::mutex> lk(m_state.meta_mutex); nSamp = m_state.num_samples; nInstr = m_state.num_instruments; }
+        m_sampleView.setFonts(m_fontMono, m_fontUI);
+        m_sampleView.setController(&m_controller, nSamp);
+        m_sampleView.onNeedAudio = [this]() { if (m_hasModule) m_audio.startPreview(); };
+        m_instrView.setFonts(m_fontMono, m_fontUI);
+        m_instrView.setController(&m_controller, nInstr);
+        m_instrView.onNeedAudio = [this]() { if (m_hasModule) m_audio.startPreview(); };
+        m_toolbarState.tempo = (int)std::round(m_state.bpm.load());
+        m_toolbarState.speed = (int)m_state.current_speed.load();
+        m_toolbarState.rpb   = (int)m_state.rows_per_beat.load();
+        startPlayback();
+    };
+
     m_toolbarState.onOpen = [this]() { openFileDialog(); };
     m_toolbarState.onSave = [this]() { saveModule(); };
     m_toolbarState.onStop = [this]() {
@@ -374,6 +399,7 @@ void App::render(int winW, int winH)
     }
 
     m_settingsView.draw();
+    m_newModuleDialog.draw();
 
     ImGui::PopFont();
 }
@@ -500,6 +526,7 @@ void App::clearModule()
     m_hasModule  = false;
     m_loadedPath.clear();
 }
+
 
 void App::startPlayback()
 {

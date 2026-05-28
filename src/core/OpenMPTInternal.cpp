@@ -14,7 +14,6 @@
 #include <fstream>
 #include <string>
 #include <cstring>
-#include <cmath>
 
 static OpenMPT::CSoundFile& getSF(SoundModule* mod) {
     return *static_cast<OpenMPT::CSoundFile*>(mod->getCSFRaw());

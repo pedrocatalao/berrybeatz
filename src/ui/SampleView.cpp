@@ -2,9 +2,7 @@
 #include "Knob.h"
 #include "imgui.h"
 #include <algorithm>
-#include <cmath>
 #include <cstdio>
-#include <cstring>
 
 // ─── Note name helper ────────────────────────────────────────────────────────
 

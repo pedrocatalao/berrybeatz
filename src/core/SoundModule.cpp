@@ -1,8 +1,6 @@
 // SoundModule.cpp — direct OpenMPT::CSoundFile wrapper.
 // Compiled with LIBOPENMPT_BUILD + soundlib include paths (see CMakeLists.txt).
-// BERRYBEATZ_FILESAVE: enables Save* methods without enabling ENABLE_TESTS
-// (LIBOPENMPT_BUILD_TEST would enable MPT_ENABLE_CHARSET_LOCALE → NativePathTraits,
-//  causing a FileReader type mismatch with the libopenmpt.a ABI).
+// BERRYBEATZ_FILESAVE: enables Save* methods without enabling ENABLE_TESTS.
 #define BERRYBEATZ_FILESAVE
 
 #include "common/stdafx.h"
@@ -19,7 +17,6 @@
 
 #include <fstream>
 #include <cmath>
-#include <cstring>
 #include <algorithm>
 #include <limits>
 

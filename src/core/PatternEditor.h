@@ -1,7 +1,7 @@
 #pragma once
 #include <cstdint>
 
-namespace openmpt { class module_ext; }
+class SoundModule;
 
 // Constants mirroring OpenMPT values so callers don't need soundlib headers
 static constexpr uint8_t NOTE_NONE    = 0;
@@ -26,12 +26,12 @@ struct PatternCell {
     uint8_t param   {0};
 };
 
-int  pe_num_rows(openmpt::module_ext* mod, int pat);
-void pe_get_cell(openmpt::module_ext* mod, int pat, int row, int ch, PatternCell& out);
-void pe_set_cell(openmpt::module_ext* mod, int pat, int row, int ch, const PatternCell& cell);
-void pe_clear_cell(openmpt::module_ext* mod, int pat, int row, int ch);
+int  pe_num_rows(SoundModule* mod, int pat);
+void pe_get_cell(SoundModule* mod, int pat, int row, int ch, PatternCell& out);
+void pe_set_cell(SoundModule* mod, int pat, int row, int ch, const PatternCell& cell);
+void pe_clear_cell(SoundModule* mod, int pat, int row, int ch);
 
 // Shift all rows from 'row' down by one; the last row is lost. The inserted row is cleared.
-void pe_insert_row(openmpt::module_ext* mod, int pat, int row, int nch);
+void pe_insert_row(SoundModule* mod, int pat, int row, int nch);
 // Shift all rows from 'row+1' up by one; the last row is cleared.
-void pe_delete_row(openmpt::module_ext* mod, int pat, int row, int nch);
+void pe_delete_row(SoundModule* mod, int pat, int row, int nch);

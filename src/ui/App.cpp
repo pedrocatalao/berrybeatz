@@ -6,9 +6,9 @@
 #include "Logo.h"
 #include "MidiDevices.h"
 #include "OpenMPTInternal.h"
+#include "SoundModule.h"
 #include "imgui.h"
 #include <GLFW/glfw3.h>
-#include <libopenmpt/libopenmpt_ext.hpp>
 #include <cmath>
 #include <algorithm>
 #include <cstdio>
@@ -38,7 +38,7 @@ App::App() : m_controller(m_state), m_audio(m_state), m_tracker(m_state), m_gene
             m_audio.join();
         }
         if (auto* mod = m_audio.getModule())
-            mod->set_position_seconds(0.0);
+            mod->setPositionSeconds(0.0);
     };
     m_toolbarState.onPlayPause     = [this]() { togglePlayPause(); };
     m_toolbarState.onPlayFromStart = [this]() { playFromStart(); };
@@ -133,7 +133,7 @@ App::App() : m_controller(m_state), m_audio(m_state), m_tracker(m_state), m_gene
                 { std::lock_guard<std::mutex> lk(m_state.meta_mutex); numOrd = m_state.num_orders; }
                 int order = -1;
                 for (int o = 0; o < numOrd; ++o)
-                    if (mod->get_order_pattern(o) == idx) { order = o; break; }
+                    if (mod->getOrderPattern(o) == idx) { order = o; break; }
                 if (order >= 0)
                     m_audio.playPatternFrom(order, 0, m_tracker.getLoopPattern());
             }
@@ -234,7 +234,7 @@ void App::render(int winW, int winH)
         }
         if (auto* mod = m_audio.getModule())
             for (int o = 0; o < numOrd; ++o) {
-                int p = mod->get_order_pattern(o);
+                int p = mod->getOrderPattern(o);
                 if (p >= 0) sd.usedPats.insert(p);
             }
         if (g_fontSidebar) ImGui::PushFont(g_fontSidebar);
@@ -407,10 +407,7 @@ void App::syncToolbarState()
         int gvolMax = m_state.gvol_max.load();
         m_toolbarState.gvolMax  = gvolMax;
         if (auto* mod = m_controller.module()) {
-            auto* ia = static_cast<openmpt::ext::interactive*>(
-                mod->get_interface(openmpt::ext::interactive_id));
-            if (ia)
-                m_toolbarState.globalVol = (int)std::round(ia->get_global_volume() * gvolMax);
+            m_toolbarState.globalVol = (int)std::round(mod->getGlobalVolume() * gvolMax);
         }
     }
 }
@@ -454,7 +451,7 @@ void App::drawCommentsTab()
     static std::string    msg;
     static const void*    lastMod = nullptr;
     if (mod != lastMod) {
-        msg     = mod->get_metadata("message");
+        msg     = mod->getMessage();
         lastMod = mod;
     }
     ImGui::InputTextMultiline("##msg", msg.data(), msg.size() + 1,
@@ -468,7 +465,7 @@ void App::saveModule()
     if (!m_hasModule || m_loadedPath.empty()) return;
     auto* mod = m_controller.module();
     if (!mod) return;
-    std::string type = mod->get_metadata("type");
+    std::string type = mod->getType();
     m_controller.save(m_loadedPath, type);
 }
 

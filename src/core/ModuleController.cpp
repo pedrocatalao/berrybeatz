@@ -1,69 +1,59 @@
 #include "ModuleController.h"
+#include "SoundModule.h"
 #include "OpenMPTInternal.h"
-#include <libopenmpt/libopenmpt_ext.hpp>
 
 ModuleController::ModuleController(ModuleState& state) : m_state(state) {}
 
-void ModuleController::setModule(openmpt::module_ext* mod) { m_mod = mod; }
-void ModuleController::clearModule()                        { m_mod = nullptr; }
+void ModuleController::setModule(SoundModule* mod) { m_mod = mod; }
+void ModuleController::clearModule()               { m_mod = nullptr; }
 
 // ── Transport parameters ───────────────────────────────────────────────────────
 
 void ModuleController::setTempo(int bpm) {
     if (!m_mod) return;
-    auto* ia3 = static_cast<openmpt::ext::interactive3*>(
-        m_mod->get_interface(openmpt::ext::interactive3_id));
-    if (ia3) ia3->set_current_tempo2(bpm);
+    m_mod->setTempo(bpm);
 }
 
 void ModuleController::setSpeed(int speed) {
     if (!m_mod) return;
-    auto* ia = static_cast<openmpt::ext::interactive*>(
-        m_mod->get_interface(openmpt::ext::interactive_id));
-    if (ia) ia->set_current_speed(speed);
+    m_mod->setSpeed(speed);
 }
 
 void ModuleController::setGlobalVolume(double factor) {
     if (!m_mod) return;
-    auto* ia = static_cast<openmpt::ext::interactive*>(
-        m_mod->get_interface(openmpt::ext::interactive_id));
-    if (ia) ia->set_global_volume(factor);
+    m_mod->setGlobalVolume(factor);
 }
 
 void ModuleController::setTempoFactor(double factor) {
     if (!m_mod) return;
-    auto* ia = static_cast<openmpt::ext::interactive*>(
-        m_mod->get_interface(openmpt::ext::interactive_id));
-    if (ia) ia->set_tempo_factor(factor);
+    m_mod->setTempoFactor(factor);
 }
 
 void ModuleController::setPitchFactor(double factor) {
     if (!m_mod) return;
-    auto* ia = static_cast<openmpt::ext::interactive*>(
-        m_mod->get_interface(openmpt::ext::interactive_id));
-    if (ia) ia->set_pitch_factor(factor);
+    m_mod->setPitchFactor(factor);
 }
 
 // ── Render parameters ──────────────────────────────────────────────────────────
 
 void ModuleController::setMasterGain(int gain) {
     if (!m_mod) return;
-    m_mod->set_render_param(openmpt::module::RENDER_MASTERGAIN_MILLIBEL, gain);
+    m_mod->setRenderParam(SoundModule::RENDER_MASTERGAIN_MILLIBEL, gain);
 }
 
 void ModuleController::setStereoSeparation(int sep) {
     if (!m_mod) return;
-    m_mod->set_render_param(openmpt::module::RENDER_STEREOSEPARATION_PERCENT, sep);
+    m_mod->setRenderParam(SoundModule::RENDER_STEREOSEPARATION_PERCENT, sep);
 }
 
 void ModuleController::setInterpolation(int mode) {
     if (!m_mod) return;
-    m_mod->set_render_param(openmpt::module::RENDER_INTERPOLATIONFILTER_LENGTH, mode);
+    m_mod->setRenderParam(SoundModule::RENDER_INTERPOLATIONFILTER_LENGTH, mode);
 }
 
 void ModuleController::setVolumeRamping(int mode) {
     if (!m_mod) return;
-    m_mod->set_render_param(openmpt::module::RENDER_VOLUMERAMPING_STRENGTH, mode);
+    m_mod->setRenderParam(SoundModule::RENDER_VOLUMERAMPING_STRENGTH, mode);
 }
 
 // ── Pattern editing ────────────────────────────────────────────────────────────
@@ -97,32 +87,23 @@ int ModuleController::insertPattern(int rows) {
 
 void ModuleController::playNote(int32_t channel, int note, int instrument, double volume, double panning) {
     if (!m_mod) return;
-    auto* ia = static_cast<openmpt::ext::interactive*>(
-        m_mod->get_interface(openmpt::ext::interactive_id));
-    if (ia) ia->play_note(channel, note, volume, panning);
-    (void)instrument;
+    m_mod->playNote(instrument, note, volume, panning);
+    (void)channel;
 }
 
 void ModuleController::stopNote(int32_t channel) {
     if (!m_mod) return;
-    auto* ia = static_cast<openmpt::ext::interactive*>(
-        m_mod->get_interface(openmpt::ext::interactive_id));
-    if (ia) ia->stop_note(channel);
+    m_mod->stopNote(channel);
 }
 
 void ModuleController::setNotePitch(int32_t channel, double semitones) {
     if (!m_mod) return;
-    auto* ia2 = static_cast<openmpt::ext::interactive2*>(
-        m_mod->get_interface(openmpt::ext::interactive2_id));
-    if (ia2) ia2->set_note_finetune(channel, semitones);
+    m_mod->setNotePitch(channel, semitones);
 }
 
 int32_t ModuleController::playInstrumentNote(int32_t instrument, int note, double volume, double panning) {
     if (!m_mod) return -1;
-    auto* ia = static_cast<openmpt::ext::interactive*>(
-        m_mod->get_interface(openmpt::ext::interactive_id));
-    if (!ia) return -1;
-    return ia->play_note(instrument, note, volume, panning);
+    return m_mod->playNote(instrument, note, volume, panning);
 }
 
 int32_t ModuleController::playSample(int sampleIndex, int note, double volume, double panning) {

@@ -4,17 +4,17 @@
 #include <cstdint>
 #include <string>
 
-namespace openmpt { class module_ext; }
+class SoundModule;
 
-// Single owner of all openmpt::module_ext mutations.
+// Single owner of all SoundModule mutations.
 // UI code reads from module() but routes all writes through named commands here.
 class ModuleController {
 public:
     explicit ModuleController(ModuleState& state);
 
-    void setModule(openmpt::module_ext* mod);
+    void setModule(SoundModule* mod);
     void clearModule();
-    openmpt::module_ext* module() const { return m_mod; }
+    SoundModule* module() const { return m_mod; }
 
     // Transport parameters
     void setTempo(int bpm);
@@ -36,7 +36,7 @@ public:
     void deletePatternRow(int32_t pat, int32_t row, int32_t nch);
     int  insertPattern(int rows = 64);
 
-    // Note preview (interactive extension — safe from UI thread)
+    // Note preview (safe from UI thread)
     void     playNote(int32_t channel, int note, int instrument, double volume, double panning);
     void     stopNote(int32_t channel);
     void     setNotePitch(int32_t channel, double semitones);
@@ -47,6 +47,6 @@ public:
     bool save(const std::string& path, const std::string& type);
 
 private:
-    ModuleState&          m_state;
-    openmpt::module_ext*  m_mod {nullptr};
+    ModuleState&  m_state;
+    SoundModule*  m_mod {nullptr};
 };

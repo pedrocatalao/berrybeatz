@@ -1,5 +1,6 @@
 #pragma once
 #include "ModuleState.h"
+#include "SoundModule.h"
 #include "../platform/AudioDeviceMonitor.h"
 #include <thread>
 #include <string>
@@ -8,7 +9,6 @@
 #include <atomic>
 #include <vector>
 
-namespace openmpt { class module; class module_ext; }
 struct PaStreamCallbackTimeInfo;
 typedef unsigned long PaStreamCallbackFlags;
 typedef void PaStream;
@@ -47,7 +47,7 @@ public:
     void    selectSubsong(int32_t index);
     int32_t subsongCount() const;
 
-    openmpt::module_ext* getModule() const;
+    SoundModule* getModule() const;
 
     // Audio device configuration (takes effect on next start())
     void setAudioConfig(int deviceIndex, int sampleRate);
@@ -74,7 +74,7 @@ private:
     void fillState();
 
     ModuleState&                         m_state;
-    std::unique_ptr<openmpt::module_ext> m_mod;
+    std::unique_ptr<SoundModule> m_mod;
 
     std::thread              m_thread;
     std::atomic<bool>        m_running {false};

@@ -62,12 +62,12 @@ set(SOURCES
     # core — platform-independent logic
     src/core/AudioEngine.cpp
     src/platform/AudioDeviceMonitor.cpp
+    src/core/SoundModule.cpp
     src/core/ModuleController.cpp
     src/core/PatternEditor.cpp
     src/core/Settings.cpp
     src/core/UndoManager.cpp
     src/core/OpenMPTInternal.cpp
-    src/core/OpenMPTInternalGet.cpp
     # ui — ImGui views and widgets
     src/ui/App.cpp
     src/ui/SidebarView.cpp
@@ -130,16 +130,12 @@ target_include_directories(BerryBeatz PRIVATE
     ${MPG123_INCLUDE_DIRS}
 )
 
-# OpenMPTInternal.cpp: soundlib side — needs full common/ include chain.
-# LIBOPENMPT_BUILD_TEST is defined inside the .cpp to remove MODPLUG_NO_FILESAVE.
-set_source_files_properties(src/core/OpenMPTInternal.cpp PROPERTIES
-    COMPILE_DEFINITIONS "LIBOPENMPT_BUILD"
-    INCLUDE_DIRECTORIES "${OPENMPT_ROOT}/common;${OPENMPT_ROOT}/src;${OPENMPT_ROOT}"
-)
-
-# OpenMPTInternalGet.cpp: libopenmpt side — extracts CSoundFile* via internal cast.
-# Must NOT include soundlib headers (namespace conflict with libopenmpt fwd-decls).
-set_source_files_properties(src/core/OpenMPTInternalGet.cpp PROPERTIES
+# SoundModule.cpp and OpenMPTInternal.cpp: soundlib side — need full common/ include chain.
+# LIBOPENMPT_BUILD_TEST is defined inside these .cpp files to remove MODPLUG_NO_FILESAVE.
+set_source_files_properties(
+    src/core/SoundModule.cpp
+    src/core/OpenMPTInternal.cpp
+    PROPERTIES
     COMPILE_DEFINITIONS "LIBOPENMPT_BUILD"
     INCLUDE_DIRECTORIES "${OPENMPT_ROOT}/common;${OPENMPT_ROOT}/src;${OPENMPT_ROOT}"
 )

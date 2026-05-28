@@ -1,7 +1,3 @@
 [submodule "external/imgui"]
 	path = external/imgui
 	url = https://github.com/ocornut/imgui.git
-[submodule "vendor/openmpt"]
-	path = vendor/openmpt
-	url = git@github.com:pedrocatalao/openmpt.git
-	branch = berrybeatz/main

@@ -2,7 +2,7 @@
 
 <p align="center"><img src="docs/github-banner.png" width="400"/></p>
 
-**BerryBeatz** is a native macOS tracker app — a modern, GPU-accelerated frontend for the [OpenMPT](https://openmpt.org) engine, built from scratch with Dear ImGui. Load any classic module file and you get a full pattern editor, instrument and sample editors, live MIDI preview, and a custom borderless UI that feels native on Apple Silicon.
+**BerryBeatz** is a native macOS tracker app — a modern, GPU-accelerated frontend built from scratch with Dear ImGui. Load any classic module file and you get a full pattern editor, instrument and sample editors, live MIDI preview, and a custom borderless UI that feels native on Apple Silicon.
 
 > Early development — feedback and contributions very welcome.
 
@@ -10,9 +10,9 @@
 
 ## Why BerryBeatz?
 
-There is no good native tracker on macOS. OpenMPT itself only runs on Windows. BerryBeatz brings the OpenMPT engine — the gold standard for tracker format support — to macOS with a purpose-built UI rather than a Wine wrapper or a watered-down port.
+There is no good native tracker on macOS. OpenMPT itself only runs on Windows. BerryBeatz brings a purpose-built tracker UI to macOS with its own embedded audio engine rather than a Wine wrapper or a watered-down port.
 
-- **Plays everything** — MOD, XM, IT, S3M, MO3, OKT, MTM, 669, and every obscure variant in between, courtesy of libopenmpt
+- **Plays everything** — MOD, XM, IT, S3M, MO3, OKT, MTM, 669, and every obscure variant in between
 - **Edits patterns** — not just a player; you can write and modify tracker patterns live
 - **Native feel** — borderless window, Retina-aware, drag & drop, native file dialogs, CoreMIDI
 - **Low latency** — PortAudio callback thread, lock-free shared state, no GC pauses
@@ -22,7 +22,7 @@ There is no good native tracker on macOS. OpenMPT itself only runs on Windows. B
 ## Features
 
 ### Playback & Transport
-- Plays all major tracker formats via libopenmpt
+- Plays all major tracker formats
 - Real-time stereo VU meters — master and per-channel
 - Seek bar, Play / Pause / Stop / Play from Start
 - Adjustable Tempo, Speed, Rows Per Beat, and Global Volume during playback
@@ -31,7 +31,9 @@ There is no good native tracker on macOS. OpenMPT itself only runs on Windows. B
 ### Pattern Editor
 - Full pattern grid — Note · Instrument · Volume · Effect · Parameter
 - Keyboard note entry with edit mode toggle (`Space`)
-- Per-channel mute, stereo VU bars, and oscilloscope waveforms
+- Per-channel isolated VU meters — each channel rendered independently, not a mix-down
+- Per-channel waveform visualisation — live oscilloscope for every channel, including OPL/FM voice capture
+- Per-channel mute and solo
 - Play from Cursor, Play from Start, Play Row, Record, Loop pattern
 - Follow-song mode, Undo/Redo, Insert/Delete rows, Expand/Shrink pattern
 - Order list with click-to-seek
@@ -90,17 +92,9 @@ git clone --recurse-submodules https://github.com/pedrocatalao/berrybeatz
 cd berrybeatz
 ```
 
-Both [Dear ImGui](https://github.com/ocornut/imgui) (`external/imgui`) and a custom libopenmpt fork (`vendor/openmpt`) are included as submodules — no separate checkout needed.
+[Dear ImGui](https://github.com/ocornut/imgui) (`external/imgui`) is included as a submodule. The audio engine is embedded directly under `thirdparty/` — no separate build step needed.
 
-### 2. Build libopenmpt
-
-```bash
-cd vendor/openmpt
-make CONFIG=clang SHARED_LIB=0 NO_SHARED_LINKER_FLAG=1 bin/libopenmpt.a
-cd ../..
-```
-
-### 3. Build BerryBeatz
+### 2. Build BerryBeatz
 
 ```bash
 mkdir build && cd build
@@ -117,9 +111,10 @@ open BerryBeatz.app
 src/
   main.cpp                   — GLFW + ImGui init, render loop
   core/
-    AudioEngine              — PortAudio stream, libopenmpt decode, seek/playback
+    AudioEngine              — PortAudio stream, decode, seek/playback
     ModuleState.h            — lock-free shared state between audio and UI threads
-    OpenMPTInternal          — access to libopenmpt soundlib internals
+    SoundModule              — CSoundFile wrapper (load, render, pattern access)
+    OpenMPTInternal          — direct soundlib access: instruments, samples, OPL capture
     PatternEditor            — pattern cell read/write
     Settings                 — persistent settings
     UndoManager              — undo/redo stack
@@ -140,20 +135,20 @@ src/
     WindowChrome             — borderless window, edge resize, fullscreen
 
 external/imgui/              — Dear ImGui submodule
-vendor/openmpt/              — libopenmpt submodule (berrybeatz/main branch)
+thirdparty/openmpt/          — embedded soundlib (soundlib, sounddsp, common, src/)
 ```
 
 ---
 
 ## Architecture
 
-**Audio thread:** PortAudio callback thread runs the libopenmpt decoder. `ModuleState` uses `std::atomic` throughout for playback state. VU meters and waveform snapshots use a double-buffered `VuSnapshot[2]` with an atomic flip index — the callback writes to one buffer and exposes it to the UI with no mutex or allocation. Module metadata is guarded by a single mutex written once on load.
+**Audio thread:** PortAudio callback thread runs the audio engine. `ModuleState` uses `std::atomic` throughout for playback state. VU meters and waveform snapshots use a double-buffered `VuSnapshot[2]` with an atomic flip index — the callback writes to one buffer and exposes it to the UI with no mutex or allocation. Module metadata is guarded by a single mutex written once on load.
+
+**Audio engine:** `SoundModule` wraps `CSoundFile` from the OpenMPT soundlib directly — no public libopenmpt API. Pattern data, instrument state, OPL/FM voices, and per-channel PCM capture are all accessed through the internal soundlib interfaces, giving full control over the render path.
 
 **Rendering:** Pure ImGui immediate-mode over OpenGL 3.2 Core Profile. No retained scene graph. The toolbar glow effect switches to additive GL blending mid-draw-list via `AddCallback`.
 
 **Window chrome:** `GLFW_DECORATED = false`. All controls (close/min/max/fullscreen) are drawn in ImGui. Resizing is cursor-pos hit-tested in the GLFW callback. Dragging delegates to `performWindowDragWithEvent:` for smooth, compositor-driven movement with no tearing.
-
-**libopenmpt fork:** BerryBeatz uses a custom fork on the `berrybeatz/main` branch that adds BerryBeatz-specific extensions: pattern editing APIs, per-channel PCM audio capture, and OPL/FM voice isolation for waveform display.
 
 ---
 
@@ -189,6 +184,6 @@ Please open an issue before starting large features so we can coordinate.
 
 BerryBeatz is open source. See [LICENSE](LICENSE) for details.
 
-libopenmpt is © OpenMPT contributors — [BSD license](https://github.com/OpenMPT/openmpt/blob/master/LICENSE).  
+The OpenMPT soundlib (`thirdparty/openmpt/`) is © OpenMPT contributors — [BSD license](https://github.com/OpenMPT/openmpt/blob/master/LICENSE).  
 Dear ImGui is © Omar Cornut — [MIT license](https://github.com/ocornut/imgui/blob/master/LICENSE.txt).  
 PortAudio is © Ross Bencina & Phil Burk — MIT license.

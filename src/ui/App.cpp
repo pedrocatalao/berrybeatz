@@ -5,7 +5,6 @@
 #include "CocoaHelpers.h"
 #include "Logo.h"
 #include "MidiDevices.h"
-#include "OpenMPTInternal.h"
 #include "SoundModule.h"
 #include "imgui.h"
 #include <GLFW/glfw3.h>

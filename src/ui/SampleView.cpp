@@ -62,7 +62,7 @@ void SampleView::midiNoteOn(int midiNote, int vel)
         m_kbChannels[midiNote] = -1;
     }
     double v = vel / 127.0;
-    int opnote = midiNote + 1;  // libopenmpt is 1-based
+    int opnote = midiNote + 1;  // note numbers are 1-based (NOTE_MIN=1)
     m_kbChannels[midiNote] = m_ctrl->playSample(m_sel, opnote, v, 0.5);
     if (onNeedAudio) onNeedAudio();
 }

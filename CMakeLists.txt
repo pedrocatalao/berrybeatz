@@ -23,7 +23,7 @@ pkg_check_modules(OGG REQUIRED ogg)
 pkg_check_modules(MPG123 REQUIRED libmpg123)
 
 # OpenMPT soundlib — compiled directly, no pre-built .a needed
-set(OPENMPT_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/vendor/openmpt")
+set(OPENMPT_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/openmpt")
 
 file(GLOB SOUNDLIB_SOURCES
     ${OPENMPT_ROOT}/soundlib/*.cpp

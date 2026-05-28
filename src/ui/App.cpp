@@ -126,9 +126,18 @@ App::App() : m_controller(m_state), m_audio(m_state), m_tracker(m_state), m_gene
 
     // ── TrackerView callbacks ──────────────────────────────────────────────
     m_tracker.onOrderSeekRequested = [this](int32_t order) {
-        m_audio.seekToOrder(order);
-        if (!m_audio.isRunning() && m_hasModule)
-            startPlayback();
+        if (m_audio.isRunning()) {
+            m_audio.seekToOrder(order);
+        } else if (m_hasModule) {
+            auto* mod = m_audio.getModule();
+            if (!mod) return;
+            mod->setPositionOrderRow(order, 0);
+            m_state.current_order.store(order);
+            m_state.current_row.store(0);
+            int pat = mod->getOrderPattern(order);
+            if (pat >= 0) m_state.current_pattern.store(pat);
+            m_tracker.requestNavSnap();
+        }
     };
     m_tracker.onPatternPlayFromCursor = [this](int32_t order, int32_t row, bool loop) {
         m_audio.playPatternFrom(order, row, loop);
@@ -157,8 +166,17 @@ App::App() : m_controller(m_state), m_audio(m_state), m_tracker(m_state), m_gene
                 int order = -1;
                 for (int o = 0; o < numOrd; ++o)
                     if (mod->getOrderPattern(o) == idx) { order = o; break; }
-                if (order >= 0)
-                    m_audio.playPatternFrom(order, 0, m_tracker.getLoopPattern());
+                if (order >= 0) {
+                    if (m_audio.isRunning())
+                        m_audio.playPatternFrom(order, 0, m_tracker.getLoopPattern());
+                    else {
+                        mod->setPositionOrderRow(order, 0);
+                        m_state.current_order.store(order);
+                        m_state.current_row.store(0);
+                        m_state.current_pattern.store(idx);
+                        m_tracker.requestNavSnap();
+                    }
+                }
             }
         }
     };

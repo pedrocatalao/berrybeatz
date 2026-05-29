@@ -105,6 +105,21 @@ bool bb_import_sample_pcm(SoundModule* mod, int sampleIndex,
 // Return 1-based index of the first sample slot with no PCM data, or -1 if none.
 int  bb_find_free_sample(SoundModule* mod);
 
+// Return 1-based index of the first free instrument slot, extending the table if needed.
+int  bb_find_free_instrument(SoundModule* mod);
+
+// Create/reset an instrument at the given 1-based slot and set its display name.
+bool bb_create_instrument(SoundModule* mod, int instrIndex, const char* name);
+
+// Map a single MIDI note in an instrument's keyboard.
+// midiNote: 0-127, sampleIdx: 1-based (0 = silence), noteValue: the OpenMPT note to play.
+void bb_instrument_set_note(SoundModule* mod, int instrIndex,
+                             int midiNote, int sampleIdx, int noteValue);
+
+// Set the relative note (transpose) for a sample slot so it plays at its natural pitch
+// when triggered from 'baseNote'. Uses OpenMPT's RelativeTone field.
+void bb_sample_set_relative_note(SoundModule* mod, int sampleIdx, int baseNote);
+
 // Call BEFORE read() to arm per-channel capture.
 void bb_setup_channel_capture(SoundModule* mod, int nChannels);
 

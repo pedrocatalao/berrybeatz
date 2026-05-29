@@ -2,6 +2,7 @@
 #include <vector>
 #include <mutex>
 #include <atomic>
+#include <functional>
 #include <cstdint>
 
 struct CCEvent   { int cc;   int value; };
@@ -14,8 +15,12 @@ public:
 
     void setSource(int sourceIndex);
     std::vector<CCEvent>   poll();           // drain CC queue; call once per frame
-    std::vector<NoteEvent> pollNotes();      // drain note queue; call once per frame
+    std::vector<NoteEvent> pollNotes();      // drain note queue; only used when onNoteImmediate is null
     int  getPitchBend() const { return m_pitchBend.load(); }  // 0–16383, center=8192
+
+    // When set, called directly from the CoreMIDI callback thread (bypasses queue).
+    // Eliminates the per-frame polling delay (~16ms). Must be lock-free and async-signal-safe.
+    std::function<void(int note, int vel)> onNoteImmediate;
 
 public:
     static void readProc(const void* pktlist, void* refCon, void* connRefCon);

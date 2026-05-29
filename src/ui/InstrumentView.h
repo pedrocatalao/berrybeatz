@@ -1,6 +1,7 @@
 #pragma once
 #include "OpenMPTInternal.h"
 #include "ModuleController.h"
+#include "EXS24Loader.h"
 #include <cstdint>
 #include <functional>
 
@@ -19,13 +20,17 @@ public:
     void midiPitchBend(int raw14);  // 0–16383, center=8192
     void render(float x, float y, float w, float h);
 
-    // Called when a note preview starts — wire this to ensure the audio engine is running.
+    void loadBrowserInstrument(const EXS24Instrument& instr);
+
     std::function<void()> onNeedAudio;
+    std::function<void()> onAddToSong;
 
 private:
+    void clearBrowserInstrument();
     void loadInstrument();
     void saveInstrument();
     void drawEditor(float x, float y, float w, float h);
+    void drawBrowserEditor(float x, float y, float w, float h);
     void drawEnvelopeGraph(InstrumentEnvData& env, const char* typeLabel, float w, float h);
     void drawNoteKeyboard(float w, float h);
 
@@ -43,4 +48,7 @@ private:
     int m_baseOctave{4};
     int m_kbChannels[128];   // per-note play channel; -1 = not playing
     int m_pitchBend{8192};   // 14-bit MIDI pitch bend, center=8192
+
+    bool m_browserMode{false};
+    EXS24Instrument m_browserInstr;
 };

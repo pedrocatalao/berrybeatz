@@ -15,39 +15,37 @@ namespace {
 
 void NewModuleDialog::open()
 {
-    m_format = 0;
     m_popup.open();
 }
 
 void NewModuleDialog::draw()
 {
-    if (!m_popup.begin("New Module", 320.f, 218.f))
+    constexpr float kW = 300.f;
+    constexpr float kH = 192.f;
+    if (!m_popup.begin("New Module", kW, kH))
         return;
+
+    if (ImGui::IsKeyPressed(ImGuiKey_Escape))
+        ImGui::CloseCurrentPopup();
 
     ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 8.f);
     ImGui::SetCursorPosX(12.f);
     ImGui::TextUnformatted("Select format:");
-
     ImGui::Spacing();
+
+    int chosen = -1;
     for (int i = 0; i < kNumFormats; ++i) {
         ImGui::SetCursorPosX(12.f);
-        ImGui::RadioButton(kFormats[i].label, &m_format, i);
+        if (ImGui::Button(kFormats[i].label, {kW - 24.f, 0.f}))
+            chosen = i;
+        if (i < kNumFormats - 1) ImGui::Spacing();
     }
 
-    ImGui::Spacing();
-    ImGui::Separator();
-    ImGui::Spacing();
-
-    ImGui::SetCursorPosX(12.f);
-    bool create = ImGui::Button("Create", ImVec2(136.f, 0));
-    ImGui::SameLine(0.f, 8.f);
-    bool cancel = ImGui::Button("Cancel", ImVec2(136.f, 0));
-
-    if (create || cancel)
+    if (chosen >= 0)
         ImGui::CloseCurrentPopup();
 
     m_popup.end();
 
-    if (create && onCreate)
-        onCreate(m_format);
+    if (chosen >= 0 && onCreate)
+        onCreate(chosen);
 }

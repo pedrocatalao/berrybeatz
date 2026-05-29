@@ -95,10 +95,16 @@ void MidiEngine::readProc(const void* pktlistVoid, void* refCon, void*)
             } else if (type == 0x90 && j + 2 < pkt->length) {  // Note On
                 int note = pkt->data[j+1] & 0x7F;
                 int vel  = pkt->data[j+2] & 0x7F;
-                self->enqueueNote(note, vel);                   // vel==0 acts as note off
+                if (self->onNoteImmediate)
+                    self->onNoteImmediate(note, vel);           // zero-latency path
+                else
+                    self->enqueueNote(note, vel);               // vel==0 acts as note off
                 j += 3;
             } else if (type == 0x80 && j + 2 < pkt->length) {  // Note Off
-                self->enqueueNote(pkt->data[j+1] & 0x7F, 0);
+                if (self->onNoteImmediate)
+                    self->onNoteImmediate(pkt->data[j+1] & 0x7F, 0);
+                else
+                    self->enqueueNote(pkt->data[j+1] & 0x7F, 0);
                 j += 3;
             } else if (type == 0xE0 && j + 2 < pkt->length) {    // Pitch Bend
                 int lsb = pkt->data[j+1] & 0x7F;

@@ -9,7 +9,7 @@
 #include <chrono>
 
 static constexpr int SAMPLE_RATE  = 48000;
-static constexpr int FRAMES_BLOCK = 480; // 10ms per block
+static constexpr int FRAMES_BLOCK = 256; // ~5.3ms per block
 
 struct PaCallbackData {
     SoundModule*          mod;

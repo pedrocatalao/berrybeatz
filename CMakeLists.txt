@@ -106,6 +106,7 @@ set(SOURCES
     src/platform/CocoaHelpers.mm
     src/platform/Logo.mm
     src/platform/AudioFileLoader.mm
+    src/platform/EXS24Loader.mm
     # assets bundled into Resources/
     assets/img/banner.png
     assets/img/speaker.png
@@ -126,6 +127,7 @@ set_source_files_properties(
     src/platform/CocoaHelpers.mm
     src/platform/Logo.mm
     src/platform/AudioFileLoader.mm
+    src/platform/EXS24Loader.mm
     PROPERTIES LANGUAGE OBJCXX
 )
 

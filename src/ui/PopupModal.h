@@ -115,17 +115,24 @@ private:
             m_winPosY += d.y;
         }
 
-        // × close button
-        ImGui::SetCursorPos({w - kTitleH, 0.f});
-        ImGui::PushStyleColor(ImGuiCol_Button,        IM_COL32(0, 0, 0, 0));
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, kClrModalClose);
-        ImGui::PushStyleColor(ImGuiCol_ButtonActive,  kClrModalCloseAct);
-        ImGui::PushStyleColor(ImGuiCol_Text,          IM_COL32(180, 180, 200, 220));
-        if (ImGui::Button("\xc3\x97##close", {kTitleH, kTitleH})) {
-            m_open = false;
-            ImGui::CloseCurrentPopup();
+        // × close button — same style as the main window controls
+        {
+            const float bsz = kTitleH;
+            ImGui::SetCursorPos({w - bsz, 0.f});
+            ImVec2 bp = ImGui::GetCursorScreenPos();
+            bool clicked = ImGui::InvisibleButton("##close", {bsz, bsz});
+            bool hov = ImGui::IsItemHovered();
+            wdl->AddRectFilled(bp, {bp.x + bsz, bp.y + bsz},
+                               hov ? IM_COL32(140, 28, 28, 255) : IM_COL32(38, 38, 58, 255));
+            const float m  = 4.f;
+            const ImU32 sc = IM_COL32(210, 210, 220, 255);
+            wdl->AddLine({bp.x + m,       bp.y + m},       {bp.x + bsz - m, bp.y + bsz - m}, sc, 1.5f);
+            wdl->AddLine({bp.x + bsz - m, bp.y + m},       {bp.x + m,       bp.y + bsz - m}, sc, 1.5f);
+            if (clicked) {
+                m_open = false;
+                ImGui::CloseCurrentPopup();
+            }
         }
-        ImGui::PopStyleColor(4);
 
         // Position cursor below title bar for content
         ImGui::SetCursorPos({0.f, kTitleH});

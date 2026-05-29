@@ -12,5 +12,4 @@ public:
 
 private:
     PopupModal m_popup;
-    int        m_format {0};
 };

@@ -8,6 +8,7 @@
 #include "SoundModule.h"
 #include "AudioFileLoader.h"
 #include "OpenMPTInternal.h"
+#include "EXS24Loader.h"
 #include "imgui.h"
 #include <GLFW/glfw3.h>
 #include <sys/stat.h>
@@ -101,6 +102,20 @@ App::App() : m_controller(m_state), m_audio(m_state), m_tracker(m_state), m_gene
     m_audio.setAudioConfig(m_settings.audioDeviceIndex, m_settings.sampleRate);
     m_midi.setSource(m_settings.midiInputIndex);
 
+    // Direct note dispatch from the CoreMIDI thread — eliminates the ~16ms polling delay
+    // that would otherwise accumulate in the per-frame render loop.
+    m_midi.onNoteImmediate = [this](int note, int vel) {
+        if (!m_hasModule) return;
+        int tab = m_activeTab.load(std::memory_order_relaxed);
+        if (vel > 0) {
+            if (tab == 2) m_sampleView.midiNoteOn(note, vel);
+            if (tab == 3) m_instrView.midiNoteOn(note, vel);
+        } else {
+            if (tab == 2) m_sampleView.midiNoteOff(note);
+            if (tab == 3) m_instrView.midiNoteOff(note);
+        }
+    };
+
     m_settingsView.onMidiSourceChange = [this](int idx) {
         m_midi.setSource(idx);
     };
@@ -177,6 +192,18 @@ App::App() : m_controller(m_state), m_audio(m_state), m_tracker(m_state), m_gene
 
     m_sidebar.onFileImport = [this](const std::string& path) {
         if (!m_hasModule) return;
+
+        // Detect EXS24 instrument files
+        std::string ext = path.size() > 4 ? path.substr(path.rfind('.') + 1) : "";
+        for (auto& c : ext) c = (char)tolower(c);
+        if (ext == "exs") {
+            m_browserInstrument = EXS24Instrument{};
+            if (!loadEXS24(path, m_browserInstrument)) return;
+            m_instrView.loadBrowserInstrument(m_browserInstrument);
+            m_pendingTab = 3;  // instruments tab
+            return;
+        }
+
         // If the double-clicked file differs from the previewed one, the preview
         // slot can't be reused for "Add to Song" — it has different audio.
         if (path != m_previewPath) m_previewSlot = -1;
@@ -224,6 +251,49 @@ App::App() : m_controller(m_state), m_audio(m_state), m_tracker(m_state), m_gene
         m_browserAudio = {};
         m_previewSlot  = -1;
         m_previewPath.clear();
+    };
+
+    m_instrView.onAddToSong = [this]() {
+        if (!m_hasModule || m_browserInstrument.zones.empty()) return;
+        auto* mod = m_audio.getModule();
+        if (!mod) return;
+
+        int instrIndex = bb_find_free_instrument(mod);
+        if (instrIndex < 0) return;
+        if (!bb_create_instrument(mod, instrIndex, m_browserInstrument.name.c_str())) return;
+
+        for (const auto& zone : m_browserInstrument.zones) {
+            if (zone.samplePath.empty()) continue;
+            DecodedAudio audio;
+            if (!loadAudioFile(zone.samplePath, audio) || audio.pcm.empty()) continue;
+            int slot = bb_find_free_sample(mod);
+            if (slot < 0) continue;
+            uint32_t frames = (uint32_t)(audio.pcm.size() / audio.channels);
+            std::string name = zone.sampleName;
+            if (name.size() > 31) name.resize(31);
+            if (!bb_import_sample_pcm(mod, slot, audio.pcm.data(), frames,
+                                       audio.channels, audio.sampleRate, name.c_str()))
+                continue;
+            int rootMidi = std::max(0, std::min(127, (int)zone.rootNote + zone.coarseTune));
+            bb_sample_set_relative_note(mod, slot, rootMidi);
+            if (zone.fineTune != 0) {
+                SampleData sd = bb_get_sample_data(mod, slot);
+                sd.fineTune = (int8_t)std::max(-128, std::min(127,
+                                  (int)zone.fineTune * 128 / 100));
+                bb_set_sample_data(mod, slot, sd);
+            }
+            for (int n = zone.noteLow; n <= zone.noteHigh && n <= 127; ++n)
+                bb_instrument_set_note(mod, instrIndex, n, slot, 1 + n);
+        }
+
+        {
+            std::lock_guard<std::mutex> lk(m_state.meta_mutex);
+            m_state.num_instruments = mod->getNumInstruments();
+            m_state.num_samples     = mod->getNumSamples();
+        }
+        m_instrView.setController(&m_controller, mod->getNumInstruments());
+        m_instrView.setSelection(instrIndex);  // clears browser mode
+        m_browserInstrument = EXS24Instrument{};
     };
 
     // ── TrackerView callbacks ──────────────────────────────────────────────
@@ -464,7 +534,7 @@ void App::render(int winW, int winH)
     float ch = h - cy;
 
     // Use pending tab if a sidebar click fired this frame, otherwise the confirmed active tab
-    const int displayTab = (m_pendingTab >= 0) ? m_pendingTab : m_activeTab;
+    const int displayTab = (m_pendingTab >= 0) ? m_pendingTab : m_activeTab.load();
 
     if (displayTab == 1) {
         m_tracker.render(cx, cy, cw, ch);

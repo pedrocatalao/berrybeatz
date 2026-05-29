@@ -23,6 +23,7 @@ static void noteToStr(int note, char* buf, int bufsz) {
 // ─── Module / font setup ─────────────────────────────────────────────────────
 
 void InstrumentView::setController(ModuleController* ctrl, int instrCount) {
+    clearBrowserInstrument();
     m_ctrl       = ctrl;
     m_instrCount = instrCount;
     m_sel        = 1;
@@ -99,9 +100,89 @@ void InstrumentView::saveInstrument() {
     m_dirty = false;
 }
 
+// ─── Browser preview ─────────────────────────────────────────────────────────
+
+void InstrumentView::clearBrowserInstrument()
+{
+    m_browserMode  = false;
+    m_browserInstr = EXS24Instrument{};
+}
+
+void InstrumentView::loadBrowserInstrument(const EXS24Instrument& instr)
+{
+    m_browserMode  = true;
+    m_browserInstr = instr;
+}
+
+void InstrumentView::drawBrowserEditor(float x, float y, float w, float h)
+{
+    ImGui::SetCursorScreenPos({x, y});
+    ImGui::PushStyleColor(ImGuiCol_ChildBg, IM_COL32(14, 14, 26, 255));
+    if (!ImGui::BeginChild("##instrBrowser", {w, h}, false)) {
+        ImGui::EndChild();
+        ImGui::PopStyleColor();
+        return;
+    }
+
+    const float kPad = 6.f;
+    ImGui::SetCursorPosX(kPad);
+
+    // Header: name + zone count
+    ImGui::TextColored({0.f, 0.78f, 1.f, 1.f}, "%s", m_browserInstr.name.c_str());
+    ImGui::SameLine();
+    char info[40];
+    snprintf(info, sizeof(info), "  %d zone%s",
+             (int)m_browserInstr.zones.size(),
+             m_browserInstr.zones.size() == 1 ? "" : "s");
+    ImGui::TextDisabled("%s", info);
+
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    // Zone list
+    ImGui::PushStyleColor(ImGuiCol_ChildBg, IM_COL32(10, 10, 18, 255));
+    float listH = h - 96.f;
+    if (listH < 40.f) listH = 40.f;
+    if (ImGui::BeginChild("##zonelist", {w - kPad * 2.f, listH}, false)) {
+        static const char* kNoteNames[12] = {"C","C#","D","D#","E","F","F#","G","G#","A","A#","B"};
+        auto noteStr = [](uint8_t n, char* buf) {
+            snprintf(buf, 8, "%s%d", kNoteNames[n % 12], n / 12);
+        };
+        for (const auto& z : m_browserInstr.zones) {
+            char lo[8], hi[8], ro[8];
+            noteStr(z.noteLow, lo); noteStr(z.noteHigh, hi); noteStr(z.rootNote, ro);
+            char line[128];
+            snprintf(line, sizeof(line), "%-22s  %s-%s  root:%s%s",
+                     z.sampleName.c_str(), lo, hi, ro,
+                     z.samplePath.empty() ? "  [not found]" : "");
+            if (z.samplePath.empty())
+                ImGui::TextDisabled("%s", line);
+            else
+                ImGui::TextUnformatted(line);
+        }
+    }
+    ImGui::EndChild();
+    ImGui::PopStyleColor();
+
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    if (onAddToSong) {
+        ImGui::SetCursorPosX(kPad);
+        if (ImGui::Button("Add to Song", {120.f, 0.f}))
+            onAddToSong();
+    }
+
+    ImGui::EndChild();
+    ImGui::PopStyleColor();
+}
+
 // ─── Top-level render ────────────────────────────────────────────────────────
 
 void InstrumentView::setSelection(int idx) {
+    clearBrowserInstrument();
     if (!m_ctrl || m_instrCount == 0) return;
     idx = std::max(1, std::min(idx, m_instrCount));
     if (idx == m_sel) return;
@@ -111,6 +192,10 @@ void InstrumentView::setSelection(int idx) {
 }
 
 void InstrumentView::render(float x, float y, float w, float h) {
+    if (m_browserMode) {
+        drawBrowserEditor(x, y, w, h);
+        return;
+    }
     if (!m_ctrl || m_instrCount == 0) return;
     drawEditor(x, y, w, h);
     if (m_dirty) saveInstrument();

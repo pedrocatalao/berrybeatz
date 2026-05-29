@@ -16,6 +16,8 @@
 #include "SidebarView.h"
 #include "NewModuleDialog.h"
 #include "AudioFileLoader.h"
+#include "EXS24Loader.h"
+#include <atomic>
 #include <string>
 #include <vector>
 
@@ -70,8 +72,8 @@ private:
     ImFont*     m_fontMono   {nullptr};
     ImFont*     m_fontUI     {nullptr};
 
-    int   m_activeTab  {0};
-    int   m_pendingTab {-1};   // programmatic switch request; -1 = none
+    std::atomic<int> m_activeTab  {0};
+    int              m_pendingTab {-1};   // programmatic switch request; -1 = none
     bool  m_tabsInited {false};
     bool  m_hasModule          {false};
 
@@ -92,8 +94,9 @@ private:
     std::string              m_loadedPath;
     std::vector<SoundLib>    m_soundLibs;
 
-    DecodedAudio             m_browserAudio;   // last file loaded from sidebar browser
+    DecodedAudio             m_browserAudio;       // last audio file loaded from sidebar browser
     std::string              m_browserName;
-    std::string              m_previewPath;    // path of the file currently being previewed
-    int                      m_previewSlot {-1}; // module sample slot used for preview (-1 = none)
+    std::string              m_previewPath;        // path of the file currently being previewed
+    int                      m_previewSlot {-1};   // module sample slot used for preview (-1 = none)
+    EXS24Instrument          m_browserInstrument;  // last EXS24 instrument loaded from sidebar
 };

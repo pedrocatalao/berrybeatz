@@ -395,3 +395,52 @@ void bb_apply_opl_channel_waves(SoundModule* mod,
             out[s] += vframes[s] * scale;
     }
 }
+
+// ─── Instrument building ──────────────────────────────────────────────────────
+
+int bb_find_free_instrument(SoundModule* mod)
+{
+    if (!mod) return -1;
+    auto& sf = getSF(mod);
+    int n = (int)sf.GetNumInstruments();
+    for (int i = 1; i <= n; ++i)
+        if (!sf.Instruments[i]) return i;
+    if (n + 1 < (int)OpenMPT::MAX_INSTRUMENTS)
+        return n + 1;
+    return -1;
+}
+
+bool bb_create_instrument(SoundModule* mod, int instrIndex, const char* name)
+{
+    if (!mod || instrIndex < 1 || instrIndex >= (int)OpenMPT::MAX_INSTRUMENTS) return false;
+    auto& sf = getSF(mod);
+    auto* ins = sf.AllocateInstrument(static_cast<OpenMPT::INSTRUMENTINDEX>(instrIndex));
+    if (!ins) return false;
+    if (name && name[0]) ins->name = name;
+    return true;
+}
+
+void bb_instrument_set_note(SoundModule* mod, int instrIndex,
+                             int midiNote, int sampleIdx, int noteValue)
+{
+    if (!mod || instrIndex < 1 || instrIndex >= (int)OpenMPT::MAX_INSTRUMENTS) return;
+    if (midiNote < 0 || midiNote > 127) return;
+    auto& sf = getSF(mod);
+    auto* ins = sf.Instruments[instrIndex];
+    if (!ins) return;
+    ins->Keyboard[midiNote] = static_cast<OpenMPT::SAMPLEINDEX>(sampleIdx);
+    ins->NoteMap[midiNote]  = static_cast<uint8_t>(noteValue);
+}
+
+void bb_sample_set_relative_note(SoundModule* mod, int sampleIdx, int baseNote)
+{
+    // baseNote: 0-based MIDI (0=C0, 60=C5). RelativeTone shifts the sample so
+    // that hitting baseNote on the keyboard produces the sample's natural pitch.
+    // Formula: RealNote = NoteMap[key] + RelativeTone; natural pitch at C5 (=60).
+    if (!mod || sampleIdx < 1) return;
+    auto& sf = getSF(mod);
+    if (sampleIdx > (int)sf.GetNumSamples()) return;
+    int rt = 60 - baseNote;
+    sf.GetSample(static_cast<OpenMPT::SAMPLEINDEX>(sampleIdx)).RelativeTone =
+        static_cast<int8_t>(std::max(-128, std::min(127, rt)));
+}

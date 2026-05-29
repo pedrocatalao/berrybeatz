@@ -95,6 +95,16 @@ void       bb_build_sample_waveform(SoundModule* mod, int sampleIndex,
 // Disable FT2-style 5ms volume ramping.
 void bb_set_ft2_volume_ramping(SoundModule* mod, bool enabled);
 
+// Import raw 16-bit PCM into a sample slot. sampleIndex is 1-based.
+// Replaces any existing sample data. Returns false on failure.
+bool bb_import_sample_pcm(SoundModule* mod, int sampleIndex,
+                           const int16_t* data, uint32_t frames,
+                           int channels, uint32_t sampleRate,
+                           const char* name = nullptr);
+
+// Return 1-based index of the first sample slot with no PCM data, or -1 if none.
+int  bb_find_free_sample(SoundModule* mod);
+
 // Call BEFORE read() to arm per-channel capture.
 void bb_setup_channel_capture(SoundModule* mod, int nChannels);
 

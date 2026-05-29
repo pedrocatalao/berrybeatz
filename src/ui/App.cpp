@@ -6,8 +6,11 @@
 #include "Logo.h"
 #include "MidiDevices.h"
 #include "SoundModule.h"
+#include "AudioFileLoader.h"
+#include "OpenMPTInternal.h"
 #include "imgui.h"
 #include <GLFW/glfw3.h>
+#include <sys/stat.h>
 #include <cmath>
 #include <algorithm>
 #include <cstdio>
@@ -122,6 +125,73 @@ App::App() : m_controller(m_state), m_audio(m_state), m_tracker(m_state), m_gene
         }
         if (midiChanged)
             m_midi.setSource(s.midiInputIndex);
+    };
+
+    // ── Sound library auto-detection ──────────────────────────────────────
+    {
+        static const struct { const char* label; const char* path; } kLibPaths[] = {
+            { "GarageBand Loops", "/Library/Audio/Apple Loops/Apple" },
+            { "User Apple Loops", nullptr },  // filled below from HOME
+        };
+        auto tryAdd = [&](const char* label, const std::string& path) {
+            struct stat st{};
+            if (stat(path.c_str(), &st) == 0 && S_ISDIR(st.st_mode))
+                m_soundLibs.push_back({label, path});
+        };
+        tryAdd("GarageBand Loops", "/Library/Audio/Apple Loops/Apple");
+        const char* home = getenv("HOME");
+        if (home) tryAdd("User Apple Loops",
+                         std::string(home) + "/Library/Audio/Apple Loops");
+        tryAdd("Logic Instruments", "/Library/Application Support/Logic/Sampler Instruments");
+        tryAdd("GarageBand Instruments", "/Library/Application Support/GarageBand/Instrument Library/Sampler");
+    }
+
+    // ── Sidebar file browser callbacks ────────────────────────────────────
+    m_sidebar.onFilePreview = [this](const std::string& path) {
+        if (!m_hasModule) return;
+        auto* mod = m_audio.getModule();
+        if (!mod) return;
+        DecodedAudio audio;
+        if (!loadAudioFile(path, audio)) return;
+        int slot = bb_find_free_sample(mod);
+        if (slot < 0) slot = 1;  // fallback to slot 1
+        // Strip filename for sample name
+        std::string name = path.substr(path.rfind('/') + 1);
+        auto dot = name.rfind('.');
+        if (dot != std::string::npos) name = name.substr(0, dot);
+        if (name.size() > 31) name.resize(31);
+        bb_import_sample_pcm(mod, slot, audio.pcm.data(),
+                             (uint32_t)(audio.pcm.size() / audio.channels),
+                             audio.channels, audio.sampleRate, name.c_str());
+        m_sampleView.setSelection(slot);
+        m_audio.startPreview();
+        m_controller.playSample(slot, 61, 1.0, 0.0);  // 61 = middle C
+    };
+
+    m_sidebar.onFileImport = [this](const std::string& path) {
+        if (!m_hasModule) return;
+        auto* mod = m_audio.getModule();
+        if (!mod) return;
+        DecodedAudio audio;
+        if (!loadAudioFile(path, audio)) return;
+        int slot = bb_find_free_sample(mod);
+        if (slot < 0) slot = 1;
+        std::string name = path.substr(path.rfind('/') + 1);
+        auto dot = name.rfind('.');
+        if (dot != std::string::npos) name = name.substr(0, dot);
+        if (name.size() > 31) name.resize(31);
+        bb_import_sample_pcm(mod, slot, audio.pcm.data(),
+                             (uint32_t)(audio.pcm.size() / audio.channels),
+                             audio.channels, audio.sampleRate, name.c_str());
+        // Refresh sample count in state
+        {
+            std::lock_guard<std::mutex> lk(m_state.meta_mutex);
+            m_state.sample_names.resize(mod->getNumSamples());
+            m_state.sample_names[slot - 1] = name;
+        }
+        m_sampleView.setController(&m_controller, mod->getNumSamples());
+        m_sampleView.setSelection(slot);
+        m_pendingTab = 2;  // switch to Samples tab
     };
 
     // ── TrackerView callbacks ──────────────────────────────────────────────
@@ -277,6 +347,7 @@ void App::render(int winW, int winH)
                 int p = mod->getOrderPattern(o);
                 if (p >= 0) sd.usedPats.insert(p);
             }
+        sd.soundLibs = m_soundLibs;
         if (g_fontSidebar) ImGui::PushFont(g_fontSidebar);
         m_sidebar.render(0.f, contentY, m_sidebarW, h - contentY, m_hasModule, sd, kTabBarH);
         if (g_fontSidebar) ImGui::PopFont();

@@ -105,6 +105,7 @@ set(SOURCES
     src/platform/WindowChrome.cpp
     src/platform/CocoaHelpers.mm
     src/platform/Logo.mm
+    src/platform/AudioFileLoader.mm
     # assets bundled into Resources/
     assets/img/banner.png
     assets/img/speaker.png
@@ -124,6 +125,7 @@ set_source_files_properties(
     src/platform/MidiEngine.mm
     src/platform/CocoaHelpers.mm
     src/platform/Logo.mm
+    src/platform/AudioFileLoader.mm
     PROPERTIES LANGUAGE OBJCXX
 )
 
@@ -173,6 +175,7 @@ target_link_libraries(BerryBeatz PRIVATE
     "-framework AudioUnit"
     "-framework CoreFoundation"
     "-framework CoreMIDI"
+    "-framework AudioToolbox"
 )
 
 target_compile_options(BerryBeatz PRIVATE ${PORTAUDIO_CFLAGS_OTHER})

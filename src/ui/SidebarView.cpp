@@ -3,6 +3,9 @@
 #include "imgui.h"
 #include "imgui_internal.h"
 #include <cstdio>
+#include <dirent.h>
+#include <sys/stat.h>
+#include <algorithm>
 
 // ─── Node ID scheme ───────────────────────────────────────────────────────────
 //   0        = song root group  (unused in current tree, reserved)
@@ -41,61 +44,150 @@ bool SidebarView::isExpanded(int id) const
     return it->second;
 }
 
+// ─── pathId — stable int ID for a filesystem path ────────────────────────────
+
+int SidebarView::pathId(const std::string& path)
+{
+    auto it = m_pathToId.find(path);
+    if (it != m_pathToId.end()) return it->second;
+    int id = m_nextId++;
+    m_pathToId[path] = id;
+    m_idToPath[id]   = path;
+    return id;
+}
+
+// ─── dirEntries — cached directory listing ────────────────────────────────────
+
+static bool isAudioFile(const std::string& name)
+{
+    auto dot = name.rfind('.');
+    if (dot == std::string::npos) return false;
+    std::string ext = name.substr(dot);
+    for (auto& c : ext) c = (char)tolower(c);
+    return ext == ".caf" || ext == ".aif" || ext == ".aiff" ||
+           ext == ".wav" || ext == ".mp3" || ext == ".exs";
+}
+
+const std::vector<SidebarView::DirEntry>& SidebarView::dirEntries(const std::string& path)
+{
+    auto it = m_dirCache.find(path);
+    if (it != m_dirCache.end()) return it->second;
+
+    std::vector<DirEntry>& entries = m_dirCache[path];
+    DIR* d = opendir(path.c_str());
+    if (!d) return entries;
+
+    struct dirent* ent;
+    while ((ent = readdir(d)) != nullptr) {
+        std::string n = ent->d_name;
+        if (n.empty() || n[0] == '.') continue;
+        std::string full = path + "/" + n;
+        struct stat st{};
+        if (stat(full.c_str(), &st) != 0) continue;
+        bool isDir = S_ISDIR(st.st_mode);
+        if (!isDir && !isAudioFile(n)) continue;
+        entries.push_back({n, full, isDir});
+    }
+    closedir(d);
+
+    std::sort(entries.begin(), entries.end(), [](const DirEntry& a, const DirEntry& b) {
+        if (a.isDir != b.isDir) return a.isDir > b.isDir; // dirs first
+        return a.name < b.name;
+    });
+    return entries;
+}
+
 // ─── buildNodes ──────────────────────────────────────────────────────────────
 
-void SidebarView::buildNodes(std::vector<Node>& out, const SidebarData& d) const
+void SidebarView::buildNodes(std::vector<Node>& out, const SidebarData& d)
 {
     out.clear();
 
     // ── Song root ─────────────────────────────────────────────────────────────
     out.push_back({kIdSongRoot, 0, true, true,
                    d.songTitle.empty() ? "(untitled)" : d.songTitle, -1, -1, -1});
-    if (!isExpanded(kIdSongRoot)) return;
 
-    // ── Instruments ──────────────────────────────────────────────────────────
-    if (!d.instrNames.empty()) {
-        char grp[64];
-        snprintf(grp, sizeof(grp), "Instruments (%d)", (int)d.instrNames.size());
-        out.push_back({kIdInstrGroup, 1, true, true, grp, -1, -1, -1});
+    if (isExpanded(kIdSongRoot)) {
+        // ── Instruments ──────────────────────────────────────────────────────
+        if (!d.instrNames.empty()) {
+            char grp[64];
+            snprintf(grp, sizeof(grp), "Instruments (%d)", (int)d.instrNames.size());
+            out.push_back({kIdInstrGroup, 1, true, true, grp, -1, -1, -1});
 
-        if (isExpanded(kIdInstrGroup)) {
-            for (int i = 0; i < (int)d.instrNames.size(); ++i) {
-                out.push_back({kBaseInstr + i, 2, false, true,
-                               d.instrNames[i].empty() ? "---" : d.instrNames[i],
-                               i + 1, 3, i});
+            if (isExpanded(kIdInstrGroup)) {
+                for (int i = 0; i < (int)d.instrNames.size(); ++i) {
+                    out.push_back({kBaseInstr + i, 2, false, true,
+                                   d.instrNames[i].empty() ? "---" : d.instrNames[i],
+                                   i + 1, 3, i});
+                }
+            }
+        }
+
+        // ── Samples ──────────────────────────────────────────────────────────
+        {
+            char grp[64];
+            snprintf(grp, sizeof(grp), "Samples (%d)", (int)d.sampleNames.size());
+            out.push_back({kIdSampleGroup, 1, true, true, grp, -1, -1, -1});
+
+            if (isExpanded(kIdSampleGroup)) {
+                for (int i = 0; i < (int)d.sampleNames.size(); ++i) {
+                    out.push_back({kBaseSample + i, 2, false, true,
+                                   d.sampleNames[i].empty() ? "---" : d.sampleNames[i],
+                                   i + 1, 2, i});
+                }
+            }
+        }
+
+        // ── Patterns ─────────────────────────────────────────────────────────
+        {
+            char grp[64];
+            snprintf(grp, sizeof(grp), "Patterns (%d)", (int)d.patNames.size());
+            out.push_back({kIdPatGroup, 1, true, true, grp, -1, -1, -1});
+
+            if (isExpanded(kIdPatGroup)) {
+                for (int i = 0; i < (int)d.patNames.size(); ++i) {
+                    bool used = d.usedPats.count(i) > 0;
+                    out.push_back({kBasePat + i, 2, false, used,
+                                   d.patNames[i].empty() ? "---" : d.patNames[i],
+                                   i, 1, i});
+                }
             }
         }
     }
 
-    // ── Samples ──────────────────────────────────────────────────────────────
-    {
-        char grp[64];
-        snprintf(grp, sizeof(grp), "Samples (%d)", (int)d.sampleNames.size());
-        out.push_back({kIdSampleGroup, 1, true, true, grp, -1, -1, -1});
+    // ── Sound Libraries (file browser) — always visible, sibling to song root ──
+    for (auto& lib : d.soundLibs) {
+        bool isNew = (m_pathToId.find(lib.path) == m_pathToId.end());
+        int libId = pathId(lib.path);
+        if (isNew) m_expanded[libId] = false;   // default collapsed on first encounter
+        Node libNode{};
+        libNode.id      = libId;
+        libNode.depth   = 0;
+        libNode.isGroup = true;
+        libNode.enabled = true;
+        libNode.name    = lib.name;
+        libNode.path    = lib.path;
+        out.push_back(libNode);
+        if (!isExpanded(libId)) continue;
 
-        if (isExpanded(kIdSampleGroup)) {
-            for (int i = 0; i < (int)d.sampleNames.size(); ++i) {
-                out.push_back({kBaseSample + i, 2, false, true,
-                               d.sampleNames[i].empty() ? "---" : d.sampleNames[i],
-                               i + 1, 2, i});
+        std::function<void(const std::string&, int)> addDir =
+            [&](const std::string& dirPath, int depth) {
+            for (auto& entry : dirEntries(dirPath)) {
+                int entId = pathId(entry.path);
+                Node n{};
+                n.id      = entId;
+                n.depth   = depth;
+                n.isGroup = entry.isDir;
+                n.enabled = true;
+                n.name    = entry.name;
+                n.path    = entry.path;
+                n.isFile  = !entry.isDir;
+                out.push_back(n);
+                if (entry.isDir && isExpanded(entId))
+                    addDir(entry.path, depth + 1);
             }
-        }
-    }
-
-    // ── Patterns ─────────────────────────────────────────────────────────────
-    {
-        char grp[64];
-        snprintf(grp, sizeof(grp), "Patterns (%d)", (int)d.patNames.size());
-        out.push_back({kIdPatGroup, 1, true, true, grp, -1, -1, -1});
-
-        if (isExpanded(kIdPatGroup)) {
-            for (int i = 0; i < (int)d.patNames.size(); ++i) {
-                bool used = d.usedPats.count(i) > 0;
-                out.push_back({kBasePat + i, 2, false, used,
-                               d.patNames[i].empty() ? "---" : d.patNames[i],
-                               i, 1, i});
-            }
-        }
+        };
+        addDir(lib.path, 1);
     }
 }
 
@@ -237,7 +329,9 @@ void SidebarView::render(float x, float y, float w, float h,
         }
         else if (ImGui::IsKeyPressed(ImGuiKey_Enter, false) && cursorIdx >= 0) {
             const Node& cur = nodes[cursorIdx];
-            if (!cur.isGroup && cur.enabled && onLeafActivated) {
+            if (cur.isFile) {
+                if (onFileImport) onFileImport(cur.path);
+            } else if (!cur.isGroup && cur.enabled && onLeafActivated) {
                 onLeafActivated(cur.tab, cur.idx);
             }
         }
@@ -300,10 +394,18 @@ void SidebarView::render(float x, float y, float w, float h,
             dl->AddText({cx + numW, textY}, n.enabled ? kTextNorm : kTextDim, n.name.c_str());
         }
 
-        if (clicked) {
+        bool dblClicked = ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0);
+
+        if (clicked || dblClicked) {
             m_cursorId = n.id;
             cursorIdx  = i;
-            if (n.isGroup) {
+            if (n.isFile) {
+                if (dblClicked) {
+                    if (onFileImport) onFileImport(n.path);
+                } else {
+                    if (onFilePreview) onFilePreview(n.path);
+                }
+            } else if (n.isGroup) {
                 m_expanded[n.id] = !isExpanded(n.id);
             } else if (n.enabled && onLeafActivated) {
                 onLeafActivated(n.tab, n.idx);

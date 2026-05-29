@@ -263,6 +263,48 @@ int32_t bb_play_sample(SoundModule* mod, int sampleIndex, int note, double volum
     return static_cast<int32_t>(ch);
 }
 
+bool bb_import_sample_pcm(SoundModule* mod, int sampleIndex,
+                           const int16_t* data, uint32_t frames,
+                           int channels, uint32_t sampleRate,
+                           const char* name)
+{
+    if (!mod || !data || frames == 0) return false;
+    auto& sf = getSF(mod);
+    if (sampleIndex < 1 || sampleIndex > (int)sf.GetNumSamples()) return false;
+
+    auto& smp = sf.GetSample(static_cast<OpenMPT::SAMPLEINDEX>(sampleIndex));
+    smp.FreeSample();
+
+    smp.uFlags.set(OpenMPT::CHN_16BIT,  true);
+    smp.uFlags.set(OpenMPT::CHN_STEREO, channels == 2);
+    smp.nLength  = frames;
+    smp.nC5Speed = sampleRate;
+
+    if (!smp.AllocateSample()) {
+        smp.nLength = 0;
+        return false;
+    }
+
+    std::memcpy(smp.pData.pSample16, data,
+                (size_t)frames * (size_t)channels * sizeof(int16_t));
+
+    if (name && name[0])
+        sf.m_szNames[sampleIndex] = name;
+
+    return true;
+}
+
+int bb_find_free_sample(SoundModule* mod)
+{
+    if (!mod) return -1;
+    auto& sf = getSF(mod);
+    int n = (int)sf.GetNumSamples();
+    for (int i = 1; i <= n; ++i)
+        if (!sf.GetSample(static_cast<OpenMPT::SAMPLEINDEX>(i)).HasSampleData())
+            return i;
+    return -1;
+}
+
 void bb_build_sample_waveform(SoundModule* mod, int sampleIndex,
                                std::vector<float>& waveMin, std::vector<float>& waveMax,
                                int& outLen, int width) {

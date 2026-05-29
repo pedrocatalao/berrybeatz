@@ -16,6 +16,7 @@
 #include "SidebarView.h"
 #include "NewModuleDialog.h"
 #include <string>
+#include <vector>
 
 struct ImFont;
 struct GLFWwindow;
@@ -87,5 +88,6 @@ private:
     static constexpr float kTabBarH   = 26.f;
     static constexpr float kSplitterW =  6.f;  // hit area; line drawn at 1px centre
 
-    std::string m_loadedPath;
+    std::string              m_loadedPath;
+    std::vector<SoundLib>    m_soundLibs;
 };

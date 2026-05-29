@@ -335,6 +335,10 @@ void SidebarView::render(float x, float y, float w, float h,
                 onLeafActivated(cur.tab, cur.idx);
             }
         }
+        else if (ImGui::IsKeyPressed(ImGuiKey_Space, false) && cursorIdx >= 0) {
+            const Node& cur = nodes[cursorIdx];
+            if (cur.isFile && onFilePreview) onFilePreview(cur.path);
+        }
     }
 
     // ── Render nodes ──────────────────────────────────────────────────────────
@@ -402,9 +406,8 @@ void SidebarView::render(float x, float y, float w, float h,
             if (n.isFile) {
                 if (dblClicked) {
                     if (onFileImport) onFileImport(n.path);
-                } else {
-                    if (onFilePreview) onFilePreview(n.path);
                 }
+                // single click just selects — use Space to preview
             } else if (n.isGroup) {
                 m_expanded[n.id] = !isExpanded(n.id);
             } else if (n.enabled && onLeafActivated) {

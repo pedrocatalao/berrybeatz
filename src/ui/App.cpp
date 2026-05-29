@@ -149,13 +149,19 @@ App::App() : m_controller(m_state), m_audio(m_state), m_tracker(m_state), m_gene
     // ── Sidebar file browser callbacks ────────────────────────────────────
     m_sidebar.onFilePreview = [this](const std::string& path) {
         if (!m_hasModule) return;
+        // Toggle: stop if already previewing this file, play otherwise
+        if (m_audio.isPreviewing() && path == m_previewPath) {
+            m_audio.stopPreview();
+            m_previewPath.clear();
+            return;
+        }
         auto* mod = m_audio.getModule();
         if (!mod) return;
         DecodedAudio audio;
         if (!loadAudioFile(path, audio)) return;
-        int slot = bb_find_free_sample(mod);
-        if (slot < 0) slot = 1;  // fallback to slot 1
-        // Strip filename for sample name
+        // Reuse the same preview slot to avoid accumulating ghost samples
+        int slot = (m_previewSlot > 0) ? m_previewSlot : bb_find_free_sample(mod);
+        if (slot < 0) return;
         std::string name = path.substr(path.rfind('/') + 1);
         auto dot = name.rfind('.');
         if (dot != std::string::npos) name = name.substr(0, dot);
@@ -163,35 +169,61 @@ App::App() : m_controller(m_state), m_audio(m_state), m_tracker(m_state), m_gene
         bb_import_sample_pcm(mod, slot, audio.pcm.data(),
                              (uint32_t)(audio.pcm.size() / audio.channels),
                              audio.channels, audio.sampleRate, name.c_str());
-        m_sampleView.setSelection(slot);
         m_audio.startPreview();
-        m_controller.playSample(slot, 61, 1.0, 0.0);  // 61 = middle C
+        m_controller.playSample(slot, 61, 1.0, 0.0);
+        m_previewPath = path;
+        m_previewSlot = slot;
     };
 
     m_sidebar.onFileImport = [this](const std::string& path) {
         if (!m_hasModule) return;
+        // If the double-clicked file differs from the previewed one, the preview
+        // slot can't be reused for "Add to Song" — it has different audio.
+        if (path != m_previewPath) m_previewSlot = -1;
+        m_browserAudio = {};
+        if (!loadAudioFile(path, m_browserAudio)) return;
+        m_browserName = path.substr(path.rfind('/') + 1);
+        auto dot = m_browserName.rfind('.');
+        if (dot != std::string::npos) m_browserName = m_browserName.substr(0, dot);
+        if (m_browserName.size() > 31) m_browserName.resize(31);
+        m_sampleView.loadBrowserSample(m_browserAudio.pcm.data(),
+                                        m_browserAudio.pcm.size() / m_browserAudio.channels,
+                                        m_browserAudio.channels, m_browserAudio.sampleRate,
+                                        m_browserName);
+        m_pendingTab = 2;
+    };
+
+    m_sampleView.onAddToSong = [this]() {
+        if (!m_hasModule) return;
         auto* mod = m_audio.getModule();
         if (!mod) return;
-        DecodedAudio audio;
-        if (!loadAudioFile(path, audio)) return;
-        int slot = bb_find_free_sample(mod);
-        if (slot < 0) slot = 1;
-        std::string name = path.substr(path.rfind('/') + 1);
-        auto dot = name.rfind('.');
-        if (dot != std::string::npos) name = name.substr(0, dot);
-        if (name.size() > 31) name.resize(31);
-        bb_import_sample_pcm(mod, slot, audio.pcm.data(),
-                             (uint32_t)(audio.pcm.size() / audio.channels),
-                             audio.channels, audio.sampleRate, name.c_str());
-        // Refresh sample count in state
+        int slot = -1;
+        if (m_previewSlot > 0) {
+            // Sample already imported into the preview slot — reuse it
+            slot = m_previewSlot;
+        } else {
+            // No prior preview — import from the browser buffer
+            if (m_browserAudio.pcm.empty()) return;
+            slot = bb_find_free_sample(mod);
+            if (slot < 0) return;
+            uint32_t frames = (uint32_t)(m_browserAudio.pcm.size() / m_browserAudio.channels);
+            if (!bb_import_sample_pcm(mod, slot, m_browserAudio.pcm.data(), frames,
+                                       m_browserAudio.channels, m_browserAudio.sampleRate,
+                                       m_browserName.c_str()))
+                return;
+        }
+        m_audio.stopPreview();
         {
             std::lock_guard<std::mutex> lk(m_state.meta_mutex);
-            m_state.sample_names.resize(mod->getNumSamples());
-            m_state.sample_names[slot - 1] = name;
+            int n = mod->getNumSamples();
+            m_state.sample_names.resize(n);
+            if (slot - 1 < n) m_state.sample_names[slot - 1] = m_browserName;
         }
         m_sampleView.setController(&m_controller, mod->getNumSamples());
-        m_sampleView.setSelection(slot);
-        m_pendingTab = 2;  // switch to Samples tab
+        m_sampleView.setSelection(slot);  // clears browser mode
+        m_browserAudio = {};
+        m_previewSlot  = -1;
+        m_previewPath.clear();
     };
 
     // ── TrackerView callbacks ──────────────────────────────────────────────

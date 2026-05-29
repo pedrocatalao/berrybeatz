@@ -42,6 +42,7 @@ public:
     // play_note() interactive channels are audible. Safe to call when stopped.
     void    startPreview();
     void    stopPreview();
+    bool    isPreviewing() const { return m_previewMode.load(); }
 
     void    seekSeconds(double seconds);
     void    seekToOrder(int32_t order);

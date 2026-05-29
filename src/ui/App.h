@@ -15,6 +15,7 @@
 #include "MidiEngine.h"
 #include "SidebarView.h"
 #include "NewModuleDialog.h"
+#include "AudioFileLoader.h"
 #include <string>
 #include <vector>
 
@@ -90,4 +91,9 @@ private:
 
     std::string              m_loadedPath;
     std::vector<SoundLib>    m_soundLibs;
+
+    DecodedAudio             m_browserAudio;   // last file loaded from sidebar browser
+    std::string              m_browserName;
+    std::string              m_previewPath;    // path of the file currently being previewed
+    int                      m_previewSlot {-1}; // module sample slot used for preview (-1 = none)
 };

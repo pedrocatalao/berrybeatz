@@ -21,6 +21,7 @@ static void smpNoteToStr(int note, char* buf, int bufsz) {
 // ─── Module / font setup ─────────────────────────────────────────────────────
 
 void SampleView::setController(ModuleController* ctrl, int sampleCount) {
+    clearBrowserSample();
     m_ctrl        = ctrl;
     m_sampleCount = sampleCount;
     m_sel         = 1;
@@ -103,9 +104,107 @@ void SampleView::saveSample() {
     m_dirty = false;
 }
 
+// ─── Browser preview ─────────────────────────────────────────────────────────
+
+void SampleView::clearBrowserSample()
+{
+    m_browserMode     = false;
+    m_browserName.clear();
+    m_browserFrames   = 0;
+    m_browserChannels = 1;
+    m_browserSampleRate = 0;
+}
+
+void SampleView::loadBrowserSample(const int16_t* pcm, uint32_t frames, int channels,
+                                    uint32_t sampleRate, const std::string& name)
+{
+    m_browserMode       = true;
+    m_browserName       = name;
+    m_browserFrames     = frames;
+    m_browserChannels   = channels;
+    m_browserSampleRate = sampleRate;
+
+    // Build min/max waveform from raw PCM (same bucketing as bb_build_sample_waveform)
+    constexpr int kBuckets = 1024;
+    m_waveMin.assign(kBuckets, 0.f);
+    m_waveMax.assign(kBuckets, 0.f);
+    m_waveLen = kBuckets;
+
+    if (frames > 0 && pcm) {
+        for (int b = 0; b < kBuckets; ++b) {
+            uint32_t s0 = (uint64_t)b       * frames / kBuckets;
+            uint32_t s1 = (uint64_t)(b + 1) * frames / kBuckets;
+            if (s1 <= s0) s1 = s0 + 1;
+            float mn = 0.f, mx = 0.f;
+            for (uint32_t s = s0; s < s1 && s < frames; ++s) {
+                // Mix channels to mono for display
+                float v = 0.f;
+                for (int c = 0; c < channels; ++c)
+                    v += pcm[s * channels + c] / 32768.f;
+                v /= (float)channels;
+                if (v < mn) mn = v;
+                if (v > mx) mx = v;
+            }
+            m_waveMin[b] = mn;
+            m_waveMax[b] = mx;
+        }
+    }
+}
+
+void SampleView::drawBrowserEditor(float x, float y, float w, float h)
+{
+    ImGui::SetCursorScreenPos({x, y});
+    ImGui::PushStyleColor(ImGuiCol_ChildBg, IM_COL32(14, 14, 26, 255));
+    if (!ImGui::BeginChild("##sampleEd", {w, h}, false)) {
+        ImGui::EndChild();
+        ImGui::PopStyleColor();
+        return;
+    }
+
+    const float kPad = 6.f;
+    float cw = w - kPad * 2.f;
+    ImGui::SetCursorPosX(kPad);
+
+    // Header: name + metadata
+    ImGui::TextColored({0.f, 0.78f, 1.f, 1.f}, "%s", m_browserName.c_str());
+    ImGui::SameLine();
+    char info[64];
+    snprintf(info, sizeof(info), "  %s  %u Hz",
+             m_browserChannels == 2 ? "Stereo" : "Mono", m_browserSampleRate);
+    ImGui::TextDisabled("%s", info);
+
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    // Waveform
+    constexpr float kWaveH = 140.f;
+    ImGui::PushStyleColor(ImGuiCol_ChildBg, IM_COL32(10, 10, 18, 255));
+    if (ImGui::BeginChild("##bwave", {cw, kWaveH}, false)) {
+        drawWaveform(cw, kWaveH);
+    }
+    ImGui::EndChild();
+    ImGui::PopStyleColor();
+
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    // "Add to Song" button
+    if (onAddToSong) {
+        ImGui::SetCursorPosX(kPad);
+        if (ImGui::Button("Add to Song", {120.f, 0.f}))
+            onAddToSong();
+    }
+
+    ImGui::EndChild();
+    ImGui::PopStyleColor();
+}
+
 // ─── Top-level render ────────────────────────────────────────────────────────
 
 void SampleView::setSelection(int idx) {
+    clearBrowserSample();
     if (!m_ctrl || m_sampleCount == 0) return;
     idx = std::max(1, std::min(idx, m_sampleCount));
     if (idx == m_sel) return;
@@ -115,6 +214,10 @@ void SampleView::setSelection(int idx) {
 }
 
 void SampleView::render(float x, float y, float w, float h) {
+    if (m_browserMode) {
+        drawBrowserEditor(x, y, w, h);
+        return;
+    }
     if (!m_ctrl || m_sampleCount == 0) return;
     drawEditor(x, y, w, h);
     if (m_dirty) saveSample();

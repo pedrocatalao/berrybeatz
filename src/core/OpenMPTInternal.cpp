@@ -302,6 +302,11 @@ int bb_find_free_sample(SoundModule* mod)
     for (int i = 1; i <= n; ++i)
         if (!sf.GetSample(static_cast<OpenMPT::SAMPLEINDEX>(i)).HasSampleData())
             return i;
+    // No free slot — extend the sample table if possible
+    if (sf.CanAddMoreSamples()) {
+        sf.m_nSamples = static_cast<OpenMPT::SAMPLEINDEX>(n + 1);
+        return n + 1;
+    }
     return -1;
 }
 

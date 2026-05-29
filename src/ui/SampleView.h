@@ -20,12 +20,20 @@ public:
     void midiPitchBend(int raw14);  // 0–16383, center=8192
     void render(float x, float y, float w, float h);
 
+    // Load a PCM buffer from the file browser for preview — shows waveform
+    // and an "Add to Song" button without importing into the module.
+    void loadBrowserSample(const int16_t* pcm, uint32_t frames, int channels,
+                           uint32_t sampleRate, const std::string& name);
+
     std::function<void()> onNeedAudio;
+    std::function<void()> onAddToSong;  // fired when user clicks "Add to Song"
 
 private:
+    void clearBrowserSample();
     void loadSample();
     void saveSample();
     void drawEditor(float x, float y, float w, float h);
+    void drawBrowserEditor(float x, float y, float w, float h);
     void drawWaveform(float w, float h);
     void drawNoteKeyboard(float w, float h);
 
@@ -43,4 +51,11 @@ private:
     int m_pitchBend{8192};   // 14-bit MIDI pitch bend, center=8192
     std::vector<float> m_waveMin, m_waveMax;
     int m_waveLen{0};
+
+    // Browser preview state (not part of the module)
+    bool m_browserMode{false};
+    std::string m_browserName;
+    uint32_t m_browserFrames{0};
+    int m_browserChannels{1};
+    uint32_t m_browserSampleRate{0};
 };

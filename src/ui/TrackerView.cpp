@@ -820,7 +820,7 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
 
     bool  playing    = m_state.is_playing.load();
     bool  patChanged = (curPat != m_lastPattern);
-    bool  rowRewound = (playing && !m_editMode && curAbsRow < m_lastAbsRow - 2);
+    bool  rowRewound = (playing && curAbsRow < m_lastAbsRow - 2);
     bool  navSnap    = m_navSnapPending; m_navSnapPending = false;
     // In continuous mode pattern boundaries are seamless — only snap on actual
     // backward jumps (loop restart / seek), not on natural forward progression.
@@ -867,7 +867,7 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
     } else if (needsSnap) {
         newScrollY  = float(curAbsRow) * rowH - visH * 0.5f + rowH * 2.5f;
         forceScroll = true;
-    } else if (playing && !m_editMode && m_followSong && m_scrollSuppressTimer == 0.f) {
+    } else if (playing && m_followSong && m_scrollSuppressTimer == 0.f) {
         float targetY = float(curAbsRow) * rowH - visH * 0.5f + rowH * 2.5f;
         newScrollY  = currentScrollY + (targetY - currentScrollY) * std::min(1.0f, 8.0f * dt);
         forceScroll = true;
@@ -933,7 +933,7 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
         auto          dimIt    = m_slotDim.find(slot.orderIdx);
         const float   dimFactor = dimIt != m_slotDim.end() ? dimIt->second : (isActive ? 1.0f : 0.5f);
 
-        bool isCur     = m_editMode ? (absR == editAbsRow) : (isActive && localR == curRow);
+        bool isCur     = isActive && localR == curRow;
         bool isMeasure = (localR % slot.rpm == 0);
         bool isBeat    = (localR % slot.rpb == 0) && !isMeasure;
 

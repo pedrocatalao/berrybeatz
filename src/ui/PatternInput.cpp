@@ -27,8 +27,6 @@ static constexpr NoteKey kHexKeys[] = {
 void TrackerView::setEditMode(bool on) {
     if (on == m_editMode) return;
     m_editMode = on;
-    if (on) { m_followSongSaved = m_followSong; m_followSong = false; }
-    else      m_followSong = m_followSongSaved;
 }
 
 // ── Cursor helpers ────────────────────────────────────────────────────────────

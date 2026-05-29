@@ -5,7 +5,7 @@
 #include "TrackerView.h"
 #include "ModuleController.h"
 #include "PatternEditor.h"
-#include <libopenmpt/libopenmpt_ext.hpp>
+#include "SoundModule.h"
 #include <imgui.h>
 #include <algorithm>
 
@@ -461,7 +461,7 @@ void TrackerView::drawOrderList(float /*x*/, float /*y*/, float /*w*/) {
         ImGui::PushStyleColor(ImGuiCol_ButtonActive,  {btnBg.x+.2f, btnBg.y+.2f, btnBg.z+.3f, 1.f});
         ImGui::PushStyleColor(ImGuiCol_Text,          isCur ? kTextCurRow : kTextNormal);
 
-        int32_t pat = m_ctrl ? m_ctrl->module()->get_order_pattern(i) : i;
+        int32_t pat = m_ctrl ? m_ctrl->module()->getOrderPattern(i) : i;
         char label[12];
         snprintf(label, sizeof(label), "%02d##o%d", pat, i);
         if (ImGui::Button(label, {boxW, boxH}))
@@ -550,11 +550,11 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
     int32_t curPat  = m_state.current_pattern.load();
     int32_t curRow  = m_state.current_row.load();
     int32_t nch     = m_state.num_channels.load();
-    int32_t nrows   = mod->get_pattern_num_rows(curPat);
+    int32_t nrows   = mod->getPatternNumRows(curPat);
 
-    int rpb = mod->get_pattern_rows_per_beat(curPat);
+    int rpb = mod->getPatternRowsPerBeat(curPat);
     if (rpb <= 0) rpb = 4;
-    int rpm = mod->get_pattern_rows_per_measure(curPat);
+    int rpm = mod->getPatternRowsPerMeasure(curPat);
     if (rpm <= 0) rpm = 16;
 
     int32_t curOrder = m_state.current_order.load();
@@ -568,11 +568,11 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
         int32_t numOrders = m_state.num_orders.load();
         slots.reserve(numOrders);
         for (int32_t o = 0; o < numOrders; ++o) {
-            int32_t p  = (int32_t)mod->get_order_pattern(o);
-            int32_t pr = (p >= 0) ? (int32_t)mod->get_pattern_num_rows(p) : 0;
+            int32_t p  = (int32_t)mod->getOrderPattern(o);
+            int32_t pr = (p >= 0) ? (int32_t)mod->getPatternNumRows(p) : 0;
             if (pr <= 0) continue;
-            int prpb = mod->get_pattern_rows_per_beat(p);    if (prpb <= 0) prpb = 4;
-            int prpm = mod->get_pattern_rows_per_measure(p); if (prpm <= 0) prpm = 16;
+            int prpb = mod->getPatternRowsPerBeat(p);    if (prpb <= 0) prpb = 4;
+            int prpm = mod->getPatternRowsPerMeasure(p); if (prpm <= 0) prpm = 16;
             if (o == curOrder) curAbsRow = totalRows + curRow;
             slots.push_back({p, pr, totalRows, o, prpb, prpm});
             totalRows += pr;
@@ -820,10 +820,11 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
 
     bool  playing    = m_state.is_playing.load();
     bool  patChanged = (curPat != m_lastPattern);
-    bool  rowRewound = (playing && !m_editMode && curAbsRow < m_lastAbsRow - 2);
+    bool  rowRewound = (playing && curAbsRow < m_lastAbsRow - 2);
+    bool  navSnap    = m_navSnapPending; m_navSnapPending = false;
     // In continuous mode pattern boundaries are seamless — only snap on actual
     // backward jumps (loop restart / seek), not on natural forward progression.
-    bool  needsSnap  = m_continuousScroll ? rowRewound : (patChanged || rowRewound);
+    bool  needsSnap  = m_continuousScroll ? (rowRewound || navSnap) : (patChanged || rowRewound || navSnap);
 
     bool  forceScroll  = false;
     float newScrollY   = currentScrollY;
@@ -866,7 +867,7 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
     } else if (needsSnap) {
         newScrollY  = float(curAbsRow) * rowH - visH * 0.5f + rowH * 2.5f;
         forceScroll = true;
-    } else if (playing && !m_editMode && m_followSong && m_scrollSuppressTimer == 0.f) {
+    } else if (playing && m_followSong && m_scrollSuppressTimer == 0.f) {
         float targetY = float(curAbsRow) * rowH - visH * 0.5f + rowH * 2.5f;
         newScrollY  = currentScrollY + (targetY - currentScrollY) * std::min(1.0f, 8.0f * dt);
         forceScroll = true;
@@ -932,7 +933,7 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
         auto          dimIt    = m_slotDim.find(slot.orderIdx);
         const float   dimFactor = dimIt != m_slotDim.end() ? dimIt->second : (isActive ? 1.0f : 0.5f);
 
-        bool isCur     = m_editMode ? (absR == editAbsRow) : (isActive && localR == curRow);
+        bool isCur     = isActive && localR == curRow;
         bool isMeasure = (localR % slot.rpm == 0);
         bool isBeat    = (localR % slot.rpb == 0) && !isMeasure;
 
@@ -1029,10 +1030,10 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
                 if (col == 0) cellY = cp.y;
             };
 
-            std::string note  = mod->format_pattern_row_channel_command(slot.pat, localR, ch, openmpt::module::command_note);
-            std::string inst  = showInst ? mod->format_pattern_row_channel_command(slot.pat, localR, ch, openmpt::module::command_instrument) : "";
-            std::string fx    = showFx   ? mod->format_pattern_row_channel_command(slot.pat, localR, ch, openmpt::module::command_effect)       : "";
-            std::string fxp   = showFx   ? mod->format_pattern_row_channel_command(slot.pat, localR, ch, openmpt::module::command_parameter)    : "";
+            std::string note  = mod->formatCellCommand(slot.pat, localR, ch, SoundModule::COMMAND_NOTE);
+            std::string inst  = showInst ? mod->formatCellCommand(slot.pat, localR, ch, SoundModule::COMMAND_INSTRUMENT) : "";
+            std::string fx    = showFx   ? mod->formatCellCommand(slot.pat, localR, ch, SoundModule::COMMAND_EFFECT)     : "";
+            std::string fxp   = showFx   ? mod->formatCellCommand(slot.pat, localR, ch, SoundModule::COMMAND_PARAMETER)  : "";
 
             // libopenmpt formats vol as hex; read raw cell and format as decimal to match OpenMPT
             PatternCell rawCell{};

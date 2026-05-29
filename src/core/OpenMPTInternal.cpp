@@ -1,46 +1,35 @@
-// This TU accesses OpenMPT soundlib internals.
-// LIBOPENMPT_BUILD is set via compile definitions (CMakeLists).
-// BERRYBEATZ_FILESAVE prevents BuildSettings.h from setting MODPLUG_NO_FILESAVE,
-// making Save* method declarations visible in Sndfile.h.
-// The actual save symbols are provided by libopenmpt.a (built with -DBERRYBEATZ_FILESAVE).
+// OpenMPTInternal.cpp — direct CSoundFile access via SoundModule::getCSFRaw().
+// Compiled with LIBOPENMPT_BUILD + soundlib include paths (see CMakeLists.txt).
 #define BERRYBEATZ_FILESAVE
 
-// stdafx.h is the canonical OpenMPT prelude: brings in all common types,
-// ILog, LogLevel, charbuf, mpt::String etc. that soundlib headers rely on.
 #include "common/stdafx.h"
-
 #include "soundlib/Sndfile.h"
 #include "soundlib/patternContainer.h"
 #include "soundlib/pattern.h"
 #include "soundlib/OPL.h"
 
+#include "SoundModule.h"
 #include "OpenMPTInternal.h"
 
 #include <fstream>
 #include <string>
 #include <cstring>
-#include <cmath>
 
-// Provided by OpenMPTInternalGet.cpp — extracts CSoundFile* via libopenmpt
-// internal cast (kept in a separate TU to avoid header namespace conflict).
-void* bb_get_soundfile_ptr(openmpt::module_ext* mod);
-
-static OpenMPT::CSoundFile& getSF(openmpt::module_ext* mod) {
-    return *static_cast<OpenMPT::CSoundFile*>(bb_get_soundfile_ptr(mod));
+static OpenMPT::CSoundFile& getSF(SoundModule* mod) {
+    return *static_cast<OpenMPT::CSoundFile*>(mod->getCSFRaw());
 }
 
-bool bb_save_module(openmpt::module_ext* mod, const std::string& path, const std::string& type) {
+bool bb_save_module(SoundModule* mod, const std::string& path, const std::string& type) {
     std::ofstream f(path, std::ios::binary);
     if (!f) return false;
     auto& sf = getSF(mod);
     if (type == "xm")  return sf.SaveXM(f);
     if (type == "s3m") return sf.SaveS3M(f);
     if (type == "mod") return sf.SaveMod(f);
-    // IT and MPTM: pass empty PathString (embedded samples only)
     return sf.SaveIT(f, OpenMPT::mpt::PathString{});
 }
 
-int bb_insert_pattern(openmpt::module_ext* mod, int rows) {
+int bb_insert_pattern(SoundModule* mod, int rows) {
     auto& sf = getSF(mod);
     OpenMPT::PATTERNINDEX idx = sf.Patterns.InsertAny(
         static_cast<OpenMPT::ROWINDEX>(rows));
@@ -80,7 +69,7 @@ static void writeEnvData(OpenMPT::InstrumentEnvelope& dst, const InstrumentEnvDa
     dst.nSustainEnd   = src.sustainEnd;
 }
 
-InstrumentData bb_get_instrument_data(openmpt::module_ext* mod, int instrIndex) {
+InstrumentData bb_get_instrument_data(SoundModule* mod, int instrIndex) {
     InstrumentData d;
     if (!mod) return d;
     auto& sf = getSF(mod);
@@ -88,54 +77,46 @@ InstrumentData bb_get_instrument_data(openmpt::module_ext* mod, int instrIndex) 
     auto* ins = sf.Instruments[instrIndex];
     if (!ins) return d;
 
-    // Name / filename
     {
-        std::string n = ins->GetName();
+        std::string n  = ins->GetName();
         std::string fn = ins->GetFilename();
         strncpy(d.name,     n.c_str(),  31);  d.name[31]     = '\0';
         strncpy(d.filename, fn.c_str(), 31);  d.filename[31] = '\0';
     }
+    d.globalVol  = ins->nGlobalVol;
+    d.fadeOut    = ins->nFadeOut;
+    d.pan        = ins->nPan;
+    d.panEnabled = ins->dwFlags[OpenMPT::INS_SETPANNING];
+    d.volSwing   = ins->nVolSwing;
+    d.panSwing   = ins->nPanSwing;
+    d.pps        = ins->nPPS;
+    d.ppc        = ins->nPPC;
 
-    d.globalVol     = ins->nGlobalVol;
-    d.fadeOut       = ins->nFadeOut;
-    d.pan           = ins->nPan;
-    d.panEnabled    = ins->dwFlags[OpenMPT::INS_SETPANNING];
-    d.volSwing      = ins->nVolSwing;
-    d.panSwing      = ins->nPanSwing;
-    d.pps           = ins->nPPS;
-    d.ppc           = ins->nPPC;
-
-    // Filter
-    uint8_t ifc = ins->nIFC;
-    uint8_t ifr = ins->nIFR;
+    uint8_t ifc = ins->nIFC, ifr = ins->nIFR;
     d.cutoffEnabled    = (ifc & 0x80) != 0;
     d.cutoff           = ifc & 0x7F;
     d.resonanceEnabled = (ifr & 0x80) != 0;
     d.resonance        = ifr & 0x7F;
-    d.cutSwing         = ins->nCutSwing;
-    d.resSwing         = ins->nResSwing;
-    d.filterMode       = static_cast<uint8_t>(ins->filterMode);
-
+    d.cutSwing  = ins->nCutSwing;
+    d.resSwing  = ins->nResSwing;
+    d.filterMode = static_cast<uint8_t>(ins->filterMode);
     d.nna        = static_cast<uint8_t>(ins->nNNA);
     d.dct        = static_cast<uint8_t>(ins->nDCT);
     d.dna        = static_cast<uint8_t>(ins->nDNA);
     d.resampling = static_cast<uint8_t>(ins->resampling);
 
-    // Note map and keyboard
     for (int i = 0; i < 128; ++i) {
         d.noteMap[i]  = ins->NoteMap[i];
         d.keyboard[i] = static_cast<uint16_t>(ins->Keyboard[i]);
     }
-
     copyEnvData(d.volEnv,   ins->VolEnv);
     copyEnvData(d.panEnv,   ins->PanEnv);
     copyEnvData(d.pitchEnv, ins->PitchEnv);
-
     d.valid = true;
     return d;
 }
 
-bool bb_set_instrument_data(openmpt::module_ext* mod, int instrIndex, const InstrumentData& data) {
+bool bb_set_instrument_data(SoundModule* mod, int instrIndex, const InstrumentData& data) {
     if (!mod) return false;
     auto& sf = getSF(mod);
     if (instrIndex < 1 || instrIndex >= OpenMPT::MAX_INSTRUMENTS) return false;
@@ -144,7 +125,6 @@ bool bb_set_instrument_data(openmpt::module_ext* mod, int instrIndex, const Inst
 
     ins->name     = data.name;
     ins->filename = data.filename;
-
     ins->nGlobalVol = data.globalVol;
     ins->nFadeOut   = data.fadeOut;
     ins->nPan       = data.pan;
@@ -153,46 +133,38 @@ bool bb_set_instrument_data(openmpt::module_ext* mod, int instrIndex, const Inst
     ins->nPanSwing  = data.panSwing;
     ins->nPPS       = data.pps;
     ins->nPPC       = data.ppc;
-
-    // Filter (encode enable bits)
     ins->nIFC = data.cutoff    | (data.cutoffEnabled    ? 0x80 : 0);
     ins->nIFR = data.resonance | (data.resonanceEnabled ? 0x80 : 0);
     ins->nCutSwing  = data.cutSwing;
     ins->nResSwing  = data.resSwing;
     ins->filterMode = static_cast<OpenMPT::FilterMode>(data.filterMode);
-
     ins->nNNA = static_cast<OpenMPT::NewNoteAction>(data.nna);
     ins->nDCT = static_cast<OpenMPT::DuplicateCheckType>(data.dct);
     ins->nDNA = static_cast<OpenMPT::DuplicateNoteAction>(data.dna);
     ins->resampling = static_cast<OpenMPT::ResamplingMode>(data.resampling);
-
     for (int i = 0; i < 128; ++i) {
         ins->NoteMap[i]  = data.noteMap[i];
         ins->Keyboard[i] = static_cast<OpenMPT::SAMPLEINDEX>(data.keyboard[i]);
     }
-
     writeEnvData(ins->VolEnv,   data.volEnv);
     writeEnvData(ins->PanEnv,   data.panEnv);
     writeEnvData(ins->PitchEnv, data.pitchEnv);
-
     return true;
 }
 
-int bb_instrument_count(openmpt::module_ext* mod) {
+int bb_instrument_count(SoundModule* mod) {
     if (!mod) return 0;
-    auto& sf = getSF(mod);
-    return static_cast<int>(sf.GetNumInstruments());
+    return (int)getSF(mod).GetNumInstruments();
 }
 
-int bb_sample_count(openmpt::module_ext* mod) {
+int bb_sample_count(SoundModule* mod) {
     if (!mod) return 0;
-    auto& sf = getSF(mod);
-    return static_cast<int>(sf.GetNumSamples());
+    return (int)getSF(mod).GetNumSamples();
 }
 
 // ─── Sample helpers ───────────────────────────────────────────────────────────
 
-SampleData bb_get_sample_data(openmpt::module_ext* mod, int sampleIndex) {
+SampleData bb_get_sample_data(SoundModule* mod, int sampleIndex) {
     SampleData d;
     if (!mod) return d;
     auto& sf = getSF(mod);
@@ -222,15 +194,15 @@ SampleData bb_get_sample_data(openmpt::module_ext* mod, int sampleIndex) {
         d.loopType = smp.uFlags[OpenMPT::CHN_PINGPONGLOOP] ? 2 : 1;
     if (smp.uFlags[OpenMPT::CHN_SUSTAINLOOP])
         d.sustainLoopType = smp.uFlags[OpenMPT::CHN_PINGPONGSUSTAIN] ? 2 : 1;
-    d.is16bit   = smp.uFlags[OpenMPT::CHN_16BIT];
-    d.isStereo  = smp.uFlags[OpenMPT::CHN_STEREO];
-    d.hasData   = smp.HasSampleData();
-    d.isOPL     = smp.uFlags[OpenMPT::CHN_ADLIB];
-    d.valid     = true;
+    d.is16bit  = smp.uFlags[OpenMPT::CHN_16BIT];
+    d.isStereo = smp.uFlags[OpenMPT::CHN_STEREO];
+    d.hasData  = smp.HasSampleData();
+    d.isOPL    = smp.uFlags[OpenMPT::CHN_ADLIB];
+    d.valid    = true;
     return d;
 }
 
-bool bb_set_sample_data(openmpt::module_ext* mod, int sampleIndex, const SampleData& d) {
+bool bb_set_sample_data(SoundModule* mod, int sampleIndex, const SampleData& d) {
     if (!mod) return false;
     auto& sf = getSF(mod);
     if (sampleIndex < 1 || sampleIndex > (int)sf.GetNumSamples()) return false;
@@ -259,7 +231,7 @@ bool bb_set_sample_data(openmpt::module_ext* mod, int sampleIndex, const SampleD
     return true;
 }
 
-int32_t bb_play_sample(openmpt::module_ext* mod, int sampleIndex, int note, double volume, double panning) {
+int32_t bb_play_sample(SoundModule* mod, int sampleIndex, int note, double volume, double panning) {
     if (!mod) return -1;
     auto& sf = getSF(mod);
     if (sampleIndex < 1 || sampleIndex > (int)sf.GetNumSamples()) return -1;
@@ -283,22 +255,18 @@ int32_t bb_play_sample(openmpt::module_ext* mod, int sampleIndex, int note, doub
         chn.nPan = chn.pModSample->nPan;
     else
         chn.nPan = std::max(0, std::min(256, (int)(panning * 128.0 + 128.0)));
-    chn.nVolume = std::max(0, std::min(256, (int)(volume  * 256.0)));
+    chn.nVolume = std::max(0, std::min(256, (int)(volume * 256.0)));
 
-    // Remove from mix list so the channel is picked up cleanly next read()
     auto mb = std::begin(sf.m_PlayState.ChnMix);
     auto me = std::remove(mb, mb + sf.m_nMixChannels, ch);
     sf.m_nMixChannels = static_cast<OpenMPT::CHANNELINDEX>(std::distance(mb, me));
-
     return static_cast<int32_t>(ch);
 }
 
-void bb_build_sample_waveform(openmpt::module_ext* mod, int sampleIndex,
+void bb_build_sample_waveform(SoundModule* mod, int sampleIndex,
                                std::vector<float>& waveMin, std::vector<float>& waveMax,
                                int& outLen, int width) {
-    outLen = 0;
-    waveMin.clear();
-    waveMax.clear();
+    outLen = 0; waveMin.clear(); waveMax.clear();
     if (!mod) return;
     auto& sf = getSF(mod);
     if (sampleIndex < 1 || sampleIndex > (int)sf.GetNumSamples()) return;
@@ -309,10 +277,7 @@ void bb_build_sample_waveform(openmpt::module_ext* mod, int sampleIndex,
     const int  nCh   = smp.uFlags[OpenMPT::CHN_STEREO] ? 2 : 1;
     const uint32_t len = smp.nLength;
     const int W = std::min(width, (int)len);
-
-    waveMin.resize(W);
-    waveMax.resize(W);
-
+    waveMin.resize(W); waveMax.resize(W);
     for (int b = 0; b < W; ++b) {
         uint32_t f0 = (uint64_t)b       * len / W;
         uint32_t f1 = (uint64_t)(b + 1) * len / W;
@@ -327,13 +292,17 @@ void bb_build_sample_waveform(openmpt::module_ext* mod, int sampleIndex,
             if (first || v > mx) mx = v;
             first = false;
         }
-        waveMin[b] = mn;
-        waveMax[b] = mx;
+        waveMin[b] = mn; waveMax[b] = mx;
     }
     outLen = W;
 }
 
-void bb_setup_channel_capture(openmpt::module_ext* mod, int nChannels) {
+void bb_set_ft2_volume_ramping(SoundModule* mod, bool enabled) {
+    if (!mod) return;
+    getSF(mod).m_playBehaviour.set(OpenMPT::kFT2VolumeRamping, enabled);
+}
+
+void bb_setup_channel_capture(SoundModule* mod, int nChannels) {
     if (!mod || nChannels <= 0) return;
     auto& sf = getSF(mod);
     sf.m_bbNumChannels    = static_cast<OpenMPT::CHANNELINDEX>(
@@ -343,47 +312,32 @@ void bb_setup_channel_capture(openmpt::module_ext* mod, int nChannels) {
         sf.m_opl->BbSetupCapture(true, nChannels);
 }
 
-void bb_set_ft2_volume_ramping(openmpt::module_ext* mod, bool enabled) {
-    if (!mod) return;
-    getSF(mod).m_playBehaviour.set(OpenMPT::kFT2VolumeRamping, enabled);
-}
-
-void bb_capture_channel_waves(openmpt::module_ext* mod,
+void bb_capture_channel_waves(SoundModule* mod,
                                float* samplesOut, int32_t* countsOut,
                                int nChannels, int perChannel) {
     if (!mod || !samplesOut || !countsOut || nChannels <= 0 || perChannel <= 0) return;
     auto& sf = getSF(mod);
-
-    // mixsample_t == float in this build; buffer is interleaved stereo (L R L R …)
-    // Apply the same global-volume factor that ProcessGlobalVolume will apply to the
-    // master output, so per-channel scale matches what d->left[] contains.
     const float scale = sf.m_bbGlobalVolScale;
     int n = std::min(perChannel, (int)MIXBUFFERSIZE);
     for (int ch = 0; ch < nChannels; ++ch) {
         const OpenMPT::mixsample_t* src = sf.m_bbChannelBuf + ch * MIXBUFFERSIZE * 2;
         float* out = samplesOut + ch * perChannel;
         for (int s = 0; s < n; ++s)
-            out[s] = src[s * 2] * scale;   // left channel, scaled to output amplitude
+            out[s] = src[s * 2] * scale;
         countsOut[ch] = n;
     }
-
 }
 
-void bb_apply_opl_channel_waves(openmpt::module_ext* mod,
+void bb_apply_opl_channel_waves(SoundModule* mod,
                                  float* chanBuf, int nChannels, int perChannel) {
     if (!mod || !chanBuf || nChannels <= 0 || perChannel <= 0) return;
     auto& sf = getSF(mod);
     if (!sf.m_opl) return;
-
     OpenMPT::OPL* opl = sf.m_opl.get();
     int nf = std::min(opl->BbGetFrameCount(), perChannel);
     if (nf <= 0) return;
-
-    // snap[v] * factor is in int32 mix-buffer space; divide by MIXING_SCALEF (2^27)
-    // to match the float [-1,1] space that PCM data occupies after ratio normalisation.
     constexpr float INV_MIXING_SCALEF = 1.0f / 134217728.0f;
     const float scale = sf.m_bbGlobalVolScale * INV_MIXING_SCALEF;
-
     for (int v = 0; v < OpenMPT::OPL::BB_OPL_VOICES; ++v) {
         OpenMPT::CHANNELINDEX trackerCh = opl->BbGetTrackerChan(v);
         if (trackerCh == OpenMPT::CHANNELINDEX_INVALID || (int)trackerCh >= nChannels)

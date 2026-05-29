@@ -7,7 +7,6 @@
 #include "RenderSettings.h"
 #include "imgui.h"
 #include <algorithm>
-#include <cmath>
 
 static void pushToolbarStyle()
 {

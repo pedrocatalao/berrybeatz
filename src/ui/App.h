@@ -14,6 +14,7 @@
 #include "Settings.h"
 #include "MidiEngine.h"
 #include "SidebarView.h"
+#include "NewModuleDialog.h"
 #include <string>
 
 struct ImFont;
@@ -57,7 +58,8 @@ private:
 
     ToolbarState   m_toolbarState;
     WindowChrome   m_chrome;
-    SettingsView   m_settingsView;
+    SettingsView      m_settingsView;
+    NewModuleDialog   m_newModuleDialog;
     Settings       m_settings;
     MidiEngine     m_midi;
     SidebarView    m_sidebar;
@@ -69,7 +71,7 @@ private:
     int   m_activeTab  {0};
     int   m_pendingTab {-1};   // programmatic switch request; -1 = none
     bool  m_tabsInited {false};
-    bool  m_hasModule  {false};
+    bool  m_hasModule          {false};
 
     float m_sidebarW {260.f};
 

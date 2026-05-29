@@ -4,7 +4,6 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
-#include <cstring>
 
 // ─── Note name helper ────────────────────────────────────────────────────────
 

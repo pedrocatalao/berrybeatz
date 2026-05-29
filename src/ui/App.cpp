@@ -5,10 +5,9 @@
 #include "CocoaHelpers.h"
 #include "Logo.h"
 #include "MidiDevices.h"
-#include "OpenMPTInternal.h"
+#include "SoundModule.h"
 #include "imgui.h"
 #include <GLFW/glfw3.h>
-#include <libopenmpt/libopenmpt_ext.hpp>
 #include <cmath>
 #include <algorithm>
 #include <cstdio>
@@ -29,7 +28,31 @@ App::App() : m_controller(m_state), m_audio(m_state), m_tracker(m_state), m_gene
         m_settingsView.open(m_settings, m_audio.getDevices(), enumerateMidiSources());
     };
 
-    m_toolbarState.onNew  = [this]() { clearModule(); };
+    m_toolbarState.onNew  = [this]() { m_newModuleDialog.open(); };
+
+    m_newModuleDialog.onCreate = [this](int fmt) {
+        static constexpr const char* kExts[] = {".btz", ".it", ".xm", ".s3m", ".mod"};
+        clearModule();
+        if (!m_audio.newModule()) return;
+        m_hasModule  = true;
+        m_loadedPath = std::string("untitled") + kExts[fmt];
+        auto* mod = m_audio.getModule();
+        m_controller.setModule(mod);
+        m_tracker.setController(&m_controller);
+        m_generalView.setController(&m_controller);
+        int nSamp, nInstr;
+        { std::lock_guard<std::mutex> lk(m_state.meta_mutex); nSamp = m_state.num_samples; nInstr = m_state.num_instruments; }
+        m_sampleView.setFonts(m_fontMono, m_fontUI);
+        m_sampleView.setController(&m_controller, nSamp);
+        m_sampleView.onNeedAudio = [this]() { if (m_hasModule) m_audio.startPreview(); };
+        m_instrView.setFonts(m_fontMono, m_fontUI);
+        m_instrView.setController(&m_controller, nInstr);
+        m_instrView.onNeedAudio = [this]() { if (m_hasModule) m_audio.startPreview(); };
+        m_toolbarState.tempo = (int)std::round(m_state.bpm.load());
+        m_toolbarState.speed = (int)m_state.current_speed.load();
+        m_toolbarState.rpb   = (int)m_state.rows_per_beat.load();
+    };
+
     m_toolbarState.onOpen = [this]() { openFileDialog(); };
     m_toolbarState.onSave = [this]() { saveModule(); };
     m_toolbarState.onStop = [this]() {
@@ -38,7 +61,7 @@ App::App() : m_controller(m_state), m_audio(m_state), m_tracker(m_state), m_gene
             m_audio.join();
         }
         if (auto* mod = m_audio.getModule())
-            mod->set_position_seconds(0.0);
+            mod->setPositionSeconds(0.0);
     };
     m_toolbarState.onPlayPause     = [this]() { togglePlayPause(); };
     m_toolbarState.onPlayFromStart = [this]() { playFromStart(); };
@@ -103,9 +126,18 @@ App::App() : m_controller(m_state), m_audio(m_state), m_tracker(m_state), m_gene
 
     // ── TrackerView callbacks ──────────────────────────────────────────────
     m_tracker.onOrderSeekRequested = [this](int32_t order) {
-        m_audio.seekToOrder(order);
-        if (!m_audio.isRunning() && m_hasModule)
-            startPlayback();
+        if (m_audio.isRunning()) {
+            m_audio.seekToOrder(order);
+        } else if (m_hasModule) {
+            auto* mod = m_audio.getModule();
+            if (!mod) return;
+            mod->setPositionOrderRow(order, 0);
+            m_state.current_order.store(order);
+            m_state.current_row.store(0);
+            int pat = mod->getOrderPattern(order);
+            if (pat >= 0) m_state.current_pattern.store(pat);
+            m_tracker.requestNavSnap();
+        }
     };
     m_tracker.onPatternPlayFromCursor = [this](int32_t order, int32_t row, bool loop) {
         m_audio.playPatternFrom(order, row, loop);
@@ -133,9 +165,18 @@ App::App() : m_controller(m_state), m_audio(m_state), m_tracker(m_state), m_gene
                 { std::lock_guard<std::mutex> lk(m_state.meta_mutex); numOrd = m_state.num_orders; }
                 int order = -1;
                 for (int o = 0; o < numOrd; ++o)
-                    if (mod->get_order_pattern(o) == idx) { order = o; break; }
-                if (order >= 0)
-                    m_audio.playPatternFrom(order, 0, m_tracker.getLoopPattern());
+                    if (mod->getOrderPattern(o) == idx) { order = o; break; }
+                if (order >= 0) {
+                    if (m_audio.isRunning())
+                        m_audio.playPatternFrom(order, 0, m_tracker.getLoopPattern());
+                    else {
+                        mod->setPositionOrderRow(order, 0);
+                        m_state.current_order.store(order);
+                        m_state.current_row.store(0);
+                        m_state.current_pattern.store(idx);
+                        m_tracker.requestNavSnap();
+                    }
+                }
             }
         }
     };
@@ -202,7 +243,6 @@ void App::openFile(const std::string& path)
         m_toolbarState.tempo = (int)std::round(m_state.bpm.load());
         m_toolbarState.speed = (int)m_state.current_speed.load();
         m_toolbarState.rpb   = (int)m_state.rows_per_beat.load();
-        startPlayback();
     }
 }
 
@@ -234,7 +274,7 @@ void App::render(int winW, int winH)
         }
         if (auto* mod = m_audio.getModule())
             for (int o = 0; o < numOrd; ++o) {
-                int p = mod->get_order_pattern(o);
+                int p = mod->getOrderPattern(o);
                 if (p >= 0) sd.usedPats.insert(p);
             }
         if (g_fontSidebar) ImGui::PushFont(g_fontSidebar);
@@ -375,6 +415,7 @@ void App::render(int winW, int winH)
     }
 
     m_settingsView.draw();
+    m_newModuleDialog.draw();
 
     ImGui::PopFont();
 }
@@ -407,10 +448,7 @@ void App::syncToolbarState()
         int gvolMax = m_state.gvol_max.load();
         m_toolbarState.gvolMax  = gvolMax;
         if (auto* mod = m_controller.module()) {
-            auto* ia = static_cast<openmpt::ext::interactive*>(
-                mod->get_interface(openmpt::ext::interactive_id));
-            if (ia)
-                m_toolbarState.globalVol = (int)std::round(ia->get_global_volume() * gvolMax);
+            m_toolbarState.globalVol = (int)std::round(mod->getGlobalVolume() * gvolMax);
         }
     }
 }
@@ -454,7 +492,7 @@ void App::drawCommentsTab()
     static std::string    msg;
     static const void*    lastMod = nullptr;
     if (mod != lastMod) {
-        msg     = mod->get_metadata("message");
+        msg     = mod->getMessage();
         lastMod = mod;
     }
     ImGui::InputTextMultiline("##msg", msg.data(), msg.size() + 1,
@@ -468,7 +506,7 @@ void App::saveModule()
     if (!m_hasModule || m_loadedPath.empty()) return;
     auto* mod = m_controller.module();
     if (!mod) return;
-    std::string type = mod->get_metadata("type");
+    std::string type = mod->getType();
     m_controller.save(m_loadedPath, type);
 }
 
@@ -504,6 +542,7 @@ void App::clearModule()
     m_hasModule  = false;
     m_loadedPath.clear();
 }
+
 
 void App::startPlayback()
 {

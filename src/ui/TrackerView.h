@@ -60,6 +60,7 @@ public:
     void clearModule() { m_ctrl = nullptr; m_undo.clear(); m_sel.active = false; m_muteState = 0; }
     void setFonts(ImFont* mono, ImFont* ui) { m_fontMono = mono; m_fontUI = ui; }
     void setContinuousScroll(bool v) { m_continuousScroll = v; }
+    void requestNavSnap() { m_navSnapPending = true; }
 
     int  baseOctave() const    { return m_baseOctave; }
     void setBaseOctave(int o)  { m_baseOctave = std::clamp(o, 0, 8); }
@@ -123,6 +124,8 @@ private:
     int32_t  m_lastRow      {-1};
     uint64_t m_muteState          {0};
     uint64_t m_preClickMuteState  {0};  // mute state before the last single-click press
+
+    bool       m_navSnapPending   {false};
 
     // Edit cursor
     bool       m_editCursorMoved  {false};

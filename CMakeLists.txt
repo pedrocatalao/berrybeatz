@@ -13,7 +13,7 @@ set(GLFW_ROOT "/opt/homebrew/opt/glfw")
 find_library(GLFW_LIBRARY glfw HINTS "${GLFW_ROOT}/lib" REQUIRED)
 set(GLFW_INCLUDE_DIR "${GLFW_ROOT}/include")
 
-# PortAudio + libopenmpt runtime deps
+# PortAudio + codec deps
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(PORTAUDIO REQUIRED portaudio-2.0)
 pkg_check_modules(VORBISFILE REQUIRED vorbisfile)
@@ -22,22 +22,41 @@ pkg_check_modules(OGG REQUIRED ogg)
 
 pkg_check_modules(MPG123 REQUIRED libmpg123)
 
-# libopenmpt (built from sibling repo)
-set(OPENMPT_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/vendor/openmpt")
-set(OPENMPT_LIB "${OPENMPT_ROOT}/bin/libopenmpt.a")
+# OpenMPT soundlib — compiled directly, no pre-built .a needed
+set(OPENMPT_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/openmpt")
 
-if(NOT EXISTS "${OPENMPT_LIB}")
-    message(FATAL_ERROR
-        "libopenmpt.a not found at ${OPENMPT_LIB}\n"
-        "Build it first:\n"
-        "  cd ${OPENMPT_ROOT} && make CONFIG=clang SHARED_LIB=0 NO_SHARED_LINKER_FLAG=1 bin/libopenmpt.a"
-    )
-endif()
+file(GLOB SOUNDLIB_SOURCES
+    ${OPENMPT_ROOT}/soundlib/*.cpp
+    ${OPENMPT_ROOT}/soundlib/plugins/*.cpp
+    ${OPENMPT_ROOT}/soundlib/plugins/dmo/*.cpp
+    ${OPENMPT_ROOT}/sounddsp/*.cpp
+    ${OPENMPT_ROOT}/src/openmpt/soundfile_write/*.cpp
+    ${OPENMPT_ROOT}/common/*.cpp
+)
 
-add_library(libopenmpt STATIC IMPORTED)
-set_target_properties(libopenmpt PROPERTIES
-    IMPORTED_LOCATION "${OPENMPT_LIB}"
-    INTERFACE_INCLUDE_DIRECTORIES "${OPENMPT_ROOT}"
+add_library(soundlib STATIC
+    ${SOUNDLIB_SOURCES}
+    src/core/openmpt_stubs.cpp
+)
+target_compile_definitions(soundlib PRIVATE
+    LIBOPENMPT_BUILD
+    BERRYBEATZ_FILESAVE
+    MPT_WITH_MPG123
+    MPT_WITH_VORBIS
+    MPT_WITH_VORBISFILE
+)
+target_include_directories(soundlib PUBLIC
+    ${OPENMPT_ROOT}
+    ${OPENMPT_ROOT}/common
+    ${OPENMPT_ROOT}/src
+    ${OPENMPT_ROOT}/soundlib/plugins
+    ${OPENMPT_ROOT}/src/openmpt/soundfile_write
+)
+target_include_directories(soundlib PRIVATE
+    ${MPG123_INCLUDE_DIRS}
+    ${VORBISFILE_INCLUDE_DIRS}
+    ${VORBIS_INCLUDE_DIRS}
+    ${OGG_INCLUDE_DIRS}
 )
 
 # Dear ImGui (with GLFW backend)
@@ -62,12 +81,12 @@ set(SOURCES
     # core — platform-independent logic
     src/core/AudioEngine.cpp
     src/platform/AudioDeviceMonitor.cpp
+    src/core/SoundModule.cpp
     src/core/ModuleController.cpp
     src/core/PatternEditor.cpp
     src/core/Settings.cpp
     src/core/UndoManager.cpp
     src/core/OpenMPTInternal.cpp
-    src/core/OpenMPTInternalGet.cpp
     # ui — ImGui views and widgets
     src/ui/App.cpp
     src/ui/SidebarView.cpp
@@ -75,6 +94,7 @@ set(SOURCES
     src/ui/InstrumentView.cpp
     src/ui/SampleView.cpp
     src/ui/SettingsView.cpp
+    src/ui/NewModuleDialog.cpp
     src/ui/Toolbar.cpp
     src/ui/LogoView.cpp
     src/ui/TrackerView.cpp
@@ -125,30 +145,22 @@ target_include_directories(BerryBeatz PRIVATE
     src/platform
     ${GLFW_INCLUDE_DIR}
     ${PORTAUDIO_INCLUDE_DIRS}
-    ${OPENMPT_ROOT}
-    ${OPENMPT_ROOT}/src
     ${MPG123_INCLUDE_DIRS}
 )
 
-# OpenMPTInternal.cpp: soundlib side — needs full common/ include chain.
-# LIBOPENMPT_BUILD_TEST is defined inside the .cpp to remove MODPLUG_NO_FILESAVE.
-set_source_files_properties(src/core/OpenMPTInternal.cpp PROPERTIES
+# SoundModule.cpp and OpenMPTInternal.cpp include internal soundlib headers directly
+set_source_files_properties(
+    src/core/SoundModule.cpp
+    src/core/OpenMPTInternal.cpp
+    PROPERTIES
     COMPILE_DEFINITIONS "LIBOPENMPT_BUILD"
-    INCLUDE_DIRECTORIES "${OPENMPT_ROOT}/common;${OPENMPT_ROOT}/src;${OPENMPT_ROOT}"
-)
-
-# OpenMPTInternalGet.cpp: libopenmpt side — extracts CSoundFile* via internal cast.
-# Must NOT include soundlib headers (namespace conflict with libopenmpt fwd-decls).
-set_source_files_properties(src/core/OpenMPTInternalGet.cpp PROPERTIES
-    COMPILE_DEFINITIONS "LIBOPENMPT_BUILD"
-    INCLUDE_DIRECTORIES "${OPENMPT_ROOT}/common;${OPENMPT_ROOT}/src;${OPENMPT_ROOT}"
 )
 
 target_link_libraries(BerryBeatz PRIVATE
     OpenGL::GL
     ${GLFW_LIBRARY}
     imgui
-    libopenmpt
+    soundlib
     ${PORTAUDIO_LINK_LIBRARIES}
     ${VORBISFILE_LINK_LIBRARIES}
     ${VORBIS_LINK_LIBRARIES}

@@ -42,17 +42,33 @@ void GeneralView::render(float /*x*/, float /*y*/, float /*w*/, float /*h*/)
         ImGui::TableSetupColumn("##lbl", ImGuiTableColumnFlags_WidthFixed, 52.f);
         ImGui::TableSetupColumn("##val", ImGuiTableColumnFlags_WidthStretch);
 
-        auto infoRow = [&](const char* lbl, const char* id, char* buf, int bufsz) {
-            ImGui::TableNextRow();
-            ImGui::TableSetColumnIndex(0);
-            ImGui::AlignTextToFramePadding();
-            ImGui::TextColored(kDim, "%s", lbl);
-            ImGui::TableSetColumnIndex(1);
-            ImGui::SetNextItemWidth(-1.f);
-            ImGui::InputText(id, buf, bufsz, ImGuiInputTextFlags_ReadOnly);
-        };
-        infoRow("Title",  "##gentitle",  titleBuf,  256);
-        infoRow("Artist", "##genartist", artistBuf, 256);
+        // Title — editable
+        ImGui::TableNextRow();
+        ImGui::TableSetColumnIndex(0);
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextColored(kDim, "Title");
+        ImGui::TableSetColumnIndex(1);
+        ImGui::SetNextItemWidth(-1.f);
+        ImGui::InputText("##gentitle", titleBuf, 256);
+        if (ImGui::IsItemDeactivatedAfterEdit()) {
+            mod->setTitle(titleBuf);
+            std::lock_guard<std::mutex> lk(m_state.meta_mutex);
+            m_state.title = titleBuf;
+        }
+
+        // Artist — editable
+        ImGui::TableNextRow();
+        ImGui::TableSetColumnIndex(0);
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextColored(kDim, "Artist");
+        ImGui::TableSetColumnIndex(1);
+        ImGui::SetNextItemWidth(-1.f);
+        ImGui::InputText("##genartist", artistBuf, 256);
+        if (ImGui::IsItemDeactivatedAfterEdit()) {
+            mod->setArtist(artistBuf);
+            std::lock_guard<std::mutex> lk(m_state.meta_mutex);
+            m_state.artist = artistBuf;
+        }
 
         ImGui::TableNextRow();
         ImGui::TableSetColumnIndex(0);

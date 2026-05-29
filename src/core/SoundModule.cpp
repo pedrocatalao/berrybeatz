@@ -253,6 +253,14 @@ std::string SoundModule::getArtist() const {
     return mpt::transcode<std::string>(mpt::common_encoding::utf8, m_impl->sf.m_songArtist);
 }
 
+void SoundModule::setTitle(const std::string& title) {
+    m_impl->sf.SetTitle(title);
+}
+
+void SoundModule::setArtist(const std::string& artist) {
+    m_impl->sf.m_songArtist = mpt::transcode<mpt::ustring>(mpt::common_encoding::utf8, artist);
+}
+
 std::string SoundModule::getType() const {
     return mpt::transcode<std::string>(mpt::common_encoding::utf8, m_impl->sf.m_modFormat.type);
 }

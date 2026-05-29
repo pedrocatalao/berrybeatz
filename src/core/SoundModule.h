@@ -49,6 +49,8 @@ public:
     // ── Metadata ───────────────────────────────────────────────────────────────
     std::string getTitle() const;
     std::string getArtist() const;
+    void setTitle(const std::string& title);
+    void setArtist(const std::string& artist);
     std::string getType() const;       // e.g. "xm", "it", "mptm"
     std::string getTypeLong() const;
     std::string getTracker() const;

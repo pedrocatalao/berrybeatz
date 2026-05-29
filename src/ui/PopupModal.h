@@ -115,10 +115,14 @@ private:
             m_winPosY += d.y;
         }
 
-        // × close button — same style as the main window controls
+        // × close button — same size/style as the main window controls.
+        // Main window uses GetFrameHeight() under kToolbarFramePad {8,2},
+        // which evaluates to FontSize + 2*2 = 17px. Derive it the same way
+        // and centre it in the title bar.
         {
-            const float bsz = kTitleH;
-            ImGui::SetCursorPos({w - bsz, 0.f});
+            const float bsz    = ImGui::GetTextLineHeight() + 4.f; // matches toolbar's 17px
+            const float margin = (float)(int)((kTitleH - bsz) * 0.5f);
+            ImGui::SetCursorPos({w - kTitleH + margin, margin});
             ImVec2 bp = ImGui::GetCursorScreenPos();
             bool clicked = ImGui::InvisibleButton("##close", {bsz, bsz});
             bool hov = ImGui::IsItemHovered();

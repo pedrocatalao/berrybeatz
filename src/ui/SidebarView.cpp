@@ -170,14 +170,9 @@ void SidebarView::render(float x, float y, float w, float h,
     bool scrollToCursor = false;
 
     if (focused && !nodes.empty()) {
-        // Ensure cursor is on some node
-        if (cursorIdx < 0) {
-            cursorIdx  = 0;
-            m_cursorId = nodes[0].id;
-            scrollToCursor = true;
-        }
-
         if (ImGui::IsKeyPressed(ImGuiKey_UpArrow, true)) {
+            // Initialize cursor on first keyboard navigation
+            if (cursorIdx < 0) { cursorIdx = 0; m_cursorId = nodes[0].id; }
             if (cursorIdx > 0) {
                 --cursorIdx;
                 m_cursorId     = nodes[cursorIdx].id;
@@ -185,13 +180,14 @@ void SidebarView::render(float x, float y, float w, float h,
             }
         }
         else if (ImGui::IsKeyPressed(ImGuiKey_DownArrow, true)) {
-            if (cursorIdx < (int)nodes.size() - 1) {
+            if (cursorIdx < 0) { cursorIdx = 0; m_cursorId = nodes[0].id; scrollToCursor = true; }
+            else if (cursorIdx < (int)nodes.size() - 1) {
                 ++cursorIdx;
                 m_cursorId     = nodes[cursorIdx].id;
                 scrollToCursor = true;
             }
         }
-        else if (ImGui::IsKeyPressed(ImGuiKey_LeftArrow, false)) {
+        else if (ImGui::IsKeyPressed(ImGuiKey_LeftArrow, false) && cursorIdx >= 0) {
             const Node& cur = nodes[cursorIdx];
             if (cur.isGroup && isExpanded(cur.id)) {
                 // Collapse group
@@ -222,7 +218,7 @@ void SidebarView::render(float x, float y, float w, float h,
             }
             scrollToCursor = true;
         }
-        else if (ImGui::IsKeyPressed(ImGuiKey_RightArrow, false)) {
+        else if (ImGui::IsKeyPressed(ImGuiKey_RightArrow, false) && cursorIdx >= 0) {
             const Node& cur = nodes[cursorIdx];
             if (cur.isGroup && !isExpanded(cur.id)) {
                 m_expanded[cur.id] = true;
@@ -239,7 +235,7 @@ void SidebarView::render(float x, float y, float w, float h,
             }
             scrollToCursor = true;
         }
-        else if (ImGui::IsKeyPressed(ImGuiKey_Enter, false)) {
+        else if (ImGui::IsKeyPressed(ImGuiKey_Enter, false) && cursorIdx >= 0) {
             const Node& cur = nodes[cursorIdx];
             if (!cur.isGroup && cur.enabled && onLeafActivated) {
                 onLeafActivated(cur.tab, cur.idx);

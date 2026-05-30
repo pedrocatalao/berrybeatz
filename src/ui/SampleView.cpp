@@ -25,27 +25,24 @@ void SampleView::setController(ModuleController* ctrl, int sampleCount) {
     m_sampleCount = sampleCount;
     m_sel         = 1;
     m_dirty       = false;
-    m_playChannel = -1;
-    m_playNote    = -1;
-    m_waveLen     = 0;
+    m_playHeld = false;
+    m_playNote = -1;
+    m_waveLen  = 0;
     m_waveMin.clear();
     m_waveMax.clear();
-    std::fill(m_kbChannels, m_kbChannels + 128, -1);
+    std::fill(m_kbHeld, m_kbHeld + 128, false);
     if (m_ctrl && m_sampleCount > 0) loadSample();
 }
 
 void SampleView::clearModule() {
-    if (m_ctrl) {
-        if (m_playChannel >= 0) m_ctrl->stopNote(m_playChannel);
-        for (int i = 0; i < 128; ++i)
-            if (m_kbChannels[i] >= 0) m_ctrl->stopNote(m_kbChannels[i]);
-    }
+    // Audio engine is stopped before clearModule is called; just reset held state.
+    std::fill(m_kbHeld, m_kbHeld + 128, false);
+    m_playHeld    = false;
+    m_playNote    = -1;
     m_ctrl        = nullptr;
     m_sampleCount = 0;
     m_sel         = 1;
     m_dirty       = false;
-    m_playChannel = -1;
-    m_playNote    = -1;
     m_waveLen     = 0;
     m_waveMin.clear();
     m_waveMax.clear();
@@ -54,33 +51,28 @@ void SampleView::clearModule() {
 
 void SampleView::midiNoteOn(int midiNote, int vel)
 {
-    if (!m_ctrl || midiNote < 0 || midiNote > 127) return;
-    if (m_kbChannels[midiNote] >= 0) {
-        m_ctrl->stopNote(m_kbChannels[midiNote]);
-        m_kbChannels[midiNote] = -1;
-    }
-    double v = vel / 127.0;
-    int opnote = midiNote + 1;  // note numbers are 1-based (NOTE_MIN=1)
-    m_kbChannels[midiNote] = m_ctrl->playSample(m_sel, opnote, v, 0.5);
+    if (midiNote < 0 || midiNote > 127) return;
+    if (m_kbHeld[midiNote] && onEnqueueStop) onEnqueueStop(midiNote);
+    float v = vel / 127.f;
+    int opnote = midiNote + 1;
+    if (onEnqueuePlay) onEnqueuePlay(m_sel, opnote, v, 0.5f, midiNote);
+    m_kbHeld[midiNote] = true;
     if (onNeedAudio) onNeedAudio();
 }
 
 void SampleView::midiNoteOff(int midiNote)
 {
-    if (!m_ctrl || midiNote < 0 || midiNote > 127) return;
-    if (m_kbChannels[midiNote] < 0) return;
-    m_ctrl->stopNote(m_kbChannels[midiNote]);
-    m_kbChannels[midiNote] = -1;
+    if (midiNote < 0 || midiNote > 127) return;
+    if (!m_kbHeld[midiNote]) return;
+    if (onEnqueueStop) onEnqueueStop(midiNote);
+    m_kbHeld[midiNote] = false;
 }
 
 void SampleView::midiPitchBend(int raw14)
 {
     m_pitchBend = raw14;
-    if (!m_ctrl) return;
-    double finetune = (raw14 - 8192) / 8192.0;
-    for (int i = 0; i < 128; ++i)
-        if (m_kbChannels[i] >= 0) m_ctrl->setNotePitch(m_kbChannels[i], finetune);
-    if (m_playChannel >= 0) m_ctrl->setNotePitch(m_playChannel, finetune);
+    float finetune = (raw14 - 8192) / 8192.f;
+    if (onEnqueuePitch) onEnqueuePitch(finetune);
 }
 
 void SampleView::setFonts(ImFont* mono, ImFont* ui) {
@@ -490,8 +482,8 @@ void SampleView::drawNoteKeyboard(float w, float h) {
         ImVec2 kMax = {kx + whiteW - 1.f, ky + whiteH};
 
         bool isHit  = (note == hitNote);
-        bool isPlay = (note == m_playNote && m_playChannel >= 0);
-        bool isKb   = (note >= 1 && note <= 128 && m_kbChannels[note-1] >= 0);
+        bool isPlay = (note == m_playNote && m_playHeld);
+        bool isKb   = (note >= 1 && note <= 128 && m_kbHeld[note-1]);
         bool hov    = (mp.x >= kMin.x && mp.x < kMax.x && mp.y >= kMin.y && mp.y < kMax.y);
 
         ImU32 col = (isHit || isPlay || isKb) ? IM_COL32(180, 220, 255, 255)
@@ -547,8 +539,8 @@ void SampleView::drawNoteKeyboard(float w, float h) {
         ImVec2 kMax = {kx + blackW, ky + blackH};
 
         bool isHit  = (note == hitNote);
-        bool isPlay = (note == m_playNote && m_playChannel >= 0);
-        bool isKb   = (note >= 1 && note <= 128 && m_kbChannels[note-1] >= 0);
+        bool isPlay = (note == m_playNote && m_playHeld);
+        bool isKb   = (note >= 1 && note <= 128 && m_kbHeld[note-1]);
         bool hov    = (mp.x >= kMin.x && mp.x < kMax.x && mp.y >= kMin.y && mp.y < kMax.y);
 
         ImU32 col = (isHit || isPlay || isKb) ? IM_COL32(80, 120, 180, 255)
@@ -578,15 +570,16 @@ void SampleView::drawNoteKeyboard(float w, float h) {
     // ── Mouse play / stop logic ───────────────────────────────────────────────
     if (hasCtrl) {
         if (hitNote > 0 && hitNote != m_playNote) {
-            if (m_playChannel >= 0) m_ctrl->stopNote(m_playChannel);
+            if (m_playHeld && onEnqueueStop) onEnqueueStop(128);
             if (onNeedAudio) onNeedAudio();
-            m_playChannel = m_ctrl->playSample(m_sel, hitNote, 0.85, 0.5);
-            m_playNote    = hitNote;
+            if (onEnqueuePlay) onEnqueuePlay(m_sel, hitNote, 0.85f, 0.5f, 128);
+            m_playHeld = true;
+            m_playNote = hitNote;
         }
-        if (kbDeactivated && m_playChannel >= 0) {
-            m_ctrl->stopNote(m_playChannel);
-            m_playChannel = -1;
-            m_playNote    = -1;
+        if (kbDeactivated && m_playHeld) {
+            if (onEnqueueStop) onEnqueueStop(128);
+            m_playHeld = false;
+            m_playNote = -1;
         }
     }
 
@@ -604,13 +597,14 @@ void SampleView::drawNoteKeyboard(float w, float h) {
         for (auto& k : kKeys) {
             int note = m_baseOctave * 12 + k.semi + 1;
             if (note < 1 || note > 128) continue;
-            if (ImGui::IsKeyPressed(k.key, false) && m_kbChannels[note-1] < 0) {
+            if (ImGui::IsKeyPressed(k.key, false) && !m_kbHeld[note-1]) {
                 if (onNeedAudio) onNeedAudio();
-                m_kbChannels[note-1] = m_ctrl->playSample(m_sel, note, 0.85, 0.5);
+                if (onEnqueuePlay) onEnqueuePlay(m_sel, note, 0.85f, 0.5f, note - 1);
+                m_kbHeld[note-1] = true;
             }
-            if (ImGui::IsKeyReleased(k.key) && m_kbChannels[note-1] >= 0) {
-                m_ctrl->stopNote(m_kbChannels[note-1]);
-                m_kbChannels[note-1] = -1;
+            if (ImGui::IsKeyReleased(k.key) && m_kbHeld[note-1]) {
+                if (onEnqueueStop) onEnqueueStop(note - 1);
+                m_kbHeld[note-1] = false;
             }
         }
     }

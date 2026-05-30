@@ -64,6 +64,21 @@ public:
     std::function<void(const std::string&)> onLoadFailed;
     std::function<void()>                   onSongFinished;
 
+    // ── Preview note queue (SPSC, lock-free) ─────────────────────────────────
+    // Enqueue from any thread; audio callback drains before each read().
+    // key: 0-127 = MIDI/keyboard note slot, 128 = click-play slot.
+    struct PreviewEvent {
+        enum Type : uint8_t { SAMPLE_ON, INSTR_ON, NOTE_OFF, PITCH_BEND } type;
+        uint8_t  key;       // SAMPLE_ON / INSTR_ON / NOTE_OFF
+        int32_t  idx;       // SAMPLE_ON: sampleIdx (1-based); INSTR_ON: instrIdx (0-based)
+        int32_t  opnote;    // SAMPLE_ON / INSTR_ON: 1-based OpenMPT note
+        float    vol;
+        float    pan;
+        float    pitch;     // PITCH_BEND only (semitones)
+    };
+    static constexpr int kPreviewQueueSize = 64; // must be power of 2
+    void enqueuePreviewEvent(const PreviewEvent& ev);
+
 private:
     static int paCallback(const void* input, void* output,
                           unsigned long frameCount,
@@ -97,4 +112,9 @@ private:
     std::atomic<bool>        m_previewMode     {false};
     std::atomic<bool>        m_restartStream   {false};
     AudioDeviceMonitor       m_deviceMonitor;
+
+    // SPSC queue — producer: UI/MIDI thread, consumer: audio callback
+    PreviewEvent              m_previewQueue[kPreviewQueueSize];
+    std::atomic<uint32_t>     m_previewHead {0};  // written by producer
+    std::atomic<uint32_t>     m_previewTail {0};  // written by consumer
 };

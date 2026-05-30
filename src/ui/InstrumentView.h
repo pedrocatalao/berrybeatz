@@ -21,6 +21,9 @@ public:
 
     // Called when a note preview starts — wire this to ensure the audio engine is running.
     std::function<void()> onNeedAudio;
+    std::function<void(int instrIdx, int opnote, float vol, float pan, int key)> onEnqueuePlay;
+    std::function<void(int key)>          onEnqueueStop;
+    std::function<void(float semitones)>  onEnqueuePitch;
 
 private:
     void loadInstrument();
@@ -38,9 +41,9 @@ private:
     bool m_dirty{false};
     int m_activeEnv{0};       // 0=vol 1=pan 2=pitch
     int m_dragNode{-1};
-    int32_t m_playChannel{-1};
-    int m_playNote{-1};
-    int m_baseOctave{4};
-    int m_kbChannels[128];   // per-note play channel; -1 = not playing
-    int m_pitchBend{8192};   // 14-bit MIDI pitch bend, center=8192
+    bool    m_playHeld{false};
+    int     m_playNote{-1};
+    int     m_baseOctave{4};
+    bool    m_kbHeld[128]{};
+    int     m_pitchBend{8192};
 };

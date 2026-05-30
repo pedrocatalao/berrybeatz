@@ -22,6 +22,12 @@ public:
 
     std::function<void()> onNeedAudio;
 
+    // Preview note routing — called instead of bb_play_sample/stopNote directly.
+    // key: 0-127 = MIDI/keyboard slot, 128 = click-play slot.
+    std::function<void(int sampleIdx, int opnote, float vol, float pan, int key)> onEnqueuePlay;
+    std::function<void(int key)>          onEnqueueStop;
+    std::function<void(float semitones)>  onEnqueuePitch;
+
 private:
     void loadSample();
     void saveSample();
@@ -36,11 +42,11 @@ private:
     int m_sel{1};
     SampleData m_data;
     bool m_dirty{false};
-    int32_t m_playChannel{-1};
-    int m_playNote{-1};
-    int m_baseOctave{4};
-    int m_kbChannels[128];   // per-note play channel; -1 = not playing
-    int m_pitchBend{8192};   // 14-bit MIDI pitch bend, center=8192
+    bool    m_playHeld{false};   // click-play slot active
+    int     m_playNote{-1};
+    int     m_baseOctave{4};
+    bool    m_kbHeld[128]{};     // per-MIDI-note held state
+    int     m_pitchBend{8192};   // 14-bit MIDI pitch bend, center=8192
     std::vector<float> m_waveMin, m_waveMax;
     int m_waveLen{0};
 };

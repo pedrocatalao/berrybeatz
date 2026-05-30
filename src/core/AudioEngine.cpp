@@ -37,11 +37,18 @@ struct PaCallbackData {
     bool    patPlaySingle   {false};
     int32_t patPrevRow      {-1};
 
+    // Preview SPSC queue pointers (owned by AudioEngine)
+    AudioEngine::PreviewEvent* previewQueue {nullptr};
+    std::atomic<uint32_t>*     previewHead  {nullptr};
+    std::atomic<uint32_t>*     previewTail  {nullptr};
+    int32_t previewChannels[129];  // key (0-128) → openmpt channel, audio-thread-only
+
     PaCallbackData()
         : mod(nullptr), state(nullptr), stop(nullptr), paused(nullptr),
           seek(nullptr), seek_order(nullptr), subsong(nullptr) {
         left.resize(FRAMES_BLOCK);
         right.resize(FRAMES_BLOCK);
+        std::fill(std::begin(previewChannels), std::end(previewChannels), -1);
     }
 };
 
@@ -188,6 +195,46 @@ void AudioEngine::playRow(int32_t order, int32_t row) {
     else              { m_paused.store(false); }
 }
 
+void AudioEngine::enqueuePreviewEvent(const PreviewEvent& ev) {
+    uint32_t h = m_previewHead.load(std::memory_order_relaxed);
+    uint32_t t = m_previewTail.load(std::memory_order_acquire);
+    if (h - t >= static_cast<uint32_t>(kPreviewQueueSize)) return; // full, drop
+    m_previewQueue[h & (kPreviewQueueSize - 1)] = ev;
+    m_previewHead.store(h + 1, std::memory_order_release);
+}
+
+static void drainPreviewQueue(PaCallbackData* d) {
+    if (!d->previewQueue) return;
+    uint32_t t = d->previewTail->load(std::memory_order_relaxed);
+    uint32_t h = d->previewHead->load(std::memory_order_acquire);
+    while (t != h) {
+        const AudioEngine::PreviewEvent& ev =
+            d->previewQueue[t & (AudioEngine::kPreviewQueueSize - 1)];
+        int key = ev.key;
+        if (ev.type == AudioEngine::PreviewEvent::SAMPLE_ON) {
+            if (d->previewChannels[key] >= 0)
+                d->mod->stopNote(d->previewChannels[key]);
+            d->previewChannels[key] = bb_play_sample(
+                d->mod, ev.idx, ev.opnote, ev.vol, ev.pan);
+        } else if (ev.type == AudioEngine::PreviewEvent::INSTR_ON) {
+            if (d->previewChannels[key] >= 0)
+                d->mod->stopNote(d->previewChannels[key]);
+            d->previewChannels[key] = d->mod->playNote(
+                ev.idx, ev.opnote, ev.vol, ev.pan);
+        } else if (ev.type == AudioEngine::PreviewEvent::NOTE_OFF) {
+            if (d->previewChannels[key] >= 0) {
+                d->mod->stopNote(d->previewChannels[key]);
+                d->previewChannels[key] = -1;
+            }
+        } else { // PITCH_BEND
+            for (int k = 0; k <= 128; ++k)
+                if (d->previewChannels[k] >= 0)
+                    d->mod->setNotePitch(d->previewChannels[k], ev.pitch);
+        }
+        d->previewTail->store(++t, std::memory_order_release);
+    }
+}
+
 int AudioEngine::paCallback(const void*, void* output,
                              unsigned long frameCount,
                              const PaStreamCallbackTimeInfo*,
@@ -219,6 +266,7 @@ int AudioEngine::paCallback(const void*, void* output,
 
     if (paused && preview) {
         // Note-preview mode: mute all song channels so only play_note() channels are audible
+        drainPreviewQueue(d);
         int nc = std::min(d->state->num_channels.load(), (int32_t)MAX_CHANNELS);
         for (int ch = 0; ch < nc; ++ch)
             d->mod->setChannelMute(ch, true);
@@ -273,6 +321,8 @@ int AudioEngine::paCallback(const void*, void* output,
         d->mod->setPositionOrderRow(ppTrigger, d->patPlayStartRow);
         d->patPrevRow = d->patPlayStartRow;
     }
+
+    drainPreviewQueue(d);
 
     int32_t nchForCapture = std::min(d->state->num_channels.load(), (int32_t)MAX_CHANNELS);
     if (nchForCapture > 0)
@@ -399,6 +449,9 @@ void AudioEngine::run() {
     cbData.pat_play_single   = &m_patPlaySingle;
     cbData.preview_mode      = &m_previewMode;
     cbData.sampleRate        = m_samplerate;
+    cbData.previewQueue = m_previewQueue;
+    cbData.previewHead  = &m_previewHead;
+    cbData.previewTail  = &m_previewTail;
 
     auto tryOpen = [&](PaStream*& stream) -> PaError {
         const PaDeviceInfo* info = nullptr;

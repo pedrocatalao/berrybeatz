@@ -97,9 +97,7 @@ App::App() : m_controller(m_state), m_audio(m_state), m_tracker(m_state), m_gene
     m_toolbarState.onSave = [this]() { saveModule(); };
     // Keep audio thread alive so RT MIDI notes are always ready without restart latency.
     m_toolbarState.onStop = [this]() {
-        if (auto* mod = m_audio.getModule())
-            mod->setPositionSeconds(0.0);
-        m_audio.startPreview();  // switches to preview mode, keeps thread running
+        stopPlayback();
     };
     m_toolbarState.onPlayPause     = [this]() { togglePlayPause(); };
     m_toolbarState.onPlayFromStart = [this]() { playFromStart(); };
@@ -641,7 +639,7 @@ void App::stopPlayback()
     if (!m_hasModule) return;
     if (auto* mod = m_audio.getModule())
         mod->setPositionSeconds(0.0);
-    m_audio.startPreview();  // keep thread alive; switch to preview mode
+    m_audio.setPaused(true);
 }
 
 void App::togglePlayPause()

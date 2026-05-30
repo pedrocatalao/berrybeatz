@@ -44,7 +44,7 @@ App::App() : m_controller(m_state), m_audio(m_state), m_tracker(m_state), m_gene
         { std::lock_guard<std::mutex> lk(m_state.meta_mutex); nSamp = m_state.num_samples; nInstr = m_state.num_instruments; }
         m_sampleView.setFonts(m_fontMono, m_fontUI);
         m_sampleView.setController(&m_controller, nSamp);
-        m_sampleView.onNeedAudio = [this]() { if (m_hasModule) m_audio.startPreview(); };
+        m_sampleView.onNeedAudio = [this]() { if (m_hasModule) m_audio.ensureRunning(); };
         m_sampleView.onEnqueuePlay = [this](int si, int on, float v, float p, int key) {
             AudioEngine::PreviewEvent ev{};
             ev.type = AudioEngine::PreviewEvent::SAMPLE_ON;
@@ -65,7 +65,7 @@ App::App() : m_controller(m_state), m_audio(m_state), m_tracker(m_state), m_gene
         };
         m_instrView.setFonts(m_fontMono, m_fontUI);
         m_instrView.setController(&m_controller, nInstr);
-        m_instrView.onNeedAudio = [this]() { if (m_hasModule) m_audio.startPreview(); };
+        m_instrView.onNeedAudio = [this]() { if (m_hasModule) m_audio.ensureRunning(); };
         m_instrView.onEnqueuePlay = [this](int si, int on, float v, float p, int key) {
             AudioEngine::PreviewEvent ev{};
             ev.type = AudioEngine::PreviewEvent::INSTR_ON;
@@ -87,7 +87,8 @@ App::App() : m_controller(m_state), m_audio(m_state), m_tracker(m_state), m_gene
         m_toolbarState.tempo = (int)std::round(m_state.bpm.load());
         m_toolbarState.speed = (int)m_state.current_speed.load();
         m_toolbarState.rpb   = (int)m_state.rows_per_beat.load();
-        m_audio.startPreview();
+        m_audio.ensureRunning();
+        m_audio.setPaused(true);
         m_audio.copyPreviewSample(m_sampleView.getSelection());
         m_audio.copyPreviewInstrument(m_instrView.getSelection());
         wireNoteRT();
@@ -268,7 +269,7 @@ void App::openFile(const std::string& path)
         m_sampleView.setController(&m_controller, nSamp);
         m_sampleView.onNeedAudio = [this]() {
             if (!m_hasModule) return;
-            m_audio.startPreview();
+            m_audio.ensureRunning();
         };
         m_sampleView.onEnqueuePlay = [this](int si, int on, float v, float p, int key) {
             AudioEngine::PreviewEvent ev{};
@@ -293,7 +294,7 @@ void App::openFile(const std::string& path)
         m_instrView.setController(&m_controller, nInstr);
         m_instrView.onNeedAudio = [this]() {
             if (!m_hasModule) return;
-            m_audio.startPreview();
+            m_audio.ensureRunning();
         };
         m_instrView.onEnqueuePlay = [this](int si, int on, float v, float p, int key) {
             AudioEngine::PreviewEvent ev{};
@@ -319,7 +320,8 @@ void App::openFile(const std::string& path)
         m_toolbarState.rpb   = (int)m_state.rows_per_beat.load();
 
         // Pre-warm the audio stream so the first MIDI note plays without delay.
-        m_audio.startPreview();
+        m_audio.ensureRunning();
+        m_audio.setPaused(true);
         m_audio.copyPreviewSample(m_sampleView.getSelection());
         m_audio.copyPreviewInstrument(m_instrView.getSelection());
         wireNoteRT();
@@ -628,18 +630,16 @@ void App::startPlayback()
 {
     if (!m_hasModule) return;
     if (m_audio.isRunning() && !m_audio.isPaused()) return;  // already playing
-    m_audio.stopPreview();
     m_audio.setPaused(false);
     if (!m_audio.isRunning()) m_audio.start();
-    // else: was paused/preview — stopPreview+setPaused(false) switches to song mode
 }
 
 void App::stopPlayback()
 {
     if (!m_hasModule) return;
+    m_audio.setPaused(true);
     if (auto* mod = m_audio.getModule())
         mod->setPositionSeconds(0.0);
-    m_audio.setPaused(true);
 }
 
 void App::togglePlayPause()
@@ -648,7 +648,6 @@ void App::togglePlayPause()
     if (!m_audio.isRunning()) {
         startPlayback();
     } else if (m_audio.isPaused()) {
-        m_audio.stopPreview();
         m_audio.setPaused(false);
     } else {
         m_audio.setPaused(true);
@@ -658,7 +657,6 @@ void App::togglePlayPause()
 void App::playFromStart()
 {
     if (!m_hasModule) return;
-    m_audio.stopPreview();
     m_audio.rewind();
     m_audio.start();
 }

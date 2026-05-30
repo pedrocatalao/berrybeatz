@@ -39,11 +39,8 @@ public:
     void    setPaused(bool paused);
     bool    isPaused() const { return m_paused.load(); }
 
-    // Preview module — isolated from the song; always renders alongside it.
-    // startPreview(): pause song output, keep stream alive for preview notes.
-    // stopPreview():  resume song output.
-    void    startPreview();
-    void    stopPreview();
+    // Ensure the audio thread is running (starts it if not). Does not affect pause state.
+    void    ensureRunning();
 
     // Copy the currently-selected sample or instrument from the song module into
     // the isolated preview module so MIDI/keyboard notes play the right sound.

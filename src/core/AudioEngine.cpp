@@ -149,17 +149,13 @@ void AudioEngine::rewind() {
 
 void AudioEngine::setPaused(bool p) { m_paused.store(p); }
 
-void AudioEngine::startPreview() {
+void AudioEngine::ensureRunning() {
     if (!m_mod) return;
     if (!isRunning()) {
         if (m_thread.joinable()) m_thread.join();
         m_stop.store(false);
         m_thread = std::thread(&AudioEngine::run, this);
     }
-}
-
-void AudioEngine::stopPreview() {
-    m_paused.store(false);
 }
 
 void AudioEngine::copyPreviewSample(int idx) {

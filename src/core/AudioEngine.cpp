@@ -1,6 +1,6 @@
 #include "AudioEngine.h"
 #include "SoundModule.h"
-#include "OpenMPTInternal.h"
+#include "SoundFileOps.h"
 #include <portaudio.h>
 #include <cstring>
 #include <cmath>

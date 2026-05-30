@@ -121,7 +121,7 @@ public:
     // Format a single cell command field as text (for tracker display)
     std::string formatCellCommand(int pat, int row, int ch, CellCommand cmd) const;
 
-    // ── Raw CSoundFile access (for bb_* functions in OpenMPTInternal.cpp) ─────
+    // ── Raw CSoundFile access (for bb_* functions in SoundFileOps.cpp) ──────
     // Returns OpenMPT::CSoundFile* — cast at call site.
     void* getCSFRaw();
 

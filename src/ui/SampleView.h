@@ -1,5 +1,5 @@
 #pragma once
-#include "OpenMPTInternal.h"
+#include "SoundFileOps.h"
 #include "ModuleController.h"
 #include <cstdint>
 #include <functional>

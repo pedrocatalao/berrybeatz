@@ -1,4 +1,4 @@
-// OpenMPTInternal.cpp — direct CSoundFile access via SoundModule::getCSFRaw().
+// SoundFileOps.cpp — direct CSoundFile access via SoundModule::getCSFRaw().
 // Compiled with LIBOPENMPT_BUILD + soundlib include paths (see CMakeLists.txt).
 #define BERRYBEATZ_FILESAVE
 
@@ -9,7 +9,7 @@
 #include "soundlib/OPL.h"
 
 #include "SoundModule.h"
-#include "OpenMPTInternal.h"
+#include "SoundFileOps.h"
 
 #include <fstream>
 #include <string>

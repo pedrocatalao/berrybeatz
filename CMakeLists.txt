@@ -86,7 +86,7 @@ set(SOURCES
     src/core/PatternEditor.cpp
     src/core/Settings.cpp
     src/core/UndoManager.cpp
-    src/core/OpenMPTInternal.cpp
+    src/core/SoundFileOps.cpp
     # ui — ImGui views and widgets
     src/ui/App.cpp
     src/ui/SidebarView.cpp
@@ -148,10 +148,10 @@ target_include_directories(BerryBeatz PRIVATE
     ${MPG123_INCLUDE_DIRS}
 )
 
-# SoundModule.cpp and OpenMPTInternal.cpp include internal soundlib headers directly
+# SoundModule.cpp and SoundFileOps.cpp include internal soundlib headers directly
 set_source_files_properties(
     src/core/SoundModule.cpp
-    src/core/OpenMPTInternal.cpp
+    src/core/SoundFileOps.cpp
     PROPERTIES
     COMPILE_DEFINITIONS "LIBOPENMPT_BUILD"
 )

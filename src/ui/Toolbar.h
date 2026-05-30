@@ -5,11 +5,12 @@
 
 struct ImFont;
 
+enum class Transport { Stopped, Playing, Paused };
+
 struct ToolbarState {
     // Playback (App → Toolbar, read-only)
-    bool  hasModule {false};
-    bool  isPlaying {false};
-    bool  isPaused  {false};
+    bool      hasModule  {false};
+    Transport transport  {Transport::Stopped};
     float vuLeft    {0.f};
     float vuRight   {0.f};
     float seekFrac  {0.f};
@@ -49,7 +50,6 @@ struct ToolbarState {
     std::function<void()>      onInsertPattern;
     std::function<void()>      onStop;
     std::function<void()>      onPlayPause;
-    std::function<void()>      onPlayFromStart;
     std::function<void(float)> onSeek;
     std::function<void(int)>   onOctaveChange;
     std::function<void(int)>   onTempoChange;

@@ -30,7 +30,7 @@ public:
     void openFile(const std::string& path);
     void tickChrome() { m_chrome.tick(); }  // call before ImGui::NewFrame each frame
     void render(int winW, int winH);
-    bool isPlaying() const { return m_state.is_playing.load() && !m_audio.isPaused(); }
+    bool isPlaying() const { return m_transport == Transport::Playing; }
 
 private:
     void syncToolbarState();
@@ -72,7 +72,8 @@ private:
     std::atomic<int> m_activeTab  {0};
     int              m_pendingTab {-1};   // programmatic switch request; -1 = none
     bool  m_tabsInited {false};
-    bool  m_hasModule          {false};
+    bool      m_hasModule  {false};
+    Transport m_transport  {Transport::Stopped};
 
     float m_sidebarW {260.f};
 

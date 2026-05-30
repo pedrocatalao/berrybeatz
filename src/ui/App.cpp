@@ -100,9 +100,8 @@ App::App() : m_controller(m_state), m_audio(m_state), m_tracker(m_state), m_gene
     m_toolbarState.onStop = [this]() {
         stopPlayback();
     };
-    m_toolbarState.onPlayPause     = [this]() { togglePlayPause(); };
-    m_toolbarState.onPlayFromStart = [this]() { playFromStart(); };
-    m_toolbarState.onSeek          = [this](float f) { seekTo(f); };
+    m_toolbarState.onPlayPause = [this]() { togglePlayPause(); };
+    m_toolbarState.onSeek      = [this](float f) { seekTo(f); };
 
     m_toolbarState.onOctaveChange = [this](int v) {
         m_tracker.setBaseOctave(v);
@@ -513,9 +512,9 @@ void App::syncToolbarState()
     m_toolbarState.speakerConeTex = m_speakerConeTex;
     m_toolbarState.speakerConeW   = m_speakerConeW;
     m_toolbarState.speakerConeH   = m_speakerConeH;
+    if (m_audio.pollSongEnded()) m_transport = Transport::Stopped;
     m_toolbarState.hasModule = m_hasModule;
-    m_toolbarState.isPlaying = m_state.is_playing.load();
-    m_toolbarState.isPaused  = m_audio.isPaused();
+    m_toolbarState.transport = m_transport;
     m_toolbarState.vuLeft    = m_state.master_vu_left.load();
     m_toolbarState.vuRight   = m_state.master_vu_right.load();
 
@@ -629,9 +628,10 @@ void App::clearModule()
 void App::startPlayback()
 {
     if (!m_hasModule) return;
-    if (m_audio.isRunning() && !m_audio.isPaused()) return;  // already playing
+    if (m_transport == Transport::Playing) return;
     m_audio.setPaused(false);
     if (!m_audio.isRunning()) m_audio.start();
+    m_transport = Transport::Playing;
 }
 
 void App::stopPlayback()
@@ -640,17 +640,19 @@ void App::stopPlayback()
     m_audio.setPaused(true);
     if (auto* mod = m_audio.getModule())
         mod->setPositionSeconds(0.0);
+    m_transport = Transport::Stopped;
 }
 
 void App::togglePlayPause()
 {
     if (!m_hasModule) return;
-    if (!m_audio.isRunning()) {
-        startPlayback();
-    } else if (m_audio.isPaused()) {
-        m_audio.setPaused(false);
-    } else {
+    if (m_transport == Transport::Playing) {
         m_audio.setPaused(true);
+        m_transport = Transport::Paused;
+    } else {
+        m_audio.setPaused(false);
+        if (!m_audio.isRunning()) m_audio.start();
+        m_transport = Transport::Playing;
     }
 }
 

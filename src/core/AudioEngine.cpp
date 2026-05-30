@@ -29,7 +29,8 @@ struct PaCallbackData {
     std::atomic<bool>*    pat_play_loop     {nullptr};
     std::atomic<bool>*    pat_play_single   {nullptr};
 
-    SoundModule* previewMod {nullptr};   // isolated preview module (no song state)
+    SoundModule*          previewMod  {nullptr};
+    std::atomic<bool>*    songEnded   {nullptr};
 
     bool    inPatternPlay   {false};
     int32_t patPlayOrder    {-1};
@@ -340,6 +341,7 @@ int AudioEngine::paCallback(const void*, void* output,
     if (count == 0) {
         // Song finished — pause and rewind; stream stays alive for preview notes.
         d->paused->store(true);
+        if (d->songEnded) d->songEnded->store(true);
         d->mod->setPositionSeconds(0.0);
         d->inPatternPlay = false;
         for (size_t i = 0; i < frameCount; ++i) {
@@ -474,6 +476,7 @@ void AudioEngine::run() {
     cbData.pat_play_loop     = &m_patPlayLoop;
     cbData.pat_play_single   = &m_patPlaySingle;
     cbData.previewMod        = m_previewMod.get();
+    cbData.songEnded         = &m_songEnded;
     cbData.sampleRate        = m_samplerate;
     cbData.previewQueue = m_previewQueue;
     cbData.previewHead  = &m_previewHead;

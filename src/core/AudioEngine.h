@@ -39,6 +39,9 @@ public:
     void    setPaused(bool paused);
     bool    isPaused() const { return m_paused.load(); }
 
+    // Returns true (once) when the song ended naturally; resets the flag on read.
+    bool    pollSongEnded() { return m_songEnded.exchange(false); }
+
     // Ensure the audio thread is running (starts it if not). Does not affect pause state.
     void    ensureRunning();
 
@@ -99,9 +102,10 @@ private:
     std::unique_ptr<SoundModule> m_previewMod;  // isolated preview — no song state
 
     std::thread              m_thread;
-    std::atomic<bool>        m_running {false};
-    std::atomic<bool>        m_stop    {false};
-    std::atomic<bool>        m_paused  {false};
+    std::atomic<bool>        m_running    {false};
+    std::atomic<bool>        m_stop       {false};
+    std::atomic<bool>        m_paused     {false};
+    std::atomic<bool>        m_songEnded  {false};
     bool                     m_ft2VolumeRamping {false};
     std::atomic<double>      m_seek       {-1.0};
     std::atomic<int32_t>     m_seek_order {-1};

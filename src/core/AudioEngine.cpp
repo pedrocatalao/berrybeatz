@@ -81,7 +81,10 @@ bool AudioEngine::loadFile(const std::string& path) {
     bb_set_ft2_volume_ramping(m_mod.get(), m_ft2VolumeRamping);
     fillState();
     auto prev = std::make_unique<SoundModule>();
-    if (prev->newModule(1)) { bb_set_loop_forever(prev.get()); m_previewMod = std::move(prev); }
+    if (prev->newModule(1)) {
+        bb_arm_preview_module_loop(prev.get());
+        m_previewMod = std::move(prev);
+    }
     return true;
 }
 
@@ -93,7 +96,10 @@ bool AudioEngine::newModule(int channels)
     bb_set_ft2_volume_ramping(m_mod.get(), m_ft2VolumeRamping);
     fillState();
     auto prev = std::make_unique<SoundModule>();
-    if (prev->newModule(1)) { bb_set_loop_forever(prev.get()); m_previewMod = std::move(prev); }
+    if (prev->newModule(1)) {
+        bb_arm_preview_module_loop(prev.get());
+        m_previewMod = std::move(prev);
+    }
     return true;
 }
 
@@ -274,9 +280,10 @@ int AudioEngine::paCallback(const void*, void* output,
     // ── Preview module — always rendered, fully isolated from song state ──────
     drainPreviewQueue(d);
     size_t pc = 0;
-    if (d->previewMod)
+    if (d->previewMod) {
         pc = d->previewMod->read(d->sampleRate, frameCount,
                                   d->previewLeft.data(), d->previewRight.data());
+    }
 
     if (paused) {
         // Song stopped — output preview only; keep song VU dark.

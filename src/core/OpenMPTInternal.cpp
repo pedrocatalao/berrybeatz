@@ -331,9 +331,9 @@ void bb_capture_channel_waves(SoundModule* mod,
 
 // ─── Preview isolation ────────────────────────────────────────────────────────
 
-void bb_set_loop_forever(SoundModule* mod) {
+void bb_arm_preview_module_loop(SoundModule* mod) {
     if (!mod) return;
-    getSF(mod).Order().SetRestartPos(0);
+    getSF(mod).SetRepeatCount(-1);
 }
 
 void bb_copy_sample(SoundModule* dst, SoundModule* src, int idx) {

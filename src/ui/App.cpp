@@ -3,7 +3,7 @@
 #include "TabBar.h"
 #include "RenderSettings.h"
 #include "CocoaHelpers.h"
-#include "Logo.h"
+#include "LogoView.h"
 #include "MidiDevices.h"
 #include "SoundModule.h"
 #include "imgui.h"

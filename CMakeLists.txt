@@ -96,7 +96,7 @@ set(SOURCES
     src/ui/SettingsView.cpp
     src/ui/NewModuleDialog.cpp
     src/ui/Toolbar.cpp
-    src/ui/LogoView.cpp
+    src/ui/LogoView.mm
     src/ui/TrackerView.cpp
     src/ui/PatternInput.cpp
     # platform — macOS-specific
@@ -104,7 +104,6 @@ set(SOURCES
     src/platform/MidiEngine.mm
     src/platform/WindowChrome.cpp
     src/platform/CocoaHelpers.mm
-    src/platform/Logo.mm
     # assets bundled into Resources/
     assets/img/banner.png
     assets/img/speaker.png
@@ -123,7 +122,7 @@ set_source_files_properties(
     src/platform/MidiDevices.mm
     src/platform/MidiEngine.mm
     src/platform/CocoaHelpers.mm
-    src/platform/Logo.mm
+    src/ui/LogoView.mm
     PROPERTIES LANGUAGE OBJCXX
 )
 

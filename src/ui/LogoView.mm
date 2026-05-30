@@ -1,5 +1,5 @@
-#import <Cocoa/Cocoa.h>
 #define GL_SILENCE_DEPRECATION
+#import <Cocoa/Cocoa.h>
 #include <OpenGL/gl3.h>
 #include <vector>
 #include "LogoView.h"
@@ -30,7 +30,7 @@ static GLuint loadPNGTexture(NSString* resource, float& outW, float& outH)
         CGColorSpaceRef cs = CGColorSpaceCreateDeviceRGB();
         CGContextRef ctx = CGBitmapContextCreate(
             pixels.data(), w, h, 8, w * 4, cs,
-            kCGImageAlphaPremultipliedLast | kCGBitmapByteOrder32Big);
+            (CGBitmapInfo)(kCGImageAlphaPremultipliedLast | kCGBitmapByteOrder32Big));
         CGContextDrawImage(ctx, CGRectMake(0, 0, (CGFloat)w, (CGFloat)h), cgImg);
         CGContextRelease(ctx);
         CGColorSpaceRelease(cs);

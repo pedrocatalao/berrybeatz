@@ -151,7 +151,6 @@ void AudioEngine::setPaused(bool p) { m_paused.store(p); }
 
 void AudioEngine::startPreview() {
     if (!m_mod) return;
-    m_paused.store(true);
     if (!isRunning()) {
         if (m_thread.joinable()) m_thread.join();
         m_stop.store(false);

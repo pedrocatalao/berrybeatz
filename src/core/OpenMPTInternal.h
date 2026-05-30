@@ -95,6 +95,19 @@ void       bb_build_sample_waveform(SoundModule* mod, int sampleIndex,
 // Disable FT2-style 5ms volume ramping.
 void bb_set_ft2_volume_ramping(SoundModule* mod, bool enabled);
 
+// ─── Preview isolation ────────────────────────────────────────────────────────
+
+// Set the module to loop at order 0 forever — used to keep the preview module alive.
+void bb_set_loop_forever(SoundModule* mod);
+
+// Deep-copy one sample (1-based index) from src into dst at the same slot.
+// Safe to call from the UI thread; frees any existing PCM at that slot in dst.
+void bb_copy_sample(SoundModule* dst, SoundModule* src, int idx);
+
+// Deep-copy one instrument (1-based) from src into dst, including all samples
+// referenced by its keyboard map (de-duplicated).
+void bb_copy_instrument(SoundModule* dst, SoundModule* src, int instrIdx);
+
 // Call BEFORE read() to arm per-channel capture.
 void bb_setup_channel_capture(SoundModule* mod, int nChannels);
 

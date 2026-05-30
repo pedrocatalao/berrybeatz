@@ -88,6 +88,8 @@ App::App() : m_controller(m_state), m_audio(m_state), m_tracker(m_state), m_gene
         m_toolbarState.speed = (int)m_state.current_speed.load();
         m_toolbarState.rpb   = (int)m_state.rows_per_beat.load();
         m_audio.startPreview();
+        m_audio.copyPreviewSample(m_sampleView.getSelection());
+        m_audio.copyPreviewInstrument(m_instrView.getSelection());
         wireNoteRT();
     };
 
@@ -192,8 +194,10 @@ App::App() : m_controller(m_state), m_audio(m_state), m_tracker(m_state), m_gene
         m_pendingTab = tab;
         if (tab == 3) {
             m_instrView.setSelection(idx + 1);
+            m_audio.copyPreviewInstrument(idx + 1);
         } else if (tab == 2) {
             m_sampleView.setSelection(idx + 1);
+            m_audio.copyPreviewSample(idx + 1);
         } else if (tab == 1) {
             auto* mod = m_audio.getModule();
             if (mod) {
@@ -318,6 +322,8 @@ void App::openFile(const std::string& path)
 
         // Pre-warm the audio stream so the first MIDI note plays without delay.
         m_audio.startPreview();
+        m_audio.copyPreviewSample(m_sampleView.getSelection());
+        m_audio.copyPreviewInstrument(m_instrView.getSelection());
         wireNoteRT();
     }
 }

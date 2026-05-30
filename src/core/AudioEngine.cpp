@@ -28,7 +28,8 @@ struct PaCallbackData {
     std::atomic<int32_t>* pat_play_startrow {nullptr};
     std::atomic<bool>*    pat_play_loop     {nullptr};
     std::atomic<bool>*    pat_play_single   {nullptr};
-    std::atomic<bool>*    preview_mode      {nullptr};
+
+    SoundModule* previewMod {nullptr};   // isolated preview module (no song state)
 
     bool    inPatternPlay   {false};
     int32_t patPlayOrder    {-1};
@@ -37,17 +38,22 @@ struct PaCallbackData {
     bool    patPlaySingle   {false};
     int32_t patPrevRow      {-1};
 
-    // Preview SPSC queue pointers (owned by AudioEngine)
+    // Preview event queue (MPSC; owned by AudioEngine)
     AudioEngine::PreviewEvent* previewQueue {nullptr};
     std::atomic<uint32_t>*     previewHead  {nullptr};
     std::atomic<uint32_t>*     previewTail  {nullptr};
-    int32_t previewChannels[129];  // key (0-128) → openmpt channel, audio-thread-only
+    int32_t previewChannels[129];  // key (0-128) → previewMod channel, audio-thread-only
+
+    std::vector<float> previewLeft;
+    std::vector<float> previewRight;
 
     PaCallbackData()
         : mod(nullptr), state(nullptr), stop(nullptr), paused(nullptr),
           seek(nullptr), seek_order(nullptr), subsong(nullptr) {
         left.resize(FRAMES_BLOCK);
         right.resize(FRAMES_BLOCK);
+        previewLeft.resize(FRAMES_BLOCK);
+        previewRight.resize(FRAMES_BLOCK);
         std::fill(std::begin(previewChannels), std::end(previewChannels), -1);
     }
 };
@@ -74,6 +80,8 @@ bool AudioEngine::loadFile(const std::string& path) {
     m_mod = std::move(mod);
     bb_set_ft2_volume_ramping(m_mod.get(), m_ft2VolumeRamping);
     fillState();
+    auto prev = std::make_unique<SoundModule>();
+    if (prev->newModule(1)) { bb_set_loop_forever(prev.get()); m_previewMod = std::move(prev); }
     return true;
 }
 
@@ -84,6 +92,8 @@ bool AudioEngine::newModule(int channels)
     m_mod = std::move(mod);
     bb_set_ft2_volume_ramping(m_mod.get(), m_ft2VolumeRamping);
     fillState();
+    auto prev = std::make_unique<SoundModule>();
+    if (prev->newModule(1)) { bb_set_loop_forever(prev.get()); m_previewMod = std::move(prev); }
     return true;
 }
 
@@ -135,7 +145,6 @@ void AudioEngine::setPaused(bool p) { m_paused.store(p); }
 
 void AudioEngine::startPreview() {
     if (!m_mod) return;
-    m_previewMode.store(true);
     m_paused.store(true);
     if (!isRunning()) {
         if (m_thread.joinable()) m_thread.join();
@@ -145,7 +154,17 @@ void AudioEngine::startPreview() {
 }
 
 void AudioEngine::stopPreview() {
-    m_previewMode.store(false);
+    m_paused.store(false);
+}
+
+void AudioEngine::copyPreviewSample(int idx) {
+    if (m_mod && m_previewMod)
+        bb_copy_sample(m_previewMod.get(), m_mod.get(), idx);
+}
+
+void AudioEngine::copyPreviewInstrument(int instrIdx) {
+    if (m_mod && m_previewMod)
+        bb_copy_instrument(m_previewMod.get(), m_mod.get(), instrIdx);
 }
 
 void AudioEngine::seekSeconds(double s)     { m_seek.store(s); }
@@ -205,7 +224,7 @@ void AudioEngine::enqueuePreviewEvent(const PreviewEvent& ev) {
 }
 
 static void drainPreviewQueue(PaCallbackData* d) {
-    if (!d->previewQueue) return;
+    if (!d->previewQueue || !d->previewMod) return;
     uint32_t t = d->previewTail->load(std::memory_order_relaxed);
     uint32_t h = d->previewHead->load(std::memory_order_acquire);
     while (t != h) {
@@ -214,23 +233,23 @@ static void drainPreviewQueue(PaCallbackData* d) {
         int key = ev.key;
         if (ev.type == AudioEngine::PreviewEvent::SAMPLE_ON) {
             if (d->previewChannels[key] >= 0)
-                d->mod->stopNote(d->previewChannels[key]);
+                d->previewMod->stopNote(d->previewChannels[key]);
             d->previewChannels[key] = bb_play_sample(
-                d->mod, ev.idx, ev.opnote, ev.vol, ev.pan);
+                d->previewMod, ev.idx, ev.opnote, ev.vol, ev.pan);
         } else if (ev.type == AudioEngine::PreviewEvent::INSTR_ON) {
             if (d->previewChannels[key] >= 0)
-                d->mod->stopNote(d->previewChannels[key]);
-            d->previewChannels[key] = d->mod->playNote(
+                d->previewMod->stopNote(d->previewChannels[key]);
+            d->previewChannels[key] = d->previewMod->playNote(
                 ev.idx, ev.opnote, ev.vol, ev.pan);
         } else if (ev.type == AudioEngine::PreviewEvent::NOTE_OFF) {
             if (d->previewChannels[key] >= 0) {
-                d->mod->stopNote(d->previewChannels[key]);
+                d->previewMod->stopNote(d->previewChannels[key]);
                 d->previewChannels[key] = -1;
             }
         } else { // PITCH_BEND
             for (int k = 0; k <= 128; ++k)
                 if (d->previewChannels[k] >= 0)
-                    d->mod->setNotePitch(d->previewChannels[k], ev.pitch);
+                    d->previewMod->setNotePitch(d->previewChannels[k], ev.pitch);
         }
         d->previewTail->store(++t, std::memory_order_release);
     }
@@ -250,11 +269,21 @@ int AudioEngine::paCallback(const void*, void* output,
         return paAbort;
     }
 
-    bool paused  = d->paused->load();
-    bool preview = d->preview_mode && d->preview_mode->load();
+    bool paused = d->paused->load();
 
-    if (paused && !preview) {
-        std::memset(out, 0, frameCount * 2 * sizeof(float));
+    // ── Preview module — always rendered, fully isolated from song state ──────
+    drainPreviewQueue(d);
+    size_t pc = 0;
+    if (d->previewMod)
+        pc = d->previewMod->read(d->sampleRate, frameCount,
+                                  d->previewLeft.data(), d->previewRight.data());
+
+    if (paused) {
+        // Song stopped — output preview only; keep song VU dark.
+        for (size_t i = 0; i < frameCount; ++i) {
+            out[i * 2]     = (i < pc) ? d->previewLeft[i]  : 0.f;
+            out[i * 2 + 1] = (i < pc) ? d->previewRight[i] : 0.f;
+        }
         d->state->master_vu_left .store(0.f);
         d->state->master_vu_right.store(0.f);
         {
@@ -265,32 +294,7 @@ int AudioEngine::paCallback(const void*, void* output,
         return paContinue;
     }
 
-    if (paused && preview) {
-        // Note-preview mode: mute all song channels so only play_note() channels are audible
-        drainPreviewQueue(d);
-        int nc = std::min(d->state->num_channels.load(), (int32_t)MAX_CHANNELS);
-        for (int ch = 0; ch < nc; ++ch)
-            d->mod->setChannelMute(ch, true);
-
-        size_t count = d->mod->read(d->sampleRate, frameCount,
-                                    d->left.data(), d->right.data());
-
-        for (int ch = 0; ch < nc; ++ch) {
-            bool userMuted = (d->appliedMuteMask >> ch) & 1;
-            d->mod->setChannelMute(ch, userMuted);
-        }
-
-        // Don't reset position in preview mode — it would kill active virtual channels.
-
-        for (size_t i = 0; i < count; ++i) {
-            out[i * 2]     = d->left[i];
-            out[i * 2 + 1] = d->right[i];
-        }
-        if (count < frameCount)
-            std::memset(out + count * 2, 0, (frameCount - count) * 2 * sizeof(float));
-
-        return paContinue;
-    }
+    // ── Song playback ─────────────────────────────────────────────────────────
 
     // Apply pending channel mute changes
     uint64_t newMask = d->state->channel_mute_mask.load();
@@ -323,8 +327,6 @@ int AudioEngine::paCallback(const void*, void* output,
         d->patPrevRow = d->patPlayStartRow;
     }
 
-    drainPreviewQueue(d);
-
     int32_t nchForCapture = std::min(d->state->num_channels.load(), (int32_t)MAX_CHANNELS);
     if (nchForCapture > 0)
         bb_setup_channel_capture(d->mod, nchForCapture);
@@ -333,13 +335,34 @@ int AudioEngine::paCallback(const void*, void* output,
                                 d->left.data(), d->right.data());
     d->mod->advancePositionSeconds((double)count / d->sampleRate);
 
-    // Interleave
-    for (size_t i = 0; i < count; ++i) {
-        out[i * 2]     = d->left[i];
-        out[i * 2 + 1] = d->right[i];
+    if (count == 0) {
+        // Song finished — pause and rewind; stream stays alive for preview notes.
+        d->paused->store(true);
+        d->mod->setPositionSeconds(0.0);
+        d->inPatternPlay = false;
+        for (size_t i = 0; i < frameCount; ++i) {
+            out[i * 2]     = (i < pc) ? d->previewLeft[i]  : 0.f;
+            out[i * 2 + 1] = (i < pc) ? d->previewRight[i] : 0.f;
+        }
+        d->state->master_vu_left .store(0.f);
+        d->state->master_vu_right.store(0.f);
+        {
+            int wi = d->state->vuWriteIdx.load(std::memory_order_relaxed);
+            d->state->vuBuf[wi] = {};
+            d->state->vuWriteIdx.store(wi ^ 1, std::memory_order_release);
+        }
+        return paContinue;
     }
-    if (count < frameCount)
-        std::memset(out + count * 2, 0, (frameCount - count) * 2 * sizeof(float));
+
+    // Mix song + preview
+    for (size_t i = 0; i < count; ++i) {
+        out[i * 2]     = d->left[i]  + ((i < pc) ? d->previewLeft[i]  : 0.f);
+        out[i * 2 + 1] = d->right[i] + ((i < pc) ? d->previewRight[i] : 0.f);
+    }
+    for (size_t i = count; i < frameCount; ++i) {
+        out[i * 2]     = (i < pc) ? d->previewLeft[i]  : 0.f;
+        out[i * 2 + 1] = (i < pc) ? d->previewRight[i] : 0.f;
+    }
 
     // Pattern play: end-of-pattern detection
     if (d->inPatternPlay && count > 0) {
@@ -419,16 +442,16 @@ int AudioEngine::paCallback(const void*, void* output,
         d->state->vuWriteIdx.store(wi ^ 1, std::memory_order_release);
     }
 
-    // Master VU
+    // Master VU from mixed output
     float peakL = 0.0f, peakR = 0.0f;
     for (size_t i = 0; i < count; ++i) {
-        peakL = std::max(peakL, std::abs(d->left[i]));
-        peakR = std::max(peakR, std::abs(d->right[i]));
+        peakL = std::max(peakL, std::abs(out[i * 2]));
+        peakR = std::max(peakR, std::abs(out[i * 2 + 1]));
     }
     d->state->master_vu_left .store(std::max(peakL, d->state->master_vu_left .load() * 0.88f));
     d->state->master_vu_right.store(std::max(peakR, d->state->master_vu_right.load() * 0.88f));
 
-    return (count == 0) ? paComplete : paContinue;
+    return paContinue;
 }
 
 void AudioEngine::run() {
@@ -448,7 +471,7 @@ void AudioEngine::run() {
     cbData.pat_play_startrow = &m_patPlayStartRow;
     cbData.pat_play_loop     = &m_patPlayLoop;
     cbData.pat_play_single   = &m_patPlaySingle;
-    cbData.preview_mode      = &m_previewMode;
+    cbData.previewMod        = m_previewMod.get();
     cbData.sampleRate        = m_samplerate;
     cbData.previewQueue = m_previewQueue;
     cbData.previewHead  = &m_previewHead;

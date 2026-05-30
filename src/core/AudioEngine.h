@@ -39,10 +39,17 @@ public:
     void    setPaused(bool paused);
     bool    isPaused() const { return m_paused.load(); }
 
-    // Note-preview mode: runs the audio loop with song channels muted so only
-    // play_note() interactive channels are audible. Safe to call when stopped.
+    // Preview module — isolated from the song; always renders alongside it.
+    // startPreview(): pause song output, keep stream alive for preview notes.
+    // stopPreview():  resume song output.
     void    startPreview();
     void    stopPreview();
+
+    // Copy the currently-selected sample or instrument from the song module into
+    // the isolated preview module so MIDI/keyboard notes play the right sound.
+    // Call from the UI thread whenever the selection changes.
+    void    copyPreviewSample(int idx);
+    void    copyPreviewInstrument(int instrIdx);
 
     void    seekSeconds(double seconds);
     void    seekToOrder(int32_t order);
@@ -92,6 +99,7 @@ private:
 
     ModuleState&                         m_state;
     std::unique_ptr<SoundModule> m_mod;
+    std::unique_ptr<SoundModule> m_previewMod;  // isolated preview — no song state
 
     std::thread              m_thread;
     std::atomic<bool>        m_running {false};
@@ -110,7 +118,6 @@ private:
     std::atomic<bool>        m_patPlayLoop     {false};
     std::atomic<bool>        m_patPlaySingle   {false};
 
-    std::atomic<bool>        m_previewMode     {false};
     std::atomic<bool>        m_restartStream   {false};
     AudioDeviceMonitor       m_deviceMonitor;
 

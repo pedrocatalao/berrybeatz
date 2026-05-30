@@ -61,6 +61,12 @@ public:
         }
 
         drawChrome(title, w, h);
+
+        if (ImGui::IsKeyPressed(ImGuiKey_Escape)) {
+            m_open = false;
+            ImGui::CloseCurrentPopup();
+        }
+
         return true;
     }
 
@@ -121,7 +127,7 @@ private:
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, kClrModalClose);
         ImGui::PushStyleColor(ImGuiCol_ButtonActive,  kClrModalCloseAct);
         ImGui::PushStyleColor(ImGuiCol_Text,          IM_COL32(180, 180, 200, 220));
-        if (ImGui::Button("\xc3\x97##close", {kTitleH, kTitleH})) {
+        if (ImGui::Button("X##close", {kTitleH, kTitleH})) {
             m_open = false;
             ImGui::CloseCurrentPopup();
         }

@@ -1,4 +1,5 @@
 #include "NewModuleDialog.h"
+#include "Theme.h"
 #include "imgui.h"
 
 namespace {
@@ -15,39 +16,35 @@ namespace {
 
 void NewModuleDialog::open()
 {
-    m_format = 0;
     m_popup.open();
 }
 
 void NewModuleDialog::draw()
 {
-    if (!m_popup.begin("New Module", 320.f, 218.f))
+    if (!m_popup.begin("New Module", 280.f, 160.f))
         return;
 
-    ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 8.f);
-    ImGui::SetCursorPosX(12.f);
-    ImGui::TextUnformatted("Select format:");
+    ImGui::PushStyleColor(ImGuiCol_Button,        kClrBtnBg);
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, kClrBtnHover);
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive,  kClrBtnActive);
+
+    const float btnW = 256.f;
+    int chosen = -1;
 
     ImGui::Spacing();
     for (int i = 0; i < kNumFormats; ++i) {
         ImGui::SetCursorPosX(12.f);
-        ImGui::RadioButton(kFormats[i].label, &m_format, i);
+        if (ImGui::Button(kFormats[i].label, {btnW, 0.f}))
+            chosen = i;
     }
 
-    ImGui::Spacing();
-    ImGui::Separator();
-    ImGui::Spacing();
+    ImGui::PopStyleColor(3);
 
-    ImGui::SetCursorPosX(12.f);
-    bool create = ImGui::Button("Create", ImVec2(136.f, 0));
-    ImGui::SameLine(0.f, 8.f);
-    bool cancel = ImGui::Button("Cancel", ImVec2(136.f, 0));
-
-    if (create || cancel)
+    if (chosen >= 0)
         ImGui::CloseCurrentPopup();
 
     m_popup.end();
 
-    if (create && onCreate)
-        onCreate(m_format);
+    if (chosen >= 0 && onCreate)
+        onCreate(chosen);
 }

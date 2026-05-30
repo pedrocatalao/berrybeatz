@@ -231,8 +231,7 @@ int AudioEngine::paCallback(const void*, void* output,
             d->mod->setChannelMute(ch, userMuted);
         }
 
-        if (count == 0)
-            d->mod->setPositionSeconds(0.0);
+        // Don't reset position in preview mode — it would kill active virtual channels.
 
         for (size_t i = 0; i < count; ++i) {
             out[i * 2]     = d->left[i];
@@ -385,9 +384,6 @@ void AudioEngine::run() {
     if (!m_mod) return;
     m_running.store(true);
     m_state.is_playing.store(true);
-
-    Pa_Terminate();
-    Pa_Initialize();
 
     PaCallbackData cbData;
     cbData.mod               = m_mod.get();

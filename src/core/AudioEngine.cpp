@@ -196,6 +196,7 @@ void AudioEngine::playRow(int32_t order, int32_t row) {
 }
 
 void AudioEngine::enqueuePreviewEvent(const PreviewEvent& ev) {
+    std::lock_guard<std::mutex> lk(m_previewMutex);  // serialise multiple producers
     uint32_t h = m_previewHead.load(std::memory_order_relaxed);
     uint32_t t = m_previewTail.load(std::memory_order_acquire);
     if (h - t >= static_cast<uint32_t>(kPreviewQueueSize)) return; // full, drop

@@ -88,17 +88,16 @@ App::App() : m_controller(m_state), m_audio(m_state), m_tracker(m_state), m_gene
         m_toolbarState.speed = (int)m_state.current_speed.load();
         m_toolbarState.rpb   = (int)m_state.rows_per_beat.load();
         m_audio.startPreview();
+        wireNoteRT();
     };
 
     m_toolbarState.onOpen = [this]() { openFileDialog(); };
     m_toolbarState.onSave = [this]() { saveModule(); };
+    // Keep audio thread alive so RT MIDI notes are always ready without restart latency.
     m_toolbarState.onStop = [this]() {
-        if (m_audio.isRunning()) {
-            m_audio.stop();
-            m_audio.join();
-        }
         if (auto* mod = m_audio.getModule())
             mod->setPositionSeconds(0.0);
+        m_audio.startPreview();  // switches to preview mode, keeps thread running
     };
     m_toolbarState.onPlayPause     = [this]() { togglePlayPause(); };
     m_toolbarState.onPlayFromStart = [this]() { playFromStart(); };
@@ -319,6 +318,7 @@ void App::openFile(const std::string& path)
 
         // Pre-warm the audio stream so the first MIDI note plays without delay.
         m_audio.startPreview();
+        wireNoteRT();
     }
 }
 
@@ -437,7 +437,7 @@ void App::render(int winW, int winH)
     float ch = h - cy;
 
     // Use pending tab if a sidebar click fired this frame, otherwise the confirmed active tab
-    const int displayTab = (m_pendingTab >= 0) ? m_pendingTab : m_activeTab;
+    const int displayTab = (m_pendingTab >= 0) ? m_pendingTab : m_activeTab.load();
 
     if (displayTab == 1) {
         m_tracker.render(cx, cy, cw, ch);
@@ -632,10 +632,10 @@ void App::startPlayback()
 
 void App::stopPlayback()
 {
-    if (!m_audio.isRunning()) return;
-    m_audio.stopPreview();
-    m_audio.stop();
-    m_audio.join();
+    if (!m_hasModule) return;
+    if (auto* mod = m_audio.getModule())
+        mod->setPositionSeconds(0.0);
+    m_audio.startPreview();  // keep thread alive; switch to preview mode
 }
 
 void App::togglePlayPause()
@@ -694,4 +694,39 @@ void App::seekTo(float frac)
     m_audio.seekSeconds(frac * dur);
     if (!m_audio.isRunning() && m_hasModule)
         startPlayback();
+}
+
+void App::wireNoteRT()
+{
+    m_midi.onNoteRT = [this](int note, int vel) {
+        int tab = m_activeTab.load();
+        if (tab != 2 && tab != 3) return;
+
+        AudioEngine::PreviewEvent ev{};
+        if (vel > 0) {
+            if (tab == 2) {
+                ev.type   = AudioEngine::PreviewEvent::SAMPLE_ON;
+                ev.key    = (uint8_t)note;
+                ev.idx    = m_sampleView.getSelection();
+                ev.opnote = note + 1;
+                ev.vol    = vel / 127.f;
+                ev.pan    = 0.5f;
+                m_sampleView.setKbHeld(note, true);
+            } else {
+                ev.type   = AudioEngine::PreviewEvent::INSTR_ON;
+                ev.key    = (uint8_t)note;
+                ev.idx    = m_instrView.getSelection() - 1;
+                ev.opnote = note;
+                ev.vol    = vel / 127.f;
+                ev.pan    = 0.5f;
+                m_instrView.setKbHeld(note, true);
+            }
+        } else {
+            ev.type = AudioEngine::PreviewEvent::NOTE_OFF;
+            ev.key  = (uint8_t)note;
+            if (tab == 2) m_sampleView.setKbHeld(note, false);
+            else          m_instrView.setKbHeld(note, false);
+        }
+        m_audio.enqueuePreviewEvent(ev);
+    };
 }

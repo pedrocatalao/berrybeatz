@@ -47,6 +47,7 @@ private:
     void playFromStart();
     void seekTo(float frac);
     void dispatchMidiCC(int cc, int value);
+    void wireNoteRT();   // wires m_midi.onNoteRT to bypass frame-poll for note events
 
     ModuleState      m_state;
     ModuleController m_controller;
@@ -68,8 +69,8 @@ private:
     ImFont*     m_fontMono   {nullptr};
     ImFont*     m_fontUI     {nullptr};
 
-    int   m_activeTab  {0};
-    int   m_pendingTab {-1};   // programmatic switch request; -1 = none
+    std::atomic<int> m_activeTab  {0};
+    int              m_pendingTab {-1};   // programmatic switch request; -1 = none
     bool  m_tabsInited {false};
     bool  m_hasModule          {false};
 

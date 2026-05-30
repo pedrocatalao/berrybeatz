@@ -3,6 +3,7 @@
 #include "SoundModule.h"
 #include "../platform/AudioDeviceMonitor.h"
 #include <thread>
+#include <mutex>
 #include <string>
 #include <functional>
 #include <memory>
@@ -113,8 +114,9 @@ private:
     std::atomic<bool>        m_restartStream   {false};
     AudioDeviceMonitor       m_deviceMonitor;
 
-    // SPSC queue — producer: UI/MIDI thread, consumer: audio callback
+    // MPSC queue — producers: UI thread + CoreMIDI RT thread, consumer: audio callback
+    std::mutex                m_previewMutex;     // serialises producers only
     PreviewEvent              m_previewQueue[kPreviewQueueSize];
-    std::atomic<uint32_t>     m_previewHead {0};  // written by producer
-    std::atomic<uint32_t>     m_previewTail {0};  // written by consumer
+    std::atomic<uint32_t>     m_previewHead {0};  // written by producers (under mutex)
+    std::atomic<uint32_t>     m_previewTail {0};  // written by consumer (audio thread)
 };

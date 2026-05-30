@@ -21,6 +21,9 @@ public:
 
     // Called when a note preview starts — wire this to ensure the audio engine is running.
     std::function<void()> onNeedAudio;
+
+    void setKbHeld(int note, bool held) { if (note >= 0 && note < 128) m_kbHeld[note] = held; }
+
     std::function<void(int instrIdx, int opnote, float vol, float pan, int key)> onEnqueuePlay;
     std::function<void(int key)>          onEnqueueStop;
     std::function<void(float semitones)>  onEnqueuePitch;

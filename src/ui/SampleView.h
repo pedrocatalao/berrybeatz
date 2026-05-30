@@ -22,6 +22,9 @@ public:
 
     std::function<void()> onNeedAudio;
 
+    // Called from CoreMIDI RT thread to update display state without going through the view's MIDI path.
+    void setKbHeld(int note, bool held) { if (note >= 0 && note < 128) m_kbHeld[note] = held; }
+
     // Preview note routing — called instead of bb_play_sample/stopNote directly.
     // key: 0-127 = MIDI/keyboard slot, 128 = click-play slot.
     std::function<void(int sampleIdx, int opnote, float vol, float pan, int key)> onEnqueuePlay;

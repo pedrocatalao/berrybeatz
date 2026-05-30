@@ -86,7 +86,7 @@ set(SOURCES
     src/core/PatternEditor.cpp
     src/core/Settings.cpp
     src/core/UndoManager.cpp
-    src/core/OpenMPTInternal.cpp
+    src/core/SoundFileOps.cpp
     # ui — ImGui views and widgets
     src/ui/App.cpp
     src/ui/SidebarView.cpp
@@ -96,7 +96,7 @@ set(SOURCES
     src/ui/SettingsView.cpp
     src/ui/NewModuleDialog.cpp
     src/ui/Toolbar.cpp
-    src/ui/LogoView.cpp
+    src/ui/LogoView.mm
     src/ui/TrackerView.cpp
     src/ui/PatternInput.cpp
     # platform — macOS-specific
@@ -104,7 +104,6 @@ set(SOURCES
     src/platform/MidiEngine.mm
     src/platform/WindowChrome.cpp
     src/platform/CocoaHelpers.mm
-    src/platform/Logo.mm
     # assets bundled into Resources/
     assets/img/banner.png
     assets/img/speaker.png
@@ -123,7 +122,7 @@ set_source_files_properties(
     src/platform/MidiDevices.mm
     src/platform/MidiEngine.mm
     src/platform/CocoaHelpers.mm
-    src/platform/Logo.mm
+    src/ui/LogoView.mm
     PROPERTIES LANGUAGE OBJCXX
 )
 
@@ -148,10 +147,10 @@ target_include_directories(BerryBeatz PRIVATE
     ${MPG123_INCLUDE_DIRS}
 )
 
-# SoundModule.cpp and OpenMPTInternal.cpp include internal soundlib headers directly
+# SoundModule.cpp and SoundFileOps.cpp include internal soundlib headers directly
 set_source_files_properties(
     src/core/SoundModule.cpp
-    src/core/OpenMPTInternal.cpp
+    src/core/SoundFileOps.cpp
     PROPERTIES
     COMPILE_DEFINITIONS "LIBOPENMPT_BUILD"
 )

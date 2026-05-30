@@ -1,4 +1,4 @@
-// OpenMPTInternal.cpp — direct CSoundFile access via SoundModule::getCSFRaw().
+// SoundFileOps.cpp — direct CSoundFile access via SoundModule::getCSFRaw().
 // Compiled with LIBOPENMPT_BUILD + soundlib include paths (see CMakeLists.txt).
 #define BERRYBEATZ_FILESAVE
 
@@ -9,11 +9,12 @@
 #include "soundlib/OPL.h"
 
 #include "SoundModule.h"
-#include "OpenMPTInternal.h"
+#include "SoundFileOps.h"
 
 #include <fstream>
 #include <string>
 #include <cstring>
+#include <set>
 
 static OpenMPT::CSoundFile& getSF(SoundModule* mod) {
     return *static_cast<OpenMPT::CSoundFile*>(mod->getCSFRaw());
@@ -326,6 +327,71 @@ void bb_capture_channel_waves(SoundModule* mod,
             out[s] = src[s * 2] * scale;
         countsOut[ch] = n;
     }
+}
+
+// ─── Preview isolation ────────────────────────────────────────────────────────
+
+void bb_arm_preview_module_loop(SoundModule* mod) {
+    if (!mod) return;
+    getSF(mod).SetRepeatCount(-1);
+}
+
+void bb_copy_sample(SoundModule* dst, SoundModule* src, int idx) {
+    if (!dst || !src || idx < 1 || idx >= OpenMPT::MAX_SAMPLES) return;
+    auto& srcSF = getSF(src);
+    auto& dstSF = getSF(dst);
+    if (idx > (int)srcSF.m_nSamples) return;
+
+    const OpenMPT::ModSample& srcSamp = srcSF.GetSample((OpenMPT::SAMPLEINDEX)idx);
+    if (!srcSamp.HasSampleData()) return;
+
+    // Release any existing PCM in the destination slot (also silences active channels).
+    dstSF.DestroySample((OpenMPT::SAMPLEINDEX)idx);
+
+    // Extend sample count so GetSample() assertion passes on dst.
+    dstSF.m_nSamples = std::max(dstSF.m_nSamples, (OpenMPT::SAMPLEINDEX)idx);
+
+    OpenMPT::ModSample& dstSamp = dstSF.GetSample((OpenMPT::SAMPLEINDEX)idx);
+    dstSamp = srcSamp;
+    dstSamp.pData.pSample = nullptr;  // don't share the pointer
+
+    void* newBuf = OpenMPT::ModSample::AllocateSample(srcSamp.nLength,
+                                                       srcSamp.GetBytesPerSample());
+    if (newBuf) {
+        std::memcpy(newBuf, srcSamp.pData.pSample, srcSamp.GetSampleSizeInBytes());
+        dstSamp.pData.pSample = newBuf;
+    } else {
+        dstSamp.nLength = 0;  // allocation failed — silent sample
+    }
+}
+
+void bb_copy_instrument(SoundModule* dst, SoundModule* src, int instrIdx) {
+    if (!dst || !src || instrIdx < 1 || instrIdx >= OpenMPT::MAX_INSTRUMENTS) return;
+    auto& srcSF = getSF(src);
+    auto& dstSF = getSF(dst);
+    if (instrIdx > (int)srcSF.m_nInstruments) return;
+
+    const OpenMPT::ModInstrument* srcInstr = srcSF.Instruments[instrIdx];
+    if (!srcInstr) return;
+
+    if (!dstSF.Instruments[instrIdx])
+        dstSF.Instruments[instrIdx] = new (std::nothrow) OpenMPT::ModInstrument();
+    if (!dstSF.Instruments[instrIdx]) return;
+
+    *dstSF.Instruments[instrIdx] = *srcInstr;
+    dstSF.Instruments[instrIdx]->pTuning = nullptr;  // don't share tuning pointer
+
+    // Copy all unique samples referenced by the keyboard map.
+    std::set<OpenMPT::SAMPLEINDEX> needed;
+    for (int n = 0; n < 128; ++n) {
+        OpenMPT::SAMPLEINDEX s = srcInstr->Keyboard[n];
+        if (s >= 1 && s <= srcSF.m_nSamples)
+            needed.insert(s);
+    }
+    for (OpenMPT::SAMPLEINDEX s : needed)
+        bb_copy_sample(dst, src, (int)s);
+
+    dstSF.m_nInstruments = std::max(dstSF.m_nInstruments, (OpenMPT::INSTRUMENTINDEX)instrIdx);
 }
 
 void bb_apply_opl_channel_waves(SoundModule* mod,

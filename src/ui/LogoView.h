@@ -2,6 +2,10 @@
 #define GL_SILENCE_DEPRECATION
 #include <OpenGL/gl3.h>
 
+// Load PNG assets from the app bundle as GL textures.
+GLuint loadLogoTexture(float& outW, float& outH);
+GLuint loadSpeakerConeTexture(float& outW, float& outH);
+
 class LogoView {
 public:
     void draw(float winX, float winY, float winW,

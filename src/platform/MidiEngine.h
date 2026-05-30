@@ -2,6 +2,7 @@
 #include <vector>
 #include <mutex>
 #include <atomic>
+#include <functional>
 #include <cstdint>
 
 struct CCEvent   { int cc;   int value; };
@@ -14,8 +15,13 @@ public:
 
     void setSource(int sourceIndex);
     std::vector<CCEvent>   poll();           // drain CC queue; call once per frame
-    std::vector<NoteEvent> pollNotes();      // drain note queue; call once per frame
+    std::vector<NoteEvent> pollNotes();      // drain note queue (unused when onNoteRT is set)
     int  getPitchBend() const { return m_pitchBend.load(); }  // 0–16383, center=8192
+
+    // When set, note-on/off events are dispatched here directly from the CoreMIDI
+    // thread instead of being queued — eliminates the 16ms frame-poll latency.
+    // vel==0 means note off. Called from a real-time thread: must be lock-free.
+    std::function<void(int note, int vel)> onNoteRT;
 
 public:
     static void readProc(const void* pktlist, void* refCon, void* connRefCon);

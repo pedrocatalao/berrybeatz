@@ -3,6 +3,7 @@
 #include "SoundModule.h"
 #include "../platform/AudioDeviceMonitor.h"
 #include <thread>
+#include <mutex>
 #include <string>
 #include <functional>
 #include <memory>
@@ -38,10 +39,17 @@ public:
     void    setPaused(bool paused);
     bool    isPaused() const { return m_paused.load(); }
 
-    // Note-preview mode: runs the audio loop with song channels muted so only
-    // play_note() interactive channels are audible. Safe to call when stopped.
+    // Preview module — isolated from the song; always renders alongside it.
+    // startPreview(): pause song output, keep stream alive for preview notes.
+    // stopPreview():  resume song output.
     void    startPreview();
     void    stopPreview();
+
+    // Copy the currently-selected sample or instrument from the song module into
+    // the isolated preview module so MIDI/keyboard notes play the right sound.
+    // Call from the UI thread whenever the selection changes.
+    void    copyPreviewSample(int idx);
+    void    copyPreviewInstrument(int instrIdx);
 
     void    seekSeconds(double seconds);
     void    seekToOrder(int32_t order);
@@ -64,6 +72,21 @@ public:
     std::function<void(const std::string&)> onLoadFailed;
     std::function<void()>                   onSongFinished;
 
+    // ── Preview note queue (SPSC, lock-free) ─────────────────────────────────
+    // Enqueue from any thread; audio callback drains before each read().
+    // key: 0-127 = MIDI/keyboard note slot, 128 = click-play slot.
+    struct PreviewEvent {
+        enum Type : uint8_t { SAMPLE_ON, INSTR_ON, NOTE_OFF, PITCH_BEND } type;
+        uint8_t  key;       // SAMPLE_ON / INSTR_ON / NOTE_OFF
+        int32_t  idx;       // SAMPLE_ON: sampleIdx (1-based); INSTR_ON: instrIdx (0-based)
+        int32_t  opnote;    // SAMPLE_ON / INSTR_ON: 1-based OpenMPT note
+        float    vol;
+        float    pan;
+        float    pitch;     // PITCH_BEND only (semitones)
+    };
+    static constexpr int kPreviewQueueSize = 64; // must be power of 2
+    void enqueuePreviewEvent(const PreviewEvent& ev);
+
 private:
     static int paCallback(const void* input, void* output,
                           unsigned long frameCount,
@@ -76,6 +99,7 @@ private:
 
     ModuleState&                         m_state;
     std::unique_ptr<SoundModule> m_mod;
+    std::unique_ptr<SoundModule> m_previewMod;  // isolated preview — no song state
 
     std::thread              m_thread;
     std::atomic<bool>        m_running {false};
@@ -94,7 +118,12 @@ private:
     std::atomic<bool>        m_patPlayLoop     {false};
     std::atomic<bool>        m_patPlaySingle   {false};
 
-    std::atomic<bool>        m_previewMode     {false};
     std::atomic<bool>        m_restartStream   {false};
     AudioDeviceMonitor       m_deviceMonitor;
+
+    // MPSC queue — producers: UI thread + CoreMIDI RT thread, consumer: audio callback
+    std::mutex                m_previewMutex;     // serialises producers only
+    PreviewEvent              m_previewQueue[kPreviewQueueSize];
+    std::atomic<uint32_t>     m_previewHead {0};  // written by producers (under mutex)
+    std::atomic<uint32_t>     m_previewTail {0};  // written by consumer (audio thread)
 };

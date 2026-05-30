@@ -3,7 +3,7 @@
 #include "TabBar.h"
 #include "RenderSettings.h"
 #include "CocoaHelpers.h"
-#include "Logo.h"
+#include "LogoView.h"
 #include "MidiDevices.h"
 #include "SoundModule.h"
 #include "imgui.h"
@@ -45,23 +45,61 @@ App::App() : m_controller(m_state), m_audio(m_state), m_tracker(m_state), m_gene
         m_sampleView.setFonts(m_fontMono, m_fontUI);
         m_sampleView.setController(&m_controller, nSamp);
         m_sampleView.onNeedAudio = [this]() { if (m_hasModule) m_audio.startPreview(); };
+        m_sampleView.onEnqueuePlay = [this](int si, int on, float v, float p, int key) {
+            AudioEngine::PreviewEvent ev{};
+            ev.type = AudioEngine::PreviewEvent::SAMPLE_ON;
+            ev.key = (uint8_t)key; ev.idx = si; ev.opnote = on; ev.vol = v; ev.pan = p;
+            m_audio.enqueuePreviewEvent(ev);
+        };
+        m_sampleView.onEnqueueStop = [this](int key) {
+            AudioEngine::PreviewEvent ev{};
+            ev.type = AudioEngine::PreviewEvent::NOTE_OFF;
+            ev.key = (uint8_t)key;
+            m_audio.enqueuePreviewEvent(ev);
+        };
+        m_sampleView.onEnqueuePitch = [this](float pitch) {
+            AudioEngine::PreviewEvent ev{};
+            ev.type = AudioEngine::PreviewEvent::PITCH_BEND;
+            ev.pitch = pitch;
+            m_audio.enqueuePreviewEvent(ev);
+        };
         m_instrView.setFonts(m_fontMono, m_fontUI);
         m_instrView.setController(&m_controller, nInstr);
         m_instrView.onNeedAudio = [this]() { if (m_hasModule) m_audio.startPreview(); };
+        m_instrView.onEnqueuePlay = [this](int si, int on, float v, float p, int key) {
+            AudioEngine::PreviewEvent ev{};
+            ev.type = AudioEngine::PreviewEvent::INSTR_ON;
+            ev.key = (uint8_t)key; ev.idx = si; ev.opnote = on; ev.vol = v; ev.pan = p;
+            m_audio.enqueuePreviewEvent(ev);
+        };
+        m_instrView.onEnqueueStop = [this](int key) {
+            AudioEngine::PreviewEvent ev{};
+            ev.type = AudioEngine::PreviewEvent::NOTE_OFF;
+            ev.key = (uint8_t)key;
+            m_audio.enqueuePreviewEvent(ev);
+        };
+        m_instrView.onEnqueuePitch = [this](float pitch) {
+            AudioEngine::PreviewEvent ev{};
+            ev.type = AudioEngine::PreviewEvent::PITCH_BEND;
+            ev.pitch = pitch;
+            m_audio.enqueuePreviewEvent(ev);
+        };
         m_toolbarState.tempo = (int)std::round(m_state.bpm.load());
         m_toolbarState.speed = (int)m_state.current_speed.load();
         m_toolbarState.rpb   = (int)m_state.rows_per_beat.load();
+        m_audio.startPreview();
+        m_audio.copyPreviewSample(m_sampleView.getSelection());
+        m_audio.copyPreviewInstrument(m_instrView.getSelection());
+        wireNoteRT();
     };
 
     m_toolbarState.onOpen = [this]() { openFileDialog(); };
     m_toolbarState.onSave = [this]() { saveModule(); };
+    // Keep audio thread alive so RT MIDI notes are always ready without restart latency.
     m_toolbarState.onStop = [this]() {
-        if (m_audio.isRunning()) {
-            m_audio.stop();
-            m_audio.join();
-        }
         if (auto* mod = m_audio.getModule())
             mod->setPositionSeconds(0.0);
+        m_audio.startPreview();  // switches to preview mode, keeps thread running
     };
     m_toolbarState.onPlayPause     = [this]() { togglePlayPause(); };
     m_toolbarState.onPlayFromStart = [this]() { playFromStart(); };
@@ -156,8 +194,10 @@ App::App() : m_controller(m_state), m_audio(m_state), m_tracker(m_state), m_gene
         m_pendingTab = tab;
         if (tab == 3) {
             m_instrView.setSelection(idx + 1);
+            m_audio.copyPreviewInstrument(idx + 1);
         } else if (tab == 2) {
             m_sampleView.setSelection(idx + 1);
+            m_audio.copyPreviewSample(idx + 1);
         } else if (tab == 1) {
             auto* mod = m_audio.getModule();
             if (mod) {
@@ -232,6 +272,24 @@ void App::openFile(const std::string& path)
             if (!m_hasModule) return;
             m_audio.startPreview();
         };
+        m_sampleView.onEnqueuePlay = [this](int si, int on, float v, float p, int key) {
+            AudioEngine::PreviewEvent ev{};
+            ev.type = AudioEngine::PreviewEvent::SAMPLE_ON;
+            ev.key = (uint8_t)key; ev.idx = si; ev.opnote = on; ev.vol = v; ev.pan = p;
+            m_audio.enqueuePreviewEvent(ev);
+        };
+        m_sampleView.onEnqueueStop = [this](int key) {
+            AudioEngine::PreviewEvent ev{};
+            ev.type = AudioEngine::PreviewEvent::NOTE_OFF;
+            ev.key = (uint8_t)key;
+            m_audio.enqueuePreviewEvent(ev);
+        };
+        m_sampleView.onEnqueuePitch = [this](float pitch) {
+            AudioEngine::PreviewEvent ev{};
+            ev.type = AudioEngine::PreviewEvent::PITCH_BEND;
+            ev.pitch = pitch;
+            m_audio.enqueuePreviewEvent(ev);
+        };
 
         m_instrView.setFonts(m_fontMono, m_fontUI);
         m_instrView.setController(&m_controller, nInstr);
@@ -239,10 +297,34 @@ void App::openFile(const std::string& path)
             if (!m_hasModule) return;
             m_audio.startPreview();
         };
+        m_instrView.onEnqueuePlay = [this](int si, int on, float v, float p, int key) {
+            AudioEngine::PreviewEvent ev{};
+            ev.type = AudioEngine::PreviewEvent::INSTR_ON;
+            ev.key = (uint8_t)key; ev.idx = si; ev.opnote = on; ev.vol = v; ev.pan = p;
+            m_audio.enqueuePreviewEvent(ev);
+        };
+        m_instrView.onEnqueueStop = [this](int key) {
+            AudioEngine::PreviewEvent ev{};
+            ev.type = AudioEngine::PreviewEvent::NOTE_OFF;
+            ev.key = (uint8_t)key;
+            m_audio.enqueuePreviewEvent(ev);
+        };
+        m_instrView.onEnqueuePitch = [this](float pitch) {
+            AudioEngine::PreviewEvent ev{};
+            ev.type = AudioEngine::PreviewEvent::PITCH_BEND;
+            ev.pitch = pitch;
+            m_audio.enqueuePreviewEvent(ev);
+        };
 
         m_toolbarState.tempo = (int)std::round(m_state.bpm.load());
         m_toolbarState.speed = (int)m_state.current_speed.load();
         m_toolbarState.rpb   = (int)m_state.rows_per_beat.load();
+
+        // Pre-warm the audio stream so the first MIDI note plays without delay.
+        m_audio.startPreview();
+        m_audio.copyPreviewSample(m_sampleView.getSelection());
+        m_audio.copyPreviewInstrument(m_instrView.getSelection());
+        wireNoteRT();
     }
 }
 
@@ -361,7 +443,7 @@ void App::render(int winW, int winH)
     float ch = h - cy;
 
     // Use pending tab if a sidebar click fired this frame, otherwise the confirmed active tab
-    const int displayTab = (m_pendingTab >= 0) ? m_pendingTab : m_activeTab;
+    const int displayTab = (m_pendingTab >= 0) ? m_pendingTab : m_activeTab.load();
 
     if (displayTab == 1) {
         m_tracker.render(cx, cy, cw, ch);
@@ -546,18 +628,20 @@ void App::clearModule()
 
 void App::startPlayback()
 {
-    if (!m_hasModule || m_audio.isRunning()) return;
+    if (!m_hasModule) return;
+    if (m_audio.isRunning() && !m_audio.isPaused()) return;  // already playing
     m_audio.stopPreview();
     m_audio.setPaused(false);
-    m_audio.start();
+    if (!m_audio.isRunning()) m_audio.start();
+    // else: was paused/preview — stopPreview+setPaused(false) switches to song mode
 }
 
 void App::stopPlayback()
 {
-    if (!m_audio.isRunning()) return;
-    m_audio.stopPreview();
-    m_audio.stop();
-    m_audio.join();
+    if (!m_hasModule) return;
+    if (auto* mod = m_audio.getModule())
+        mod->setPositionSeconds(0.0);
+    m_audio.startPreview();  // keep thread alive; switch to preview mode
 }
 
 void App::togglePlayPause()
@@ -616,4 +700,39 @@ void App::seekTo(float frac)
     m_audio.seekSeconds(frac * dur);
     if (!m_audio.isRunning() && m_hasModule)
         startPlayback();
+}
+
+void App::wireNoteRT()
+{
+    m_midi.onNoteRT = [this](int note, int vel) {
+        int tab = m_activeTab.load();
+        if (tab != 2 && tab != 3) return;
+
+        AudioEngine::PreviewEvent ev{};
+        if (vel > 0) {
+            if (tab == 2) {
+                ev.type   = AudioEngine::PreviewEvent::SAMPLE_ON;
+                ev.key    = (uint8_t)note;
+                ev.idx    = m_sampleView.getSelection();
+                ev.opnote = note + 1;
+                ev.vol    = vel / 127.f;
+                ev.pan    = 0.5f;
+                m_sampleView.setKbHeld(note, true);
+            } else {
+                ev.type   = AudioEngine::PreviewEvent::INSTR_ON;
+                ev.key    = (uint8_t)note;
+                ev.idx    = m_instrView.getSelection() - 1;
+                ev.opnote = note;
+                ev.vol    = vel / 127.f;
+                ev.pan    = 0.5f;
+                m_instrView.setKbHeld(note, true);
+            }
+        } else {
+            ev.type = AudioEngine::PreviewEvent::NOTE_OFF;
+            ev.key  = (uint8_t)note;
+            if (tab == 2) m_sampleView.setKbHeld(note, false);
+            else          m_instrView.setKbHeld(note, false);
+        }
+        m_audio.enqueuePreviewEvent(ev);
+    };
 }

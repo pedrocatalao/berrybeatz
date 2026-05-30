@@ -1,6 +1,6 @@
 #include "ModuleController.h"
 #include "SoundModule.h"
-#include "OpenMPTInternal.h"
+#include "SoundFileOps.h"
 
 ModuleController::ModuleController(ModuleState& state) : m_state(state) {}
 

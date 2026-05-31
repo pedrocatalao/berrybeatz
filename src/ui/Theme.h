@@ -86,7 +86,7 @@ static constexpr ImU32 kClrWinFullscr   = IM_COL32( 18, 110,  75, 255);
 
 
 // ── Scrollbar ─────────────────────────────────────────────────────────────────
-static constexpr ImU32 kClrScrollBg     = IM_COL32( 12,  12,  22, 255);
+static constexpr ImU32 kClrScrollBg     = IM_COL32(  0,   0,   0,   0);
 static constexpr ImU32 kClrScrollGrab   = IM_COL32( 40,  85, 145, 200);
 static constexpr ImU32 kClrScrollHover  = IM_COL32( 55, 112, 175, 230);
 static constexpr ImU32 kClrScrollActive = IM_COL32( 66, 130, 205, 255);

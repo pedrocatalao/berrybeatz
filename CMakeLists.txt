@@ -96,7 +96,7 @@ set(SOURCES
     src/ui/SettingsView.cpp
     src/ui/NewModuleDialog.cpp
     src/ui/Toolbar.cpp
-    src/ui/LogoView.mm
+    src/ui/LogoView.cpp
     src/ui/TrackerView.cpp
     src/ui/PatternInput.cpp
     # platform — macOS-specific
@@ -122,7 +122,6 @@ set_source_files_properties(
     src/platform/MidiDevices.mm
     src/platform/MidiEngine.mm
     src/platform/CocoaHelpers.mm
-    src/ui/LogoView.mm
     PROPERTIES LANGUAGE OBJCXX
 )
 
@@ -171,6 +170,8 @@ target_link_libraries(BerryBeatz PRIVATE
     "-framework CoreAudio"
     "-framework AudioUnit"
     "-framework CoreFoundation"
+    "-framework CoreGraphics"
+    "-framework ImageIO"
     "-framework CoreMIDI"
 )
 

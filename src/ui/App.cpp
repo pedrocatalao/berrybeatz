@@ -105,7 +105,7 @@ App::App() : m_controller(m_state), m_audio(m_state), m_tracker(m_state), m_gene
 
     // ── TrackerView callbacks ──────────────────────────────────────────────
     m_tracker.onOrderSeekRequested = [this](int32_t order) {
-        if (m_audio.isRunning()) {
+        if (m_transport == Transport::Playing) {
             m_audio.seekToOrder(order);
         } else if (m_hasModule) {
             auto* mod = m_audio.getModule();
@@ -146,7 +146,7 @@ App::App() : m_controller(m_state), m_audio(m_state), m_tracker(m_state), m_gene
                 for (int o = 0; o < numOrd; ++o)
                     if (mod->getOrderPattern(o) == idx) { order = o; break; }
                 if (order >= 0) {
-                    if (m_audio.isRunning())
+                    if (m_transport == Transport::Playing)
                         m_audio.playPatternFrom(order, 0, m_tracker.getLoopPattern());
                     else {
                         mod->setPositionOrderRow(order, 0);
@@ -710,7 +710,7 @@ void App::seekTo(float frac)
 {
     double dur = m_state.duration_seconds.load();
     m_audio.seekSeconds(frac * dur);
-    if (!m_audio.isRunning() && m_hasModule)
+    if (m_transport != Transport::Playing && m_hasModule)
         startPlayback();
 }
 

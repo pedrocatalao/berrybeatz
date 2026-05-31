@@ -494,7 +494,7 @@ void App::drawSongBar(float w, float h)
 {
     ImGui::SetNextWindowPos({0.f, h - kSongBarH}, ImGuiCond_Always);
     ImGui::SetNextWindowSize({w, kSongBarH}, ImGuiCond_Always);
-    ImGui::PushStyleColor(ImGuiCol_WindowBg, kClrBgPanel);
+    ImGui::PushStyleColor(ImGuiCol_WindowBg, IM_COL32(0, 0, 0, 0));
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,  {4.f, 3.f});
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f);
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,    {2.f, 0.f});
@@ -504,6 +504,14 @@ void App::drawSongBar(float w, float h)
         ImGuiWindowFlags_NoBringToFrontOnFocus);
     ImGui::PopStyleVar(3);
     ImGui::PopStyleColor();
+    {
+        ImVec2 wp = ImGui::GetWindowPos();
+        ImVec2 ws = ImGui::GetWindowSize();
+        ImGui::GetWindowDrawList()->AddRectFilledMultiColor(
+            wp, {wp.x + ws.x, wp.y + ws.y},
+            kClrStatusGradTop, kClrStatusGradTop,
+            kClrStatusGradBot, kClrStatusGradBot);
+    }
 
     bool closed = false;
     int  closeIdx = -1;

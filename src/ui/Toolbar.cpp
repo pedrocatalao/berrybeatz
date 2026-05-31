@@ -112,10 +112,8 @@ float DrawToolbar(ToolbarState& state,
         ImVec2 ws = ImGui::GetWindowSize();
         ImGui::GetWindowDrawList()->AddRectFilledMultiColor(
             wp, {wp.x + ws.x, wp.y + ws.y},
-            IM_COL32(  0,   0,  20, 255),   // top-left
-            IM_COL32(  0,   0,  20, 255),   // top-right
-            IM_COL32( 20,  20,  40, 255),   // bottom-right
-            IM_COL32( 20,  20,  40, 255));  // bottom-left
+            kClrToolbarGradTop, kClrToolbarGradTop,
+            kClrToolbarGradBot, kClrToolbarGradBot);
     }
 
     const float frameH   = ImGui::GetFrameHeight();

@@ -83,7 +83,8 @@ private:
 
     Transport m_transport {Transport::Stopped};
 
-    std::atomic<int> m_activeTab  {0};
+    std::atomic<int> m_activeTab       {0};
+    std::atomic<int> m_midiTrackerNote {-1};  // RT→UI handoff for pattern note entry
     int              m_pendingTab {-1};
     bool             m_tabsInited {false};
 

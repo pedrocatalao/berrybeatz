@@ -500,6 +500,10 @@ void App::render(int winW, int winH)
         int pb = m_midi.getPitchBend();
         if (m_activeTab == 2) m_sampleView.midiPitchBend(pb);
         if (m_activeTab == 3) m_instrView.midiPitchBend(pb);
+
+        // Drain MIDI note-entry for patterns tab (RT→UI handoff)
+        int midiEntry = m_midiTrackerNote.exchange(-1);
+        if (midiEntry > 0) m_tracker.inputNote(midiEntry);
     }
 
     m_settingsView.draw();
@@ -767,7 +771,10 @@ void App::wireNoteRT()
                 ev.vol    = vel / 127.f;
                 ev.pan    = 0.5f;
                 if (tab == 3) m_instrView.setKbHeld(note, true);
-                else          m_tracker.setKbHeld(note, true);
+                else {
+                    m_tracker.setKbHeld(note, true);
+                    m_midiTrackerNote.store(note + 1);  // hand off to UI thread for pattern entry
+                }
             }
         } else {
             ev.type = AudioEngine::PreviewEvent::NOTE_OFF;

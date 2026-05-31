@@ -291,14 +291,22 @@ void TrackerView::processInput() {
             advanceCursor(); return;
         }
         for (const auto& nm : kNoteKeys) {
-            if (ImGui::IsKeyPressed(nm.key)) {
-                int note = (m_baseOctave + nm.semi/12) * 12 + (nm.semi % 12) + 1;
-                if (note >= NOTE_MIN && note <= NOTE_MAX) {
-                    PatternCell newCell = cell; newCell.note = (uint8_t)note;
+            int note = (m_baseOctave + nm.semi/12) * 12 + (nm.semi % 12) + 1;
+            if (note >= NOTE_MIN && note <= NOTE_MAX) {
+                if (ImGui::IsKeyPressed(nm.key, false)) {
+                    PatternCell newCell = cell;
+                    newCell.note = (uint8_t)note;
+                    if (m_curInstrument > 0) newCell.instr = (uint8_t)m_curInstrument;
                     setCell(pat, m_cur.row, m_cur.channel, newCell);
                     advanceCursor();
+                    if (onKbdNeedAudio) onKbdNeedAudio();
+                    if (onKbdPlay) onKbdPlay(note, note - 1);
+                    return;
                 }
-                return;
+                if (ImGui::IsKeyReleased(nm.key)) {
+                    if (onKbdStop) onKbdStop(note - 1);
+                    return;
+                }
             }
         }
         return;

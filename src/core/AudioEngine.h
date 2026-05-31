@@ -26,8 +26,10 @@ public:
     explicit AudioEngine(ModuleState& state);
     ~AudioEngine();
 
-    bool    loadFile(const std::string& path);
-    bool    newModule(int channels = 8);
+    // Activate a song module (non-owning — caller/SongDocument owns the SoundModule).
+    // Stops any running stream, wires the new module, restarts the stream paused.
+    // Pass nullptr to deactivate (no audio).
+    void    setModule(SoundModule* mod);
 
     void    start();            // launch audio thread
     void    stop();             // signal thread to stop (non-blocking)
@@ -56,7 +58,7 @@ public:
     void    selectSubsong(int32_t index);
     int32_t subsongCount() const;
 
-    SoundModule* getModule() const;
+    SoundModule* getModule() const { return m_mod; }
 
     // Audio device configuration (takes effect on next start())
     void setAudioConfig(int deviceIndex, int sampleRate);
@@ -97,9 +99,9 @@ private:
     void run();
     void fillState();
 
-    ModuleState&                         m_state;
-    std::unique_ptr<SoundModule> m_mod;
-    std::unique_ptr<SoundModule> m_previewMod;  // isolated preview — no song state
+    ModuleState&             m_state;
+    SoundModule*             m_mod        {nullptr};  // non-owning; SongDocument owns it
+    std::unique_ptr<SoundModule> m_previewMod;        // owned; isolated preview
 
     std::thread              m_thread;
     std::atomic<bool>        m_running    {false};

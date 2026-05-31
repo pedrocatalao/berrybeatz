@@ -17,7 +17,6 @@
 
 App::App() : m_controller(m_state), m_audio(m_state), m_tracker(m_state), m_generalView(m_state)
 {
-    // ── Toolbar callbacks ──────────────────────────────────────────────────
     // ── Window control callbacks ───────────────────────────────────────────
     m_toolbarState.onWindowClose      = [this]() { glfwSetWindowShouldClose(m_glfwWindow, 1); };
     m_toolbarState.onWindowMinimize   = [this]() { glfwIconifyWindow(m_glfwWindow); };
@@ -28,87 +27,30 @@ App::App() : m_controller(m_state), m_audio(m_state), m_tracker(m_state), m_gene
         m_settingsView.open(m_settings, m_audio.getDevices(), enumerateMidiSources());
     };
 
-    m_toolbarState.onNew  = [this]() { m_newModuleDialog.open(); };
+    m_toolbarState.onNew = [this]() { m_newModuleDialog.open(); };
 
     m_newModuleDialog.onCreate = [this](int fmt) {
         static constexpr const char* kExts[] = {".btz", ".it", ".xm", ".s3m", ".mod"};
-        clearModule();
-        if (!m_audio.newModule()) return;
-        m_hasModule  = true;
-        m_loadedPath = std::string("untitled") + kExts[fmt];
-        auto* mod = m_audio.getModule();
-        m_controller.setModule(mod);
-        m_tracker.setController(&m_controller);
-        m_generalView.setController(&m_controller);
-        int nSamp, nInstr;
-        { std::lock_guard<std::mutex> lk(m_state.meta_mutex); nSamp = m_state.num_samples; nInstr = m_state.num_instruments; }
-        m_sampleView.setFonts(m_fontMono, m_fontUI);
-        m_sampleView.setController(&m_controller, nSamp);
-        m_sampleView.onNeedAudio = [this]() { if (m_hasModule) m_audio.ensureRunning(); };
-        m_sampleView.onEnqueuePlay = [this](int si, int on, float v, float p, int key) {
-            AudioEngine::PreviewEvent ev{};
-            ev.type = AudioEngine::PreviewEvent::SAMPLE_ON;
-            ev.key = (uint8_t)key; ev.idx = si; ev.opnote = on; ev.vol = v; ev.pan = p;
-            m_audio.enqueuePreviewEvent(ev);
-        };
-        m_sampleView.onEnqueueStop = [this](int key) {
-            AudioEngine::PreviewEvent ev{};
-            ev.type = AudioEngine::PreviewEvent::NOTE_OFF;
-            ev.key = (uint8_t)key;
-            m_audio.enqueuePreviewEvent(ev);
-        };
-        m_sampleView.onEnqueuePitch = [this](float pitch) {
-            AudioEngine::PreviewEvent ev{};
-            ev.type = AudioEngine::PreviewEvent::PITCH_BEND;
-            ev.pitch = pitch;
-            m_audio.enqueuePreviewEvent(ev);
-        };
-        m_instrView.setFonts(m_fontMono, m_fontUI);
-        m_instrView.setController(&m_controller, nInstr);
-        m_instrView.onNeedAudio = [this]() { if (m_hasModule) m_audio.ensureRunning(); };
-        m_instrView.onEnqueuePlay = [this](int si, int on, float v, float p, int key) {
-            AudioEngine::PreviewEvent ev{};
-            ev.type = AudioEngine::PreviewEvent::INSTR_ON;
-            ev.key = (uint8_t)key; ev.idx = si; ev.opnote = on; ev.vol = v; ev.pan = p;
-            m_audio.enqueuePreviewEvent(ev);
-        };
-        m_instrView.onEnqueueStop = [this](int key) {
-            AudioEngine::PreviewEvent ev{};
-            ev.type = AudioEngine::PreviewEvent::NOTE_OFF;
-            ev.key = (uint8_t)key;
-            m_audio.enqueuePreviewEvent(ev);
-        };
-        m_instrView.onEnqueuePitch = [this](float pitch) {
-            AudioEngine::PreviewEvent ev{};
-            ev.type = AudioEngine::PreviewEvent::PITCH_BEND;
-            ev.pitch = pitch;
-            m_audio.enqueuePreviewEvent(ev);
-        };
-        m_toolbarState.tempo = (int)std::round(m_state.bpm.load());
-        m_toolbarState.speed = (int)m_state.current_speed.load();
-        m_toolbarState.rpb   = (int)m_state.rows_per_beat.load();
-        m_audio.ensureRunning();
-        m_audio.setPaused(true);
-        m_audio.copyPreviewSample(m_sampleView.getSelection());
-        m_audio.copyPreviewInstrument(m_instrView.getSelection());
-        wireNoteRT();
+        auto doc = std::make_unique<SongDocument>();
+        doc->mod = std::make_unique<SoundModule>();
+        if (!doc->mod->newModule()) return;
+        std::string name = std::string("untitled") + kExts[fmt];
+        doc->path        = name;
+        doc->displayName = name;
+        m_songs.push_back(std::move(doc));
+        switchToSong((int)m_songs.size() - 1);
     };
 
     m_toolbarState.onOpen = [this]() { openFileDialog(); };
     m_toolbarState.onSave = [this]() { saveModule(); };
-    // Keep audio thread alive so RT MIDI notes are always ready without restart latency.
-    m_toolbarState.onStop = [this]() {
-        stopPlayback();
-    };
+    m_toolbarState.onStop      = [this]() { stopPlayback(); };
     m_toolbarState.onPlayPause = [this]() { togglePlayPause(); };
     m_toolbarState.onSeek      = [this](float f) { seekTo(f); };
 
-    m_toolbarState.onOctaveChange = [this](int v) {
-        m_tracker.setBaseOctave(v);
-    };
-    m_toolbarState.onTempoChange = [this](int v) { m_controller.setTempo(v); };
-    m_toolbarState.onSpeedChange = [this](int v) { m_controller.setSpeed(v); };
-    m_toolbarState.onRPBChange       = [](int) {};  // determined by pattern data
+    m_toolbarState.onOctaveChange    = [this](int v) { m_tracker.setBaseOctave(v); };
+    m_toolbarState.onTempoChange     = [this](int v) { m_controller.setTempo(v); };
+    m_toolbarState.onSpeedChange     = [this](int v) { m_controller.setSpeed(v); };
+    m_toolbarState.onRPBChange       = [](int) {};
     m_toolbarState.onGlobalVolChange = [this](int v) {
         int mx = m_state.gvol_max.load();
         if (mx > 0) m_controller.setGlobalVolume(v / (double)mx);
@@ -118,46 +60,47 @@ App::App() : m_controller(m_state), m_audio(m_state), m_tracker(m_state), m_gene
     m_audio.onLoadFailed = [](const std::string& msg) {
         fprintf(stderr, "Load failed: %s\n", msg.c_str());
     };
-    m_audio.onSongFinished = [this]() {
-        // Called from audio thread — just note playback ended naturally
-        (void)this;
+    m_audio.onSongFinished = [this]() { (void)this; };
+
+    // ── View callbacks (stable across song switches) ───────────────────────
+    m_sampleView.onNeedAudio = [this]() { if (m_hasModule) m_audio.ensureRunning(); };
+    m_sampleView.onEnqueuePlay = [this](int si, int on, float v, float p, int key) {
+        AudioEngine::PreviewEvent ev{};
+        ev.type = AudioEngine::PreviewEvent::SAMPLE_ON;
+        ev.key = (uint8_t)key; ev.idx = si; ev.opnote = on; ev.vol = v; ev.pan = p;
+        m_audio.enqueuePreviewEvent(ev);
+    };
+    m_sampleView.onEnqueueStop = [this](int key) {
+        AudioEngine::PreviewEvent ev{};
+        ev.type = AudioEngine::PreviewEvent::NOTE_OFF;
+        ev.key = (uint8_t)key;
+        m_audio.enqueuePreviewEvent(ev);
+    };
+    m_sampleView.onEnqueuePitch = [this](float pitch) {
+        AudioEngine::PreviewEvent ev{};
+        ev.type = AudioEngine::PreviewEvent::PITCH_BEND;
+        ev.pitch = pitch;
+        m_audio.enqueuePreviewEvent(ev);
     };
 
-    // ── Settings ──────────────────────────────────────────────────────────
-    m_settings.load(Settings::defaultPath());
-    g_glowLogo    = m_settings.glowLogo    / 5.f;
-    g_glowVU      = m_settings.glowVU      / 5.f;
-    g_glowPattern = m_settings.glowPattern / 5.f;
-    g_glowKnobs   = m_settings.glowKnobs   / 5.f;
-    m_tracker.setContinuousScroll(m_settings.continuousScroll);
-    m_audio.setFT2VolumeRamping(m_settings.ft2VolumeRamping);
-    m_audio.setAudioConfig(m_settings.audioDeviceIndex, m_settings.sampleRate);
-    m_midi.setSource(m_settings.midiInputIndex);
-
-    m_settingsView.onMidiSourceChange = [this](int idx) {
-        m_midi.setSource(idx);
+    m_instrView.onNeedAudio = [this]() { if (m_hasModule) m_audio.ensureRunning(); };
+    m_instrView.onEnqueuePlay = [this](int si, int on, float v, float p, int key) {
+        AudioEngine::PreviewEvent ev{};
+        ev.type = AudioEngine::PreviewEvent::INSTR_ON;
+        ev.key = (uint8_t)key; ev.idx = si; ev.opnote = on; ev.vol = v; ev.pan = p;
+        m_audio.enqueuePreviewEvent(ev);
     };
-
-    m_settingsView.onApply = [this](const Settings& s) {
-        bool audioChanged = (s.audioDeviceIndex != m_settings.audioDeviceIndex ||
-                             s.sampleRate       != m_settings.sampleRate);
-        bool midiChanged  = (s.midiInputIndex   != m_settings.midiInputIndex);
-        m_settings = s;
-        m_settings.save(Settings::defaultPath());
-        g_glowLogo    = s.glowLogo    / 5.f;
-        g_glowVU      = s.glowVU      / 5.f;
-        g_glowPattern = s.glowPattern / 5.f;
-        g_glowKnobs   = s.glowKnobs   / 5.f;
-        m_tracker.setContinuousScroll(s.continuousScroll);
-        m_audio.setFT2VolumeRamping(s.ft2VolumeRamping);
-        m_audio.setAudioConfig(s.audioDeviceIndex, s.sampleRate);
-        if (audioChanged && m_audio.isRunning()) {
-            m_audio.stop();
-            m_audio.join();
-            m_audio.start();
-        }
-        if (midiChanged)
-            m_midi.setSource(s.midiInputIndex);
+    m_instrView.onEnqueueStop = [this](int key) {
+        AudioEngine::PreviewEvent ev{};
+        ev.type = AudioEngine::PreviewEvent::NOTE_OFF;
+        ev.key = (uint8_t)key;
+        m_audio.enqueuePreviewEvent(ev);
+    };
+    m_instrView.onEnqueuePitch = [this](float pitch) {
+        AudioEngine::PreviewEvent ev{};
+        ev.type = AudioEngine::PreviewEvent::PITCH_BEND;
+        ev.pitch = pitch;
+        m_audio.enqueuePreviewEvent(ev);
     };
 
     // ── TrackerView callbacks ──────────────────────────────────────────────
@@ -181,12 +124,10 @@ App::App() : m_controller(m_state), m_audio(m_state), m_tracker(m_state), m_gene
     m_tracker.onPatternPlayFromStart = [this](int32_t order, bool loop) {
         m_audio.playPatternFrom(order, 0, loop);
     };
-    m_tracker.onPatternPlayRow = [this](int32_t order, int32_t row) {
-        m_audio.playRow(order, row);
-    };
-    m_tracker.onStopRequested = [this]() { stopPlayback(); };
+    m_tracker.onPatternPlayRow  = [this](int32_t order, int32_t row) { m_audio.playRow(order, row); };
+    m_tracker.onStopRequested   = [this]() { stopPlayback(); };
     m_tracker.onInsertPatternRequested = [this]() { insertPattern(); };
-    m_tracker.onLoopToggled = [this](bool loop) { m_audio.setLoopPattern(loop); };
+    m_tracker.onLoopToggled     = [this](bool loop) { m_audio.setLoopPattern(loop); };
 
     m_sidebar.onLeafActivated = [this](int tab, int idx) {
         m_pendingTab = tab;
@@ -218,6 +159,40 @@ App::App() : m_controller(m_state), m_audio(m_state), m_tracker(m_state), m_gene
             }
         }
     };
+
+    // ── Settings ──────────────────────────────────────────────────────────
+    m_settings.load(Settings::defaultPath());
+    g_glowLogo    = m_settings.glowLogo    / 5.f;
+    g_glowVU      = m_settings.glowVU      / 5.f;
+    g_glowPattern = m_settings.glowPattern / 5.f;
+    g_glowKnobs   = m_settings.glowKnobs   / 5.f;
+    m_tracker.setContinuousScroll(m_settings.continuousScroll);
+    m_audio.setFT2VolumeRamping(m_settings.ft2VolumeRamping);
+    m_audio.setAudioConfig(m_settings.audioDeviceIndex, m_settings.sampleRate);
+    m_midi.setSource(m_settings.midiInputIndex);
+
+    m_settingsView.onMidiSourceChange = [this](int idx) { m_midi.setSource(idx); };
+
+    m_settingsView.onApply = [this](const Settings& s) {
+        bool audioChanged = (s.audioDeviceIndex != m_settings.audioDeviceIndex ||
+                             s.sampleRate       != m_settings.sampleRate);
+        bool midiChanged  = (s.midiInputIndex   != m_settings.midiInputIndex);
+        m_settings = s;
+        m_settings.save(Settings::defaultPath());
+        g_glowLogo    = s.glowLogo    / 5.f;
+        g_glowVU      = s.glowVU      / 5.f;
+        g_glowPattern = s.glowPattern / 5.f;
+        g_glowKnobs   = s.glowKnobs   / 5.f;
+        m_tracker.setContinuousScroll(s.continuousScroll);
+        m_audio.setFT2VolumeRamping(s.ft2VolumeRamping);
+        m_audio.setAudioConfig(s.audioDeviceIndex, s.sampleRate);
+        if (audioChanged && m_audio.isRunning()) {
+            m_audio.stop();
+            m_audio.join();
+            m_audio.start();
+        }
+        if (midiChanged) m_midi.setSource(s.midiInputIndex);
+    };
 }
 
 App::~App()
@@ -245,86 +220,112 @@ void App::setFonts(ImFont* mono, ImFont* ui)
     m_tracker.setFonts(mono, ui);
 }
 
-
 void App::openFile(const std::string& path)
 {
-    clearModule();
-    if (m_audio.loadFile(path)) {
-        m_hasModule  = true;
-        m_loadedPath = path;
-        auto* mod = m_audio.getModule();
-        m_controller.setModule(mod);
-        m_tracker.setController(&m_controller);
-        m_generalView.setController(&m_controller);
+    auto doc = std::make_unique<SongDocument>();
+    doc->mod = std::make_unique<SoundModule>();
+    if (!doc->mod->loadFile(path)) return;
 
-        int nSamp, nInstr;
-        {
-            std::lock_guard<std::mutex> lk(m_state.meta_mutex);
-            nSamp  = m_state.num_samples;
-            nInstr = m_state.num_instruments;
+    auto slash = path.rfind('/');
+    std::string filename = (slash != std::string::npos) ? path.substr(slash + 1) : path;
+    auto dot = filename.rfind('.');
+    doc->displayName = (dot != std::string::npos) ? filename.substr(0, dot) : filename;
+    doc->path = path;
+
+    m_songs.push_back(std::move(doc));
+    switchToSong((int)m_songs.size() - 1);
+}
+
+// ─── Song management ──────────────────────────────────────────────────────────
+
+void App::switchToSong(int idx)
+{
+    // Save current song state
+    if (m_activeSongIdx >= 0 && m_activeSongIdx < (int)m_songs.size()) {
+        auto& cur = m_songs[m_activeSongIdx];
+        cur->position = m_state.position_seconds.load();
+        if (m_transport == Transport::Playing) {
+            m_audio.setPaused(true);
+            m_transport = Transport::Paused;
         }
-
-        m_sampleView.setFonts(m_fontMono, m_fontUI);
-        m_sampleView.setController(&m_controller, nSamp);
-        m_sampleView.onNeedAudio = [this]() {
-            if (!m_hasModule) return;
-            m_audio.ensureRunning();
-        };
-        m_sampleView.onEnqueuePlay = [this](int si, int on, float v, float p, int key) {
-            AudioEngine::PreviewEvent ev{};
-            ev.type = AudioEngine::PreviewEvent::SAMPLE_ON;
-            ev.key = (uint8_t)key; ev.idx = si; ev.opnote = on; ev.vol = v; ev.pan = p;
-            m_audio.enqueuePreviewEvent(ev);
-        };
-        m_sampleView.onEnqueueStop = [this](int key) {
-            AudioEngine::PreviewEvent ev{};
-            ev.type = AudioEngine::PreviewEvent::NOTE_OFF;
-            ev.key = (uint8_t)key;
-            m_audio.enqueuePreviewEvent(ev);
-        };
-        m_sampleView.onEnqueuePitch = [this](float pitch) {
-            AudioEngine::PreviewEvent ev{};
-            ev.type = AudioEngine::PreviewEvent::PITCH_BEND;
-            ev.pitch = pitch;
-            m_audio.enqueuePreviewEvent(ev);
-        };
-
-        m_instrView.setFonts(m_fontMono, m_fontUI);
-        m_instrView.setController(&m_controller, nInstr);
-        m_instrView.onNeedAudio = [this]() {
-            if (!m_hasModule) return;
-            m_audio.ensureRunning();
-        };
-        m_instrView.onEnqueuePlay = [this](int si, int on, float v, float p, int key) {
-            AudioEngine::PreviewEvent ev{};
-            ev.type = AudioEngine::PreviewEvent::INSTR_ON;
-            ev.key = (uint8_t)key; ev.idx = si; ev.opnote = on; ev.vol = v; ev.pan = p;
-            m_audio.enqueuePreviewEvent(ev);
-        };
-        m_instrView.onEnqueueStop = [this](int key) {
-            AudioEngine::PreviewEvent ev{};
-            ev.type = AudioEngine::PreviewEvent::NOTE_OFF;
-            ev.key = (uint8_t)key;
-            m_audio.enqueuePreviewEvent(ev);
-        };
-        m_instrView.onEnqueuePitch = [this](float pitch) {
-            AudioEngine::PreviewEvent ev{};
-            ev.type = AudioEngine::PreviewEvent::PITCH_BEND;
-            ev.pitch = pitch;
-            m_audio.enqueuePreviewEvent(ev);
-        };
-
-        m_toolbarState.tempo = (int)std::round(m_state.bpm.load());
-        m_toolbarState.speed = (int)m_state.current_speed.load();
-        m_toolbarState.rpb   = (int)m_state.rows_per_beat.load();
-
-        // Pre-warm the audio stream so the first MIDI note plays without delay.
-        m_audio.ensureRunning();
-        m_audio.setPaused(true);
-        m_audio.copyPreviewSample(m_sampleView.getSelection());
-        m_audio.copyPreviewInstrument(m_instrView.getSelection());
-        wireNoteRT();
+        cur->transport = m_transport;
     }
+
+    m_activeSongIdx = idx;
+    auto& doc = m_songs[idx];
+
+    // Hand module to audio engine (stops stream, restarts paused)
+    m_audio.setModule(doc->mod.get());
+
+    // Restore position
+    if (doc->position > 0.0)
+        doc->mod->setPositionSeconds(doc->position);
+
+    m_transport = doc->transport;
+
+    // Wire views to new module
+    m_controller.setModule(doc->mod.get());
+    m_tracker.setController(&m_controller);
+    m_generalView.setController(&m_controller);
+    activateViews();
+
+    m_hasModule = true;
+    wireNoteRT();
+}
+
+void App::activateViews()
+{
+    int nSamp, nInstr;
+    {
+        std::lock_guard<std::mutex> lk(m_state.meta_mutex);
+        nSamp  = m_state.num_samples;
+        nInstr = m_state.num_instruments;
+    }
+
+    m_sampleView.setFonts(m_fontMono, m_fontUI);
+    m_sampleView.setController(&m_controller, nSamp);
+    m_instrView.setFonts(m_fontMono, m_fontUI);
+    m_instrView.setController(&m_controller, nInstr);
+
+    m_toolbarState.tempo = (int)std::round(m_state.bpm.load());
+    m_toolbarState.speed = (int)m_state.current_speed.load();
+    m_toolbarState.rpb   = (int)m_state.rows_per_beat.load();
+
+    m_audio.copyPreviewSample(m_sampleView.getSelection());
+    m_audio.copyPreviewInstrument(m_instrView.getSelection());
+}
+
+void App::closeSong(int idx)
+{
+    if (m_songs.size() == 1) {
+        deactivateAllSongs();
+        m_songs.clear();
+        m_activeSongIdx = -1;
+        m_hasModule = false;
+        return;
+    }
+
+    if (idx == m_activeSongIdx) {
+        int target = (idx < (int)m_songs.size() - 1) ? idx + 1 : idx - 1;
+        switchToSong(target);
+    }
+
+    m_songs.erase(m_songs.begin() + idx);
+    if (m_activeSongIdx > idx) m_activeSongIdx--;
+}
+
+void App::deactivateAllSongs()
+{
+    m_audio.stop();
+    m_audio.join();
+    m_controller.clearModule();
+    m_tracker.clearModule();
+    m_generalView.clearModule();
+    m_instrView.clearModule();
+    m_sampleView.clearModule();
+    m_sidebar.resetState();
+    m_state.reset();
+    m_transport = Transport::Stopped;
 }
 
 // ─── Render ───────────────────────────────────────────────────────────────────
@@ -333,13 +334,16 @@ void App::render(int winW, int winH)
 {
     const float w = (float)winW;
     const float h = (float)winH;
+    const float contentH = h - kSongBarH;  // reserve bottom for song bar
 
     syncToolbarState();
 
-    float contentY = DrawToolbar(m_toolbarState,
-                                 m_fontUI, 0.f, 0.f, w, kToolbarH);
+    float contentY = DrawToolbar(m_toolbarState, m_fontUI, 0.f, 0.f, w, kToolbarH);
 
     ImGui::PushFont(m_fontUI);
+
+    // ── Song bar (bottom strip) ───────────────────────────────────────────
+    drawSongBar(w, h);
 
     // ── Sidebar ───────────────────────────────────────────────────────────
     {
@@ -359,26 +363,22 @@ void App::render(int winW, int winH)
                 if (p >= 0) sd.usedPats.insert(p);
             }
         if (g_fontSidebar) ImGui::PushFont(g_fontSidebar);
-        m_sidebar.render(0.f, contentY, m_sidebarW, h - contentY, m_hasModule, sd, kTabBarH);
+        m_sidebar.render(0.f, contentY, m_sidebarW, contentH - contentY, m_hasModule, sd, kTabBarH);
         if (g_fontSidebar) ImGui::PopFont();
     }
 
-    // ── Splitter (drag handle) ────────────────────────────────────────────
+    // ── Splitter ──────────────────────────────────────────────────────────
     {
-        ImGui::PushStyleColor(ImGuiCol_WindowBg, IM_COL32(0, 0, 0, 0));  // transparent
+        ImGui::PushStyleColor(ImGuiCol_WindowBg, IM_COL32(0, 0, 0, 0));
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.f, 0.f));
         ImGui::SetNextWindowPos({m_sidebarW, contentY}, ImGuiCond_Always);
-        ImGui::SetNextWindowSize({kSplitterW, h - contentY}, ImGuiCond_Always);
+        ImGui::SetNextWindowSize({kSplitterW, contentH - contentY}, ImGuiCond_Always);
         ImGui::Begin("##splitter", nullptr,
-            ImGuiWindowFlags_NoDecoration      |
-            ImGuiWindowFlags_NoScrollWithMouse |
-            ImGuiWindowFlags_NoMove            |
-            ImGuiWindowFlags_NoSavedSettings   |
+            ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoScrollWithMouse |
+            ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings |
             ImGuiWindowFlags_NoBringToFrontOnFocus);
         ImGui::PopStyleVar();
         ImGui::PopStyleColor();
-
-
         ImGui::InvisibleButton("##drag", ImGui::GetContentRegionAvail());
         {
             float mx = ImGui::GetIO().MousePos.x;
@@ -386,13 +386,11 @@ void App::render(int winW, int winH)
             if (inBand || ImGui::IsItemActive())
                 ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
         }
-        if (ImGui::IsItemActive()) {
+        if (ImGui::IsItemActive())
             m_sidebarW = std::clamp(m_sidebarW + ImGui::GetIO().MouseDelta.x, 100.f, 500.f);
-        }
         ImGui::End();
     }
 
-    // Content starts to the right of sidebar + splitter
     const float cx = m_sidebarW + kSplitterW;
     const float cw = w - cx;
 
@@ -403,10 +401,8 @@ void App::render(int winW, int winH)
     ImGui::SetNextWindowPos({cx, contentY}, ImGuiCond_Always);
     ImGui::SetNextWindowSize({cw, kTabBarH}, ImGuiCond_Always);
     ImGui::Begin("##tabbar", nullptr,
-        ImGuiWindowFlags_NoDecoration      |
-        ImGuiWindowFlags_NoScrollWithMouse |
-        ImGuiWindowFlags_NoMove            |
-        ImGuiWindowFlags_NoSavedSettings   |
+        ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoScrollWithMouse |
+        ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings |
         ImGuiWindowFlags_NoBringToFrontOnFocus);
     ImGui::PopStyleVar(2);
     ImGui::PopStyleColor();
@@ -426,11 +422,9 @@ void App::render(int winW, int winH)
     }
     ImGui::End();
 
-    // Extend the tab bar separator to the left edge of the window.
-    // The bar's inner rect starts at cx + tabBarPaddingX, so overlap by that amount.
     {
-        constexpr float tabBarPadX = 1.f;  // WindowPadding.x used for ##tabbar
-        constexpr float tabBarPadY = 2.f;  // WindowPadding.y used for ##tabbar
+        constexpr float tabBarPadX = 1.f;
+        constexpr float tabBarPadY = 2.f;
         ImVec4 c   = ImGui::GetStyle().Colors[ImGuiCol_TabSelected];
         ImU32  col = ImGui::ColorConvertFloat4ToU32(c);
         float  lineY = contentY + kTabBarH - tabBarPadY - 2.f;
@@ -439,9 +433,8 @@ void App::render(int winW, int winH)
 
     // ── Content area ──────────────────────────────────────────────────────
     float cy = contentY + kTabBarH;
-    float ch = h - cy;
+    float ch = contentH - cy;
 
-    // Use pending tab if a sidebar click fired this frame, otherwise the confirmed active tab
     const int displayTab = (m_pendingTab >= 0) ? m_pendingTab : m_activeTab.load();
 
     if (displayTab == 1) {
@@ -453,20 +446,17 @@ void App::render(int winW, int winH)
         ImGui::SetNextWindowPos({cx, cy}, ImGuiCond_Always);
         ImGui::SetNextWindowSize({cw, ch}, ImGuiCond_Always);
         ImGui::Begin("##content", nullptr,
-            ImGuiWindowFlags_NoDecoration      |
-            ImGuiWindowFlags_NoMove            |
-            ImGuiWindowFlags_NoSavedSettings   |
-            ImGuiWindowFlags_NoBringToFrontOnFocus);
+            ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
+            ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoBringToFrontOnFocus);
         ImGui::PopStyleVar(2);
         ImGui::PopStyleColor();
 
         switch (displayTab) {
         case 0: { ImVec2 pos = ImGui::GetCursorScreenPos(); ImVec2 avail = ImGui::GetContentRegionAvail(); m_generalView.render(pos.x, pos.y, avail.x, avail.y); } break;
-        case 2: drawSamplesTab();      break;
-        case 3: drawInstrumentsTab();  break;
-        case 4: drawCommentsTab();     break;
+        case 2: drawSamplesTab();     break;
+        case 3: drawInstrumentsTab(); break;
+        case 4: drawCommentsTab();    break;
         }
-
         ImGui::End();
     }
 
@@ -474,13 +464,10 @@ void App::render(int winW, int winH)
     {
         auto events = m_midi.poll();
         if (m_settingsView.isLearning()) {
-            if (!events.empty())
-                m_settingsView.feedMidiCC(events.front().cc);
+            if (!events.empty()) m_settingsView.feedMidiCC(events.front().cc);
         } else {
-            for (auto& e : events)
-                dispatchMidiCC(e.cc, e.value);
+            for (auto& e : events) dispatchMidiCC(e.cc, e.value);
         }
-
         for (auto& n : m_midi.pollNotes()) {
             if (n.vel > 0) {
                 if (m_activeTab == 2) m_sampleView.midiNoteOn(n.note, n.vel);
@@ -501,22 +488,70 @@ void App::render(int winW, int winH)
     ImGui::PopFont();
 }
 
+// ─── Song bar ─────────────────────────────────────────────────────────────────
+
+void App::drawSongBar(float w, float h)
+{
+    ImGui::SetNextWindowPos({0.f, h - kSongBarH}, ImGuiCond_Always);
+    ImGui::SetNextWindowSize({w, kSongBarH}, ImGuiCond_Always);
+    ImGui::PushStyleColor(ImGuiCol_WindowBg, kClrBgPanel);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,  {4.f, 3.f});
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f);
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,    {2.f, 0.f});
+    ImGui::Begin("##songbar", nullptr,
+        ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
+        ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoSavedSettings |
+        ImGuiWindowFlags_NoBringToFrontOnFocus);
+    ImGui::PopStyleVar(3);
+    ImGui::PopStyleColor();
+
+    bool closed = false;
+    int  closeIdx = -1;
+
+    for (int i = 0; i < (int)m_songs.size(); ++i) {
+        if (i > 0) ImGui::SameLine();
+
+        bool isActive = (i == m_activeSongIdx);
+        if (isActive)
+            ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyle().Colors[ImGuiCol_TabSelected]);
+
+        std::string tabLabel = m_songs[i]->displayName + "##st" + std::to_string(i);
+        if (ImGui::Button(tabLabel.c_str()) && !isActive)
+            switchToSong(i);
+
+        if (isActive) ImGui::PopStyleColor();
+
+        ImGui::SameLine(0, 0);
+        ImGui::PushStyleColor(ImGuiCol_Button,        IM_COL32(0, 0, 0, 0));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(180, 60, 60, 200));
+        std::string closeLabel = " x ##sc" + std::to_string(i);
+        if (ImGui::Button(closeLabel.c_str())) {
+            closed = true;
+            closeIdx = i;
+        }
+        ImGui::PopStyleColor(2);
+    }
+
+    ImGui::End();
+
+    if (closed) closeSong(closeIdx);
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 void App::syncToolbarState()
 {
-    m_toolbarState.logoTex       = m_logoTex;
-    m_toolbarState.logoW         = m_logoW;
-    m_toolbarState.logoH         = m_logoH;
+    m_toolbarState.logoTex        = m_logoTex;
+    m_toolbarState.logoW          = m_logoW;
+    m_toolbarState.logoH          = m_logoH;
     m_toolbarState.speakerConeTex = m_speakerConeTex;
     m_toolbarState.speakerConeW   = m_speakerConeW;
     m_toolbarState.speakerConeH   = m_speakerConeH;
     if (m_audio.pollSongEnded()) m_transport = Transport::Stopped;
-    m_toolbarState.hasModule = m_hasModule;
-    m_toolbarState.transport = m_transport;
-    m_toolbarState.vuLeft    = m_state.master_vu_left.load();
-    m_toolbarState.vuRight   = m_state.master_vu_right.load();
+    m_toolbarState.hasModule  = m_hasModule;
+    m_toolbarState.transport  = m_transport;
+    m_toolbarState.vuLeft     = m_state.master_vu_left.load();
+    m_toolbarState.vuRight    = m_state.master_vu_right.load();
 
     if (m_hasModule) {
         double dur = m_state.duration_seconds.load();
@@ -528,14 +563,12 @@ void App::syncToolbarState()
 
         int gvolMax = m_state.gvol_max.load();
         m_toolbarState.gvolMax  = gvolMax;
-        if (auto* mod = m_controller.module()) {
+        if (auto* mod = m_controller.module())
             m_toolbarState.globalVol = (int)std::round(mod->getGlobalVolume() * gvolMax);
-        }
     }
 }
 
 // ─── Tab content ──────────────────────────────────────────────────────────────
-
 
 void App::drawSamplesTab()
 {
@@ -570,12 +603,9 @@ void App::drawCommentsTab()
     if (!m_hasModule) { ImGui::TextDisabled("No module loaded."); return; }
     auto* mod = m_audio.getModule();
     if (!mod) return;
-    static std::string    msg;
-    static const void*    lastMod = nullptr;
-    if (mod != lastMod) {
-        msg     = mod->getMessage();
-        lastMod = mod;
-    }
+    static std::string msg;
+    static const void* lastMod = nullptr;
+    if (mod != lastMod) { msg = mod->getMessage(); lastMod = mod; }
     ImGui::InputTextMultiline("##msg", msg.data(), msg.size() + 1,
                               {-1.f, -1.f}, ImGuiInputTextFlags_ReadOnly);
 }
@@ -584,11 +614,12 @@ void App::drawCommentsTab()
 
 void App::saveModule()
 {
-    if (!m_hasModule || m_loadedPath.empty()) return;
+    if (!m_hasModule || m_activeSongIdx < 0) return;
     auto* mod = m_controller.module();
     if (!mod) return;
-    std::string type = mod->getType();
-    m_controller.save(m_loadedPath, type);
+    const std::string& path = m_songs[m_activeSongIdx]->path;
+    if (path.empty()) return;
+    m_controller.save(path, mod->getType());
 }
 
 void App::insertPattern()
@@ -608,22 +639,6 @@ void App::openFileDialog()
     std::string path = nativeOpenFileDialog("Open Module");
     if (!path.empty()) openFile(path);
 }
-
-void App::clearModule()
-{
-    m_audio.stop();
-    m_audio.join();
-    m_controller.clearModule();
-    m_tracker.clearModule();
-    m_generalView.clearModule();
-    m_instrView.clearModule();
-    m_sampleView.clearModule();
-    m_sidebar.resetState();
-    m_state.reset();
-    m_hasModule  = false;
-    m_loadedPath.clear();
-}
-
 
 void App::startPlayback()
 {
@@ -665,7 +680,6 @@ void App::playFromStart()
 
 void App::dispatchMidiCC(int cc, int value)
 {
-    // Map 0-127 linearly onto the knob's range
     auto scale = [value](int lo, int hi) {
         return lo + (int)std::round((double)value / 127.0 * (hi - lo));
     };

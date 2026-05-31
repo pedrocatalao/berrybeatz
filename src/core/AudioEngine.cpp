@@ -72,36 +72,27 @@ AudioEngine::~AudioEngine() {
     Pa_Terminate();
 }
 
-bool AudioEngine::loadFile(const std::string& path) {
-    auto mod = std::make_unique<SoundModule>();
-    if (!mod->loadFile(path)) {
-        if (onLoadFailed) onLoadFailed("Cannot open or parse file: " + path);
-        return false;
-    }
-    m_mod = std::move(mod);
-    bb_set_ft2_volume_ramping(m_mod.get(), m_ft2VolumeRamping);
-    fillState();
-    auto prev = std::make_unique<SoundModule>();
-    if (prev->newModule(1)) {
-        bb_arm_preview_module_loop(prev.get());
-        m_previewMod = std::move(prev);
-    }
-    return true;
-}
+void AudioEngine::setModule(SoundModule* mod) {
+    stop();
+    join();
 
-bool AudioEngine::newModule(int channels)
-{
-    auto mod = std::make_unique<SoundModule>();
-    if (!mod->newModule(channels)) return false;
-    m_mod = std::move(mod);
-    bb_set_ft2_volume_ramping(m_mod.get(), m_ft2VolumeRamping);
-    fillState();
-    auto prev = std::make_unique<SoundModule>();
-    if (prev->newModule(1)) {
-        bb_arm_preview_module_loop(prev.get());
-        m_previewMod = std::move(prev);
+    m_mod = mod;
+    m_songEnded.store(false);
+    m_paused.store(true);
+    m_stop.store(false);
+
+    if (mod) {
+        bb_set_ft2_volume_ramping(mod, m_ft2VolumeRamping);
+        fillState();
+        auto prev = std::make_unique<SoundModule>();
+        if (prev->newModule(1)) {
+            bb_arm_preview_module_loop(prev.get());
+            m_previewMod = std::move(prev);
+        }
+        m_thread = std::thread(&AudioEngine::run, this);
+    } else {
+        m_previewMod.reset();
     }
-    return true;
 }
 
 void AudioEngine::fillState() {
@@ -161,19 +152,18 @@ void AudioEngine::ensureRunning() {
 
 void AudioEngine::copyPreviewSample(int idx) {
     if (m_mod && m_previewMod)
-        bb_copy_sample(m_previewMod.get(), m_mod.get(), idx);
+        bb_copy_sample(m_previewMod.get(), m_mod, idx);
 }
 
 void AudioEngine::copyPreviewInstrument(int instrIdx) {
     if (m_mod && m_previewMod)
-        bb_copy_instrument(m_previewMod.get(), m_mod.get(), instrIdx);
+        bb_copy_instrument(m_previewMod.get(), m_mod, instrIdx);
 }
 
 void AudioEngine::seekSeconds(double s)     { m_seek.store(s); }
 void AudioEngine::seekToOrder(int32_t o)    { m_seek_order.store(o); }
 void AudioEngine::selectSubsong(int32_t i)  { m_subsong.store(i); }
 int32_t AudioEngine::subsongCount() const   { return m_mod ? m_mod->getNumSubsongs() : 0; }
-SoundModule* AudioEngine::getModule() const { return m_mod.get(); }
 
 void AudioEngine::setAudioConfig(int deviceIndex, int sampleRate) {
     m_deviceIndex = deviceIndex;
@@ -182,7 +172,7 @@ void AudioEngine::setAudioConfig(int deviceIndex, int sampleRate) {
 
 void AudioEngine::setFT2VolumeRamping(bool enabled) {
     m_ft2VolumeRamping = enabled;
-    if (m_mod) bb_set_ft2_volume_ramping(m_mod.get(), enabled);
+    if (m_mod) bb_set_ft2_volume_ramping(m_mod, enabled);
 }
 
 std::vector<AudioDeviceInfo> AudioEngine::getDevices() const {
@@ -464,7 +454,7 @@ void AudioEngine::run() {
     m_state.is_playing.store(true);
 
     PaCallbackData cbData;
-    cbData.mod               = m_mod.get();
+    cbData.mod               = m_mod;
     cbData.state             = &m_state;
     cbData.stop              = &m_stop;
     cbData.paused            = &m_paused;

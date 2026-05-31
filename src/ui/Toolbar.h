@@ -2,10 +2,9 @@
 #include <functional>
 #define GL_SILENCE_DEPRECATION
 #include <OpenGL/gl3.h>
+#include "Transport.h"
 
 struct ImFont;
-
-enum class Transport { Stopped, Playing, Paused };
 
 struct ToolbarState {
     // Playback (App → Toolbar, read-only)

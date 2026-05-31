@@ -113,6 +113,13 @@ void AudioEngine::fillState() {
     m_state.num_channels      = m_mod->getNumChannels();
     m_state.num_orders        = m_mod->getNumOrders();
     m_state.duration_seconds  = m_mod->getDurationSeconds();
+    // Seed playback position so the tracker displays/edits the right pattern
+    // before the audio callback runs. current_order=0, current_pattern=whatever
+    // order 0 maps to (may differ from pattern index 0 in the module).
+    m_state.current_order  .store(0);
+    m_state.current_row    .store(0);
+    int firstPat = m_mod->getOrderPattern(0);
+    m_state.current_pattern.store(firstPat >= 0 ? firstPat : 0);
 }
 
 void AudioEngine::start() {
@@ -146,6 +153,7 @@ void AudioEngine::ensureRunning() {
     if (!isRunning()) {
         if (m_thread.joinable()) m_thread.join();
         m_stop.store(false);
+        m_paused.store(true);  // always start paused; caller unpauses explicitly via setPaused(false)
         m_thread = std::thread(&AudioEngine::run, this);
     }
 }

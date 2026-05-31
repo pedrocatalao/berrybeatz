@@ -3,6 +3,7 @@
 #include "Theme.h"
 #include "RenderSettings.h"
 #include "TrackerView.h"
+#include "PianoKeyboard.h"
 #include "ModuleController.h"
 #include "PatternEditor.h"
 #include "SoundModule.h"
@@ -160,8 +161,9 @@ void TrackerView::render(float x, float y, float w, float h) {
     ImGui::End();
 
     // Pattern panel — channel headers are the frozen first row of the table
+    constexpr float kKbdH = 120.f;
     float chanY = y + PTBAR1_H + PTBAR2_H + PTBAR3_H + ORDER_H;
-    float patH  = h - (chanY - y);
+    float patH  = h - (chanY - y) - (m_showKeyboard ? kKbdH : 0.f);
     ImGui::SetNextWindowPos ({x, chanY});
     ImGui::SetNextWindowSize({w, patH});
     ImGui::PushStyleColor(ImGuiCol_ScrollbarBg,          IM_COL32(  0,   0,   0,   0));
@@ -201,6 +203,26 @@ void TrackerView::render(float x, float y, float w, float h) {
         m_pluginPopup.end();
     }
     ImGui::End();
+
+    // ── Piano keyboard (docked below pattern panel) ───────────────────────────
+    if (m_showKeyboard) {
+        ImGui::SetNextWindowPos ({x, chanY + patH}, ImGuiCond_Always);
+        ImGui::SetNextWindowSize({w, kKbdH},        ImGuiCond_Always);
+        ImGui::PushStyleColor(ImGuiCol_WindowBg, IM_COL32(0, 0, 0, 0));
+        ImGui::Begin("##trackerKbd", nullptr, noDecoFlags | ImGuiWindowFlags_NoScrollbar);
+        ImGui::PopStyleColor();
+        DrawPianoKeyboard("##tkbd", w, kKbdH, m_kbState, m_fontMono,
+            !m_editMode,
+            [this](int note, int key) {
+                inputNote(note);
+                if (onKbdNeedAudio) onKbdNeedAudio();
+                if (onKbdPlay) onKbdPlay(note, key);
+            },
+            [this](int key) {
+                if (onKbdStop) onKbdStop(key);
+            });
+        ImGui::End();
+    }
 }
 
 // ── Pattern toolbar row 1 ─────────────────────────────────────────────────────
@@ -316,7 +338,13 @@ void TrackerView::drawPatternToolbar3(float /*x*/, float /*y*/, float /*w*/) {
     };
     tip(detailTips[m_detailView]);
     tbSep();
-    togBtn("Overflow##ovf",      m_overflowPaste);  tip("Overflow paste");
+    togBtn("Overflow##ovf", m_overflowPaste);  tip("Overflow paste");
+    tbSep();
+    { bool on = m_showKeyboard;
+      if (on) ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(64, 64, 160, 255));
+      if (ImGui::Button("KB##tkb")) m_showKeyboard = !m_showKeyboard;
+      if (on) ImGui::PopStyleColor(); }
+    tip("Show / hide piano keyboard");
 
     popToolbarStyle();
     if (m_fontUI) ImGui::PopFont();

@@ -31,6 +31,19 @@ void TrackerView::setEditMode(bool on) {
 
 // ── Cursor helpers ────────────────────────────────────────────────────────────
 
+void TrackerView::inputNote(int note1based) {
+    if (!m_editMode || !m_ctrl) return;
+    int32_t pat   = m_state.current_pattern.load();
+    int32_t nrows = pe_num_rows(m_ctrl->module(), pat);
+    if (nrows <= 0 || m_cur.row >= nrows) return;
+    PatternCell cell;
+    pe_get_cell(m_ctrl->module(), pat, m_cur.row, m_cur.channel, cell);
+    cell.note = (uint8_t)note1based;
+    if (m_curInstrument > 0) cell.instr = (uint8_t)m_curInstrument;
+    setCell(pat, m_cur.row, m_cur.channel, cell);
+    advanceCursor();
+}
+
 void TrackerView::clampCursor() {
     if (!m_ctrl) return;
     int32_t nrows = pe_num_rows(m_ctrl->module(), m_state.current_pattern.load());

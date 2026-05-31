@@ -1,0 +1,211 @@
+#pragma once
+#include "imgui.h"
+#include <functional>
+#include <cstdio>
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Reusable piano keyboard widget — 5 octaves (notes 25–84), 120px tall.
+//
+// State: PianoKeyboardState holds playback + held-key display state.
+//
+// onPlay(note1based, key)  — key=128 for mouse drag, note-1 for computer key
+// onStop(key)              — matching key from onPlay
+// captureKeyboard          — set false to suppress computer-key shortcuts
+//                            (use when the host window has its own key handlers)
+// ─────────────────────────────────────────────────────────────────────────────
+
+struct PianoKeyboardState {
+    bool playHeld  {false};
+    int  playNote  {-1};
+    int  baseOctave{4};
+    bool kbHeld[128]{};
+};
+
+inline void DrawPianoKeyboard(
+    const char*                   id,
+    float                         w,
+    float                         h,
+    PianoKeyboardState&           st,
+    ImFont*                       fontMono,
+    bool                          captureKeyboard,
+    std::function<void(int, int)> onPlay,
+    std::function<void(int)>      onStop)
+{
+    constexpr int kNoteFirst  = 25;
+    constexpr int kNoteLast   = 84;
+    constexpr int kOctaves    = 5;
+    constexpr int kWhiteCount = kOctaves * 7;
+
+    static const bool  kIsBlack[12]     = {false,true,false,true,false,false,true,false,true,false,true,false};
+    static const float kBlackOffset[12] = {0,0.66f,0,0.66f,0,0,0.66f,0,0.66f,0,0.66f,0};
+
+    float whiteW = w / (float)kWhiteCount;
+    float blackW = whiteW * 0.65f;
+    float blackH = h * 0.60f;
+
+    ImVec2      origin = ImGui::GetCursorScreenPos();
+    ImDrawList* dl     = ImGui::GetWindowDrawList();
+    ImVec2      mp     = ImGui::GetIO().MousePos;
+
+    ImGui::InvisibleButton(id, {w, h});
+    bool kbActive      = ImGui::IsItemActive();
+    bool kbDeactivated = ImGui::IsItemDeactivated();
+
+    // Hit detection — black keys take priority
+    int hitNote = -1;
+    if (kbActive) {
+        int wi = 0;
+        for (int note = kNoteFirst; note <= kNoteLast && hitNote < 0; ++note) {
+            int semi = (note - 1) % 12;
+            if (!kIsBlack[semi]) { ++wi; continue; }
+            float kx = origin.x + ((wi - 1) + kBlackOffset[semi]) * whiteW - blackW * 0.5f + 7.f;
+            if (mp.x >= kx && mp.x < kx + blackW && mp.y >= origin.y && mp.y < origin.y + blackH)
+                hitNote = note;
+        }
+        if (hitNote < 0) {
+            int wi2 = 0;
+            for (int note = kNoteFirst; note <= kNoteLast && hitNote < 0; ++note) {
+                int semi = (note - 1) % 12;
+                if (kIsBlack[semi]) continue;
+                float kx = origin.x + wi2 * whiteW;
+                if (mp.x >= kx && mp.x < kx + whiteW - 1.f &&
+                    mp.y >= origin.y && mp.y < origin.y + h)
+                    hitNote = note;
+                ++wi2;
+            }
+        }
+    }
+
+    // ── White keys ────────────────────────────────────────────────────────────
+    int whiteIndex = 0;
+    for (int note = kNoteFirst; note <= kNoteLast; ++note) {
+        int semi = (note - 1) % 12;
+        if (kIsBlack[semi]) continue;
+
+        float  kx   = origin.x + whiteIndex * whiteW;
+        ImVec2 kMin = {kx,               origin.y};
+        ImVec2 kMax = {kx + whiteW - 1.f, origin.y + h};
+
+        bool isHit  = (note == hitNote);
+        bool isPlay = (note == st.playNote && st.playHeld);
+        bool isKb   = (note >= 1 && note <= 128 && st.kbHeld[note - 1]);
+        bool hov    = (!kbActive && mp.x >= kMin.x && mp.x < kMax.x &&
+                                    mp.y >= kMin.y && mp.y < kMax.y);
+
+        ImU32 col = (isHit || isPlay || isKb) ? IM_COL32(180, 220, 255, 255)
+                  : hov                        ? IM_COL32(210, 230, 255, 255)
+                                               : IM_COL32(230, 230, 240, 255);
+
+        dl->AddRectFilled(kMin, kMax, col);
+        dl->AddRect      (kMin, kMax, IM_COL32(80, 80, 100, 255), 0.f, 0, 0.5f);
+
+        if (note == 61)  // middle C dot
+            dl->AddCircleFilled({kx + whiteW * 0.5f, kMin.y + h - 10.f},
+                                3.f, IM_COL32(0, 160, 255, 200));
+
+        if (fontMono) {
+            // Computer keyboard shortcut label
+            static const char* kLo[] = {"Z","","X","","C","V","","B","","N","","M"};
+            static const char* kHi[] = {"Q","","W","","E","R","","T","","Y","","U"};
+            int rel = (note - 1) - st.baseOctave * 12;
+            const char* lbl = nullptr;
+            if (rel >= 0  && rel < 12 && kLo[rel][0]) lbl = kLo[rel];
+            if (rel >= 12 && rel < 24 && kHi[rel - 12][0]) lbl = kHi[rel - 12];
+            if (lbl) {
+                ImVec2 tsz = fontMono->CalcTextSizeA(8.f, FLT_MAX, 0.f, lbl);
+                dl->AddText(fontMono, 8.f,
+                    {kx + (whiteW - tsz.x) * 0.5f, kMin.y + 3.f},
+                    IM_COL32(80, 80, 110, 200), lbl);
+            }
+
+            // Note name on C keys
+            if (semi == 0) {
+                char nbuf[8];
+                snprintf(nbuf, sizeof(nbuf), "C%d", (note - 1) / 12);
+                ImVec2 tsz = fontMono->CalcTextSizeA(8.f, FLT_MAX, 0.f, nbuf);
+                if (tsz.x < whiteW - 2.f)
+                    dl->AddText(fontMono, 8.f,
+                        {kx + (whiteW - tsz.x) * 0.5f, kMax.y - tsz.y - 2.f},
+                        IM_COL32(0, 60, 0, 200), nbuf);
+            }
+        }
+        ++whiteIndex;
+    }
+
+    // ── Black keys (drawn on top) ─────────────────────────────────────────────
+    whiteIndex = 0;
+    for (int note = kNoteFirst; note <= kNoteLast; ++note) {
+        int semi = (note - 1) % 12;
+        if (!kIsBlack[semi]) { ++whiteIndex; continue; }
+
+        float  kx   = origin.x + ((whiteIndex - 1) + kBlackOffset[semi]) * whiteW - blackW * 0.5f + 7.f;
+        ImVec2 kMin = {kx,          origin.y};
+        ImVec2 kMax = {kx + blackW, origin.y + blackH};
+
+        bool isHit  = (note == hitNote);
+        bool isPlay = (note == st.playNote && st.playHeld);
+        bool isKb   = (note >= 1 && note <= 128 && st.kbHeld[note - 1]);
+        bool hov    = (!kbActive && mp.x >= kMin.x && mp.x < kMax.x &&
+                                    mp.y >= kMin.y && mp.y < kMax.y);
+
+        ImU32 col = (isHit || isPlay || isKb) ? IM_COL32( 80, 120, 180, 255)
+                  : hov                        ? IM_COL32( 60,  80, 120, 255)
+                                               : IM_COL32( 30,  30,  40, 255);
+
+        dl->AddRectFilled(kMin, kMax, col);
+        dl->AddRect      (kMin, kMax, IM_COL32(0, 0, 0, 255), 0.f, 0, 0.5f);
+
+        if (fontMono) {
+            static const char* kLo[] = {"","S","","D","","","G","","H","","J",""};
+            static const char* kHi[] = {"","2","","3","","","5","","6","","7",""};
+            int rel = (note - 1) - st.baseOctave * 12;
+            const char* lbl = nullptr;
+            if (rel >= 0  && rel < 12 && kLo[rel][0]) lbl = kLo[rel];
+            if (rel >= 12 && rel < 24 && kHi[rel - 12][0]) lbl = kHi[rel - 12];
+            if (lbl) {
+                ImVec2 tsz = fontMono->CalcTextSizeA(7.f, FLT_MAX, 0.f, lbl);
+                dl->AddText(fontMono, 7.f,
+                    {kx + (blackW - tsz.x) * 0.5f, kMin.y + 2.f},
+                    IM_COL32(180, 180, 210, 200), lbl);
+            }
+        }
+    }
+
+    // ── Mouse play / stop ─────────────────────────────────────────────────────
+    if (hitNote > 0 && hitNote != st.playNote) {
+        if (st.playHeld && onStop) onStop(128);
+        if (onPlay) onPlay(hitNote, 128);
+        st.playHeld = true;
+        st.playNote = hitNote;
+    }
+    if (kbDeactivated && st.playHeld) {
+        if (onStop) onStop(128);
+        st.playHeld = false;
+        st.playNote = -1;
+    }
+
+    // ── Computer keyboard play / stop ─────────────────────────────────────────
+    if (captureKeyboard && !ImGui::GetIO().WantTextInput) {
+        struct NoteKey { ImGuiKey key; int semi; };
+        static constexpr NoteKey kKeys[] = {
+            {ImGuiKey_Z,0},{ImGuiKey_S,1},{ImGuiKey_X,2},{ImGuiKey_D,3},
+            {ImGuiKey_C,4},{ImGuiKey_V,5},{ImGuiKey_G,6},{ImGuiKey_B,7},
+            {ImGuiKey_H,8},{ImGuiKey_N,9},{ImGuiKey_J,10},{ImGuiKey_M,11},
+            {ImGuiKey_Q,12},{ImGuiKey_2,13},{ImGuiKey_W,14},{ImGuiKey_3,15},
+            {ImGuiKey_E,16},{ImGuiKey_R,17},{ImGuiKey_5,18},{ImGuiKey_T,19},
+            {ImGuiKey_6,20},{ImGuiKey_Y,21},{ImGuiKey_7,22},{ImGuiKey_U,23},
+        };
+        for (auto& k : kKeys) {
+            int note = st.baseOctave * 12 + k.semi + 1;
+            if (note < 1 || note > 128) continue;
+            if (ImGui::IsKeyPressed(k.key, false) && !st.kbHeld[note - 1]) {
+                if (onPlay) onPlay(note, note - 1);
+                st.kbHeld[note - 1] = true;
+            }
+            if (ImGui::IsKeyReleased(k.key) && st.kbHeld[note - 1]) {
+                if (onStop) onStop(note - 1);
+                st.kbHeld[note - 1] = false;
+            }
+        }
+    }
+}

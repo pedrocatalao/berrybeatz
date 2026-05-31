@@ -129,6 +129,26 @@ App::App() : m_controller(m_state), m_audio(m_state), m_tracker(m_state), m_gene
     m_tracker.onInsertPatternRequested = [this]() { insertPattern(); };
     m_tracker.onLoopToggled     = [this](bool loop) { m_audio.setLoopPattern(loop); };
 
+    m_tracker.onKbdNeedAudio = [this]() { if (m_hasModule) m_audio.ensureRunning(); };
+    m_tracker.onKbdPlay = [this](int note, int key) {
+        int instr = m_tracker.getCurrentInstrument();
+        if (instr > 0) m_audio.copyPreviewInstrument(instr);
+        AudioEngine::PreviewEvent ev{};
+        ev.type   = AudioEngine::PreviewEvent::INSTR_ON;
+        ev.key    = (uint8_t)key;
+        ev.idx    = std::max(0, instr - 1);
+        ev.opnote = note - 1;
+        ev.vol    = 0.85f;
+        ev.pan    = 0.5f;
+        m_audio.enqueuePreviewEvent(ev);
+    };
+    m_tracker.onKbdStop = [this](int key) {
+        AudioEngine::PreviewEvent ev{};
+        ev.type = AudioEngine::PreviewEvent::NOTE_OFF;
+        ev.key  = (uint8_t)key;
+        m_audio.enqueuePreviewEvent(ev);
+    };
+
     m_sidebar.onLeafActivated = [this](int tab, int idx) {
         m_pendingTab = tab;
         if (tab == 3) {
@@ -726,7 +746,7 @@ void App::wireNoteRT()
 {
     m_midi.onNoteRT = [this](int note, int vel) {
         int tab = m_activeTab.load();
-        if (tab != 2 && tab != 3) return;
+        if (tab != 1 && tab != 2 && tab != 3) return;
 
         AudioEngine::PreviewEvent ev{};
         if (vel > 0) {
@@ -741,17 +761,20 @@ void App::wireNoteRT()
             } else {
                 ev.type   = AudioEngine::PreviewEvent::INSTR_ON;
                 ev.key    = (uint8_t)note;
-                ev.idx    = m_instrView.getSelection() - 1;
+                ev.idx    = (tab == 1) ? std::max(0, m_tracker.getCurrentInstrument() - 1)
+                                       : m_instrView.getSelection() - 1;
                 ev.opnote = note;
                 ev.vol    = vel / 127.f;
                 ev.pan    = 0.5f;
-                m_instrView.setKbHeld(note, true);
+                if (tab == 3) m_instrView.setKbHeld(note, true);
+                else          m_tracker.setKbHeld(note, true);
             }
         } else {
             ev.type = AudioEngine::PreviewEvent::NOTE_OFF;
             ev.key  = (uint8_t)note;
             if (tab == 2) m_sampleView.setKbHeld(note, false);
-            else          m_instrView.setKbHeld(note, false);
+            else if (tab == 3) m_instrView.setKbHeld(note, false);
+            else               m_tracker.setKbHeld(note, false);
         }
         m_audio.enqueuePreviewEvent(ev);
     };

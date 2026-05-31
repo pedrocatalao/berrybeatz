@@ -7,6 +7,7 @@
 #include "PatternEditor.h"
 #include "UndoManager.h"
 #include "PopupModal.h"
+#include "PianoKeyboard.h"
 
 struct ImFont;
 struct ImDrawList;
@@ -65,6 +66,12 @@ public:
     int  baseOctave() const    { return m_baseOctave; }
     void setBaseOctave(int o)  { m_baseOctave = std::clamp(o, 0, 8); }
     bool getLoopPattern() const { return m_loopPattern; }
+    bool isEditMode()        const { return m_editMode; }
+    bool isKeyboardVisible() const { return m_showKeyboard; }
+    int  getCurrentInstrument() const { return m_curInstrument; }
+
+    void setKbHeld(int note, bool held) { if (note >= 0 && note < 128) m_kbState.kbHeld[note] = held; }
+    void inputNote(int note1based);  // enter note at cursor (edit mode only)
 
     // Call each frame when the patterns tab is visible.
     // (x,y,w,h) is the area allocated by the App for the pattern editor.
@@ -78,6 +85,11 @@ public:
     std::function<void()>                       onStopRequested;
     std::function<void()>                       onInsertPatternRequested;
     std::function<void(bool)>                   onLoopToggled;
+
+    // Piano keyboard preview/record — wired by App
+    std::function<void()>          onKbdNeedAudio;
+    std::function<void(int, int)>  onKbdPlay;   // (note1based, key)
+    std::function<void(int)>       onKbdStop;   // (key)
 
 private:
     void processInput();
@@ -165,4 +177,8 @@ private:
     int32_t m_curInstrument {0};
     bool    m_overflowPaste {false};
     int     m_detailView    {0};     // 0=note+inst+vol+fx, 1=+vol, 2=+inst, 3=note
+
+    // Piano keyboard
+    PianoKeyboardState m_kbState;
+    bool               m_showKeyboard {false};
 };

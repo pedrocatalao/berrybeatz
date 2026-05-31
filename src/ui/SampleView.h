@@ -1,6 +1,7 @@
 #pragma once
 #include "SoundFileOps.h"
 #include "ModuleController.h"
+#include "PianoKeyboard.h"
 #include <cstdint>
 #include <functional>
 #include <vector>
@@ -14,7 +15,7 @@ public:
     void setFonts(ImFont* mono, ImFont* ui);
     void setSelection(int idx);   // 1-based
     int  getSelection() const { return m_sel; }
-    void setBaseOctave(int o)  { m_baseOctave = o; }
+    void setBaseOctave(int o)  { m_kbState.baseOctave = o; }
     void midiNoteOn(int midiNote, int vel);
     void midiNoteOff(int midiNote);
     void midiPitchBend(int raw14);  // 0–16383, center=8192
@@ -23,7 +24,7 @@ public:
     std::function<void()> onNeedAudio;
 
     // Called from CoreMIDI RT thread to update display state without going through the view's MIDI path.
-    void setKbHeld(int note, bool held) { if (note >= 0 && note < 128) m_kbHeld[note] = held; }
+    void setKbHeld(int note, bool held) { if (note >= 0 && note < 128) m_kbState.kbHeld[note] = held; }
 
     // Preview note routing — called instead of bb_play_sample/stopNote directly.
     // key: 0-127 = MIDI/keyboard slot, 128 = click-play slot.
@@ -36,7 +37,6 @@ private:
     void saveSample();
     void drawEditor(float x, float y, float w, float h);
     void drawWaveform(float w, float h);
-    void drawNoteKeyboard(float w, float h);
 
     ModuleController* m_ctrl{nullptr};
     ImFont* m_fontMono{nullptr};
@@ -45,10 +45,8 @@ private:
     int m_sel{1};
     SampleData m_data;
     bool m_dirty{false};
-    bool    m_playHeld{false};   // click-play slot active
-    int     m_playNote{-1};
-    int     m_baseOctave{4};
-    bool    m_kbHeld[128]{};     // per-MIDI-note held state
+    bool               m_showKeyboard{true};
+    PianoKeyboardState m_kbState;
     int     m_pitchBend{8192};   // 14-bit MIDI pitch bend, center=8192
     std::vector<float> m_waveMin, m_waveMax;
     int m_waveLen{0};

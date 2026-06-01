@@ -457,14 +457,19 @@ void App::render(int winW, int winH)
 
     const int displayTab = (m_pendingTab >= 0) ? m_pendingTab : m_activeTab.load();
 
+    constexpr float kKbdH  = 120.f;
+    const bool      showKbd = m_hasModule && m_toolbarState.showKeyboard &&
+                              (displayTab == 1 || displayTab == 2 || displayTab == 3);
+    const float     activeH = showKbd ? ch - kKbdH : ch;
+
     if (displayTab == 1) {
-        m_tracker.render(cx, cy, cw, ch);
+        m_tracker.render(cx, cy, cw, activeH);
     } else {
         ImGui::PushStyleColor(ImGuiCol_WindowBg, kClrBgContent);
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,    ImVec2(12.f, 10.f));
         ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f);
         ImGui::SetNextWindowPos({cx, cy}, ImGuiCond_Always);
-        ImGui::SetNextWindowSize({cw, ch}, ImGuiCond_Always);
+        ImGui::SetNextWindowSize({cw, activeH}, ImGuiCond_Always);
         ImGui::Begin("##content", nullptr,
             ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
             ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoBringToFrontOnFocus);
@@ -477,6 +482,54 @@ void App::render(int winW, int winH)
         case 3: drawInstrumentsTab(); break;
         case 4: drawCommentsTab();    break;
         }
+        ImGui::End();
+    }
+
+    // ── Shared piano keyboard (tabs: Patterns / Samples / Instruments) ────
+    if (showKbd) {
+        m_kbState.baseOctave = m_toolbarState.octave;
+
+        constexpr ImGuiWindowFlags kNoDecoFlags =
+            ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoScrollWithMouse |
+            ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings |
+            ImGuiWindowFlags_NoBringToFrontOnFocus;
+        ImGui::SetNextWindowPos ({cx, cy + activeH}, ImGuiCond_Always);
+        ImGui::SetNextWindowSize({cw, kKbdH},        ImGuiCond_Always);
+        ImGui::PushStyleColor(ImGuiCol_WindowBg, IM_COL32(0, 0, 0, 0));
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.f, 0.f));
+        ImGui::Begin("##appKbd", nullptr, kNoDecoFlags | ImGuiWindowFlags_NoScrollbar);
+        ImGui::PopStyleVar();
+        ImGui::PopStyleColor();
+
+        bool captureKb = (displayTab == 2 || displayTab == 3) ||
+                         (displayTab == 1 && !m_tracker.isEditMode());
+
+        DrawPianoKeyboard("##appkbd", cw, kKbdH, m_kbState, m_fontMono, captureKb,
+            [this, displayTab](int note, int key) {
+                if (displayTab == 1) {
+                    m_tracker.inputNote(note);
+                    if (m_tracker.onKbdNeedAudio) m_tracker.onKbdNeedAudio();
+                    if (m_tracker.onKbdPlay) m_tracker.onKbdPlay(note, key);
+                } else if (displayTab == 2) {
+                    if (m_sampleView.onNeedAudio) m_sampleView.onNeedAudio();
+                    if (m_sampleView.onEnqueuePlay)
+                        m_sampleView.onEnqueuePlay(m_sampleView.getSelection(), note, 0.85f, 0.5f, key);
+                } else {
+                    if (m_instrView.onNeedAudio) m_instrView.onNeedAudio();
+                    if (m_instrView.onEnqueuePlay)
+                        m_instrView.onEnqueuePlay(m_instrView.getSelection() - 1, note - 1, 0.85f, 0.5f, key);
+                }
+            },
+            [this, displayTab](int key) {
+                if (displayTab == 1) {
+                    if (m_tracker.onKbdStop) m_tracker.onKbdStop(key);
+                } else if (displayTab == 2) {
+                    if (m_sampleView.onEnqueueStop) m_sampleView.onEnqueueStop(key);
+                } else {
+                    if (m_instrView.onEnqueueStop) m_instrView.onEnqueueStop(key);
+                }
+            });
+
         ImGui::End();
     }
 
@@ -610,7 +663,6 @@ void App::drawSamplesTab()
         ImGui::TextDisabled("No module loaded.");
         return;
     }
-    m_sampleView.setBaseOctave(m_toolbarState.octave);
     ImVec2 pos   = ImGui::GetCursorScreenPos();
     ImVec2 avail = ImGui::GetContentRegionAvail();
     m_sampleView.render(pos.x, pos.y, avail.x, avail.y);
@@ -624,7 +676,6 @@ void App::drawInstrumentsTab()
         ImGui::TextDisabled("No module loaded.");
         return;
     }
-    m_instrView.setBaseOctave(m_toolbarState.octave);
     ImVec2 pos   = ImGui::GetCursorScreenPos();
     ImVec2 avail = ImGui::GetContentRegionAvail();
     m_instrView.render(pos.x, pos.y, avail.x, avail.y);
@@ -761,7 +812,6 @@ void App::wireNoteRT()
                 ev.opnote = note + 1;
                 ev.vol    = vel / 127.f;
                 ev.pan    = 0.5f;
-                m_sampleView.setKbHeld(note, true);
             } else {
                 ev.type   = AudioEngine::PreviewEvent::INSTR_ON;
                 ev.key    = (uint8_t)note;
@@ -770,18 +820,14 @@ void App::wireNoteRT()
                 ev.opnote = note;
                 ev.vol    = vel / 127.f;
                 ev.pan    = 0.5f;
-                if (tab == 3) m_instrView.setKbHeld(note, true);
-                else {
-                    m_tracker.setKbHeld(note, true);
+                if (tab == 1)
                     m_midiTrackerNote.store(note + 1);  // hand off to UI thread for pattern entry
-                }
             }
+            m_kbState.kbHeld[note] = true;
         } else {
             ev.type = AudioEngine::PreviewEvent::NOTE_OFF;
             ev.key  = (uint8_t)note;
-            if (tab == 2) m_sampleView.setKbHeld(note, false);
-            else if (tab == 3) m_instrView.setKbHeld(note, false);
-            else               m_tracker.setKbHeld(note, false);
+            m_kbState.kbHeld[note] = false;
         }
         m_audio.enqueuePreviewEvent(ev);
     };

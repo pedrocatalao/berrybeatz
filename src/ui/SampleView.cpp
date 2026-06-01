@@ -1,5 +1,4 @@
 #include "SampleView.h"
-#include "PianoKeyboard.h"
 #include "Knob.h"
 #include "imgui.h"
 #include <algorithm>
@@ -26,7 +25,6 @@ void SampleView::setController(ModuleController* ctrl, int sampleCount) {
     m_sampleCount = sampleCount;
     m_sel         = 1;
     m_dirty       = false;
-    m_kbState     = PianoKeyboardState{};
     m_waveLen  = 0;
     m_waveMin.clear();
     m_waveMax.clear();
@@ -35,7 +33,6 @@ void SampleView::setController(ModuleController* ctrl, int sampleCount) {
 
 void SampleView::clearModule() {
     // Audio engine is stopped before clearModule is called; just reset held state.
-    m_kbState     = PianoKeyboardState{};
     m_ctrl        = nullptr;
     m_sampleCount = 0;
     m_sel         = 1;
@@ -49,20 +46,16 @@ void SampleView::clearModule() {
 void SampleView::midiNoteOn(int midiNote, int vel)
 {
     if (midiNote < 0 || midiNote > 127) return;
-    if (m_kbState.kbHeld[midiNote] && onEnqueueStop) onEnqueueStop(midiNote);
     float v = vel / 127.f;
     int opnote = midiNote + 1;
     if (onEnqueuePlay) onEnqueuePlay(m_sel, opnote, v, 0.5f, midiNote);
-    m_kbState.kbHeld[midiNote] = true;
     if (onNeedAudio) onNeedAudio();
 }
 
 void SampleView::midiNoteOff(int midiNote)
 {
     if (midiNote < 0 || midiNote > 127) return;
-    if (!m_kbState.kbHeld[midiNote]) return;
     if (onEnqueueStop) onEnqueueStop(midiNote);
-    m_kbState.kbHeld[midiNote] = false;
 }
 
 void SampleView::midiPitchBend(int raw14)
@@ -106,23 +99,7 @@ void SampleView::setSelection(int idx) {
 void SampleView::render(float x, float y, float w, float h) {
     if (!m_ctrl || m_sampleCount == 0) return;
 
-    constexpr float kKbdH = 120.f;
-    float kbArea = m_showKeyboard ? kKbdH : 0.f;
-
-    drawEditor(x, y, w, h - kbArea);
-
-    if (m_showKeyboard) {
-        ImGui::SetCursorScreenPos({x, y + h - kKbdH});
-        DrawPianoKeyboard("##smpKbd", w, kKbdH, m_kbState, m_fontMono, true,
-            [this](int note, int key) {
-                if (onNeedAudio) onNeedAudio();
-                if (onEnqueuePlay) onEnqueuePlay(m_sel, note, 0.85f, 0.5f, key);
-            },
-            [this](int key) {
-                if (onEnqueueStop) onEnqueueStop(key);
-            });
-    }
-
+    drawEditor(x, y, w, h);
     if (m_dirty) saveSample();
 }
 
@@ -163,12 +140,9 @@ void SampleView::drawEditor(float x, float y, float w, float h) {
             fnWidth = m_fontMono->CalcTextSizeA(ImGui::GetFontSize(), FLT_MAX, 0.f,
                                                 m_data.filename[0] ? m_data.filename : "--------").x + 8.f;
 
-        // Name InputText fills remaining width (reserve space for KB button)
-        const float kKbBtnW = ImGui::CalcTextSize("KB").x
-                            + ImGui::GetStyle().FramePadding.x * 2.f
-                            + ImGui::GetStyle().ItemSpacing.x;
+        // Name InputText fills remaining width
         float badgeX    = ImGui::GetCursorPosX();
-        float nameWidth = cw - (badgeX - kPad) - fnWidth - 8.f - kKbBtnW;
+        float nameWidth = cw - (badgeX - kPad) - fnWidth - 8.f;
         ImGui::SetNextItemWidth(std::max(60.f, nameWidth));
         if (ImGui::InputText("##sname", m_data.name, sizeof(m_data.name)))
             m_dirty = true;
@@ -180,11 +154,6 @@ void SampleView::drawEditor(float x, float y, float w, float h) {
         ImGui::InputText("##sfname", m_data.filename, sizeof(m_data.filename),
                          ImGuiInputTextFlags_ReadOnly);
         ImGui::PopStyleColor();
-        ImGui::SameLine(0, 8);
-        { bool on = m_showKeyboard;
-          if (on) ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(64, 64, 160, 255));
-          if (ImGui::Button("KB##skb")) m_showKeyboard = !m_showKeyboard;
-          if (on) ImGui::PopStyleColor(); }
     }
 
     ImGui::Spacing();

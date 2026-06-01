@@ -16,6 +16,7 @@
 #include "SidebarView.h"
 #include "NewModuleDialog.h"
 #include "SongDocument.h"
+#include "PianoKeyboard.h"
 #include <string>
 #include <vector>
 #include <memory>
@@ -82,6 +83,8 @@ private:
     bool  m_hasModule     {false};
 
     Transport m_transport {Transport::Stopped};
+
+    PianoKeyboardState m_kbState;
 
     std::atomic<int> m_activeTab       {0};
     std::atomic<int> m_midiTrackerNote {-1};  // RT→UI handoff for pattern note entry

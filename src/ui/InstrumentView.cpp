@@ -1,5 +1,4 @@
 #include "InstrumentView.h"
-#include "PianoKeyboard.h"
 #include "Knob.h"
 #include "imgui.h"
 #include <algorithm>
@@ -29,12 +28,10 @@ void InstrumentView::setController(ModuleController* ctrl, int instrCount) {
     m_sel        = 1;
     m_dirty      = false;
     m_dragNode = -1;
-    m_kbState  = PianoKeyboardState{};
     if (m_ctrl && m_instrCount > 0) loadInstrument();
 }
 
 void InstrumentView::clearModule() {
-    m_kbState     = PianoKeyboardState{};
     m_ctrl        = nullptr;
     m_instrCount  = 0;
     m_sel         = 1;
@@ -46,19 +43,15 @@ void InstrumentView::clearModule() {
 void InstrumentView::midiNoteOn(int midiNote, int vel)
 {
     if (midiNote < 0 || midiNote > 127) return;
-    if (m_kbState.kbHeld[midiNote] && onEnqueueStop) onEnqueueStop(midiNote);
     float v = vel / 127.f;
     if (onEnqueuePlay) onEnqueuePlay(m_sel - 1, midiNote, v, 0.5f, midiNote);
-    m_kbState.kbHeld[midiNote] = true;
     if (onNeedAudio) onNeedAudio();
 }
 
 void InstrumentView::midiNoteOff(int midiNote)
 {
     if (midiNote < 0 || midiNote > 127) return;
-    if (!m_kbState.kbHeld[midiNote]) return;
     if (onEnqueueStop) onEnqueueStop(midiNote);
-    m_kbState.kbHeld[midiNote] = false;
 }
 
 void InstrumentView::midiPitchBend(int raw14)
@@ -100,24 +93,7 @@ void InstrumentView::setSelection(int idx) {
 
 void InstrumentView::render(float x, float y, float w, float h) {
     if (!m_ctrl || m_instrCount == 0) return;
-
-    constexpr float kKbdH = 120.f;
-    float kbArea = m_showKeyboard ? kKbdH : 0.f;
-
-    drawEditor(x, y, w, h - kbArea);
-
-    if (m_showKeyboard) {
-        ImGui::SetCursorScreenPos({x, y + h - kKbdH});
-        DrawPianoKeyboard("##instrKbd", w, kKbdH, m_kbState, m_fontMono, true,
-            [this](int note, int key) {
-                if (onNeedAudio) onNeedAudio();
-                if (onEnqueuePlay) onEnqueuePlay(m_sel - 1, note - 1, 0.85f, 0.5f, key);
-            },
-            [this](int key) {
-                if (onEnqueueStop) onEnqueueStop(key);
-            });
-    }
-
+    drawEditor(x, y, w, h);
     if (m_dirty) saveInstrument();
 }
 
@@ -159,16 +135,10 @@ void InstrumentView::drawEditor(float x, float y, float w, float h) {
             m_dirty = true;
         ImGui::SameLine(0, 8);
 
-        // Filename (read-only) — leave room for KB button
-        float kbBtnW = ImGui::CalcTextSize("KB").x + ImGui::GetStyle().FramePadding.x * 2.f;
-        ImGui::SetNextItemWidth(-(kbBtnW + ImGui::GetStyle().ItemSpacing.x));
+        // Filename (read-only)
+        ImGui::SetNextItemWidth(-1.f);
         ImGui::InputText("##ifname", m_data.filename, sizeof(m_data.filename),
                          ImGuiInputTextFlags_ReadOnly);
-        ImGui::SameLine();
-        { bool on = m_showKeyboard;
-          if (on) ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(64, 64, 160, 255));
-          if (ImGui::Button("KB##ikb")) m_showKeyboard = !m_showKeyboard;
-          if (on) ImGui::PopStyleColor(); }
     }
 
     ImGui::Spacing();

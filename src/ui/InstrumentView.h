@@ -1,7 +1,6 @@
 #pragma once
 #include "SoundFileOps.h"
 #include "ModuleController.h"
-#include "PianoKeyboard.h"
 #include <cstdint>
 #include <functional>
 
@@ -14,7 +13,6 @@ public:
     void setFonts(ImFont* mono, ImFont* ui);
     void setSelection(int idx);   // 1-based; clamps to valid range
     int  getSelection() const { return m_sel; }
-    void setBaseOctave(int o)  { m_kbState.baseOctave = o; }
     void midiNoteOn(int midiNote, int vel);
     void midiNoteOff(int midiNote);
     void midiPitchBend(int raw14);  // 0–16383, center=8192
@@ -22,8 +20,6 @@ public:
 
     // Called when a note preview starts — wire this to ensure the audio engine is running.
     std::function<void()> onNeedAudio;
-
-    void setKbHeld(int note, bool held) { if (note >= 0 && note < 128) m_kbState.kbHeld[note] = held; }
 
     std::function<void(int instrIdx, int opnote, float vol, float pan, int key)> onEnqueuePlay;
     std::function<void(int key)>          onEnqueueStop;
@@ -44,7 +40,5 @@ private:
     bool m_dirty{false};
     int m_activeEnv{0};       // 0=vol 1=pan 2=pitch
     int m_dragNode{-1};
-    bool               m_showKeyboard{true};
-    PianoKeyboardState m_kbState;
-    int     m_pitchBend{8192};
+    int  m_pitchBend{8192};
 };

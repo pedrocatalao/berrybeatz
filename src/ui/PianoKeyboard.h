@@ -4,6 +4,19 @@
 #include <cstdio>
 
 // ─────────────────────────────────────────────────────────────────────────────
+// FT2-style computer keyboard → note mapping (shared with pattern editor).
+// Semi offsets are relative to baseOctave: lower row = +0..11, upper = +12..23.
+struct PianoNoteKey { ImGuiKey key; int semi; };
+inline constexpr PianoNoteKey kPianoNoteKeys[] = {
+    {ImGuiKey_Z,0},{ImGuiKey_S,1},{ImGuiKey_X,2},{ImGuiKey_D,3},
+    {ImGuiKey_C,4},{ImGuiKey_V,5},{ImGuiKey_G,6},{ImGuiKey_B,7},
+    {ImGuiKey_H,8},{ImGuiKey_N,9},{ImGuiKey_J,10},{ImGuiKey_M,11},
+    {ImGuiKey_Q,12},{ImGuiKey_2,13},{ImGuiKey_W,14},{ImGuiKey_3,15},
+    {ImGuiKey_E,16},{ImGuiKey_R,17},{ImGuiKey_5,18},{ImGuiKey_T,19},
+    {ImGuiKey_6,20},{ImGuiKey_Y,21},{ImGuiKey_7,22},{ImGuiKey_U,23},
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Reusable piano keyboard widget — 5 octaves (notes 25–84), 120px tall.
 //
 // State: PianoKeyboardState holds playback + held-key display state.
@@ -186,16 +199,7 @@ inline void DrawPianoKeyboard(
 
     // ── Computer keyboard play / stop ─────────────────────────────────────────
     if (captureKeyboard && !ImGui::GetIO().WantTextInput) {
-        struct NoteKey { ImGuiKey key; int semi; };
-        static constexpr NoteKey kKeys[] = {
-            {ImGuiKey_Z,0},{ImGuiKey_S,1},{ImGuiKey_X,2},{ImGuiKey_D,3},
-            {ImGuiKey_C,4},{ImGuiKey_V,5},{ImGuiKey_G,6},{ImGuiKey_B,7},
-            {ImGuiKey_H,8},{ImGuiKey_N,9},{ImGuiKey_J,10},{ImGuiKey_M,11},
-            {ImGuiKey_Q,12},{ImGuiKey_2,13},{ImGuiKey_W,14},{ImGuiKey_3,15},
-            {ImGuiKey_E,16},{ImGuiKey_R,17},{ImGuiKey_5,18},{ImGuiKey_T,19},
-            {ImGuiKey_6,20},{ImGuiKey_Y,21},{ImGuiKey_7,22},{ImGuiKey_U,23},
-        };
-        for (auto& k : kKeys) {
+        for (auto& k : kPianoNoteKeys) {
             int note = st.baseOctave * 12 + k.semi + 1;
             if (note < 1 || note > 128) continue;
             if (ImGui::IsKeyPressed(k.key, false) && !st.kbHeld[note - 1]) {

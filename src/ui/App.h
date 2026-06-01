@@ -89,7 +89,9 @@ private:
     float              m_kbdAnimT {0.f};   // 0=hidden, 1=fully shown
 
     std::atomic<int> m_activeTab       {0};
-    std::atomic<int> m_midiTrackerNote {-1};  // RT→UI handoff for pattern note entry
+    // TODO: single-slot — drops all but the last note if two MIDI notes arrive in one frame. Fine for
+    // monophonic step entry; replace with a lock-free ring if chord recording is ever needed.
+    std::atomic<int> m_midiTrackerNote {-1};
     int              m_pendingTab {-1};
     bool             m_tabsInited {false};
 

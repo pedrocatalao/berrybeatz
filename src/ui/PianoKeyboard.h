@@ -1,5 +1,6 @@
 #pragma once
 #include "imgui.h"
+#include <atomic>
 #include <functional>
 #include <cstdio>
 
@@ -31,7 +32,7 @@ struct PianoKeyboardState {
     bool playHeld  {false};
     int  playNote  {-1};
     int  baseOctave{4};
-    bool kbHeld[128]{};
+    std::atomic<bool> kbHeld[128]{};
 };
 
 inline void DrawPianoKeyboard(

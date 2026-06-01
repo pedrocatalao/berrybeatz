@@ -129,6 +129,7 @@ App::App() : m_controller(m_state), m_audio(m_state), m_tracker(m_state), m_gene
     m_tracker.onInsertPatternRequested = [this]() { insertPattern(); };
     m_tracker.onLoopToggled     = [this](bool loop) { m_audio.setLoopPattern(loop); };
 
+    m_tracker.onNoteEntry    = [this](int note) { m_tracker.inputNote(note); };
     m_tracker.onKbdNeedAudio = [this]() { if (m_hasModule) m_audio.ensureRunning(); };
     m_tracker.onKbdPlay = [this](int note, int key) {
         int instr = m_tracker.getCurrentInstrument();
@@ -507,9 +508,9 @@ void App::render(int winW, int winH)
         DrawPianoKeyboard("##appkbd", cw, kKbdH, m_kbState, m_fontMono, captureKb,
             [this, displayTab](int note, int key) {
                 if (displayTab == 1) {
-                    m_tracker.inputNote(note);
+                    if (m_tracker.onNoteEntry)    m_tracker.onNoteEntry(note);
                     if (m_tracker.onKbdNeedAudio) m_tracker.onKbdNeedAudio();
-                    if (m_tracker.onKbdPlay) m_tracker.onKbdPlay(note, key);
+                    if (m_tracker.onKbdPlay)      m_tracker.onKbdPlay(note, key);
                 } else if (displayTab == 2) {
                     if (m_sampleView.onNeedAudio) m_sampleView.onNeedAudio();
                     if (m_sampleView.onEnqueuePlay)

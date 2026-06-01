@@ -85,8 +85,9 @@ public:
 
     // Piano keyboard preview/record — wired by App
     std::function<void()>          onKbdNeedAudio;
-    std::function<void(int, int)>  onKbdPlay;   // (note1based, key)
-    std::function<void(int)>       onKbdStop;   // (key)
+    std::function<void(int, int)>  onKbdPlay;    // (note1based, key) — audio only
+    std::function<void(int)>       onKbdStop;    // (key)
+    std::function<void(int)>       onNoteEntry;  // (note1based) — pattern entry, distinct from audio
 
 private:
     void processInput();

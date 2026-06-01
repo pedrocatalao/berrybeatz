@@ -50,7 +50,7 @@ inline void DrawPianoKeyboard(
     constexpr int kWhiteCount = kOctaves * 7;
 
     static const bool  kIsBlack[12]     = {false,true,false,true,false,false,true,false,true,false,true,false};
-    static const float kBlackOffset[12] = {0,0.66f,0,0.66f,0,0,0.66f,0,0.66f,0,0.66f,0};
+    static const float kBlackOffset[12] = {0,0.67f,0,0.83f,0,0,0.67f,0,0.74f,0,0.82f,0};
 
     float whiteW = w / (float)kWhiteCount;
     float blackW = whiteW * 0.65f;

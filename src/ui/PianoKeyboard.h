@@ -52,15 +52,22 @@ inline void DrawPianoKeyboard(
     static const bool  kIsBlack[12]     = {false,true,false,true,false,false,true,false,true,false,true,false};
     static const float kBlackOffset[12] = {0,0.67f,0,0.83f,0,0,0.67f,0,0.74f,0,0.82f,0};
 
-    float whiteW = w / (float)kWhiteCount;
-    float blackW = whiteW * 0.65f;
-    float blackH = h * 0.60f;
+    constexpr float kPad = 3.f;
 
     ImVec2      origin = ImGui::GetCursorScreenPos();
     ImDrawList* dl     = ImGui::GetWindowDrawList();
     ImVec2      mp     = ImGui::GetIO().MousePos;
 
     ImGui::InvisibleButton(id, {w, h});
+
+    origin.x += kPad;
+    origin.y += kPad;
+    w -= kPad * 6.f;
+    h -= kPad * 2.f;
+
+    float whiteW = w / (float)kWhiteCount;
+    float blackW = whiteW * 0.65f;
+    float blackH = h * 0.60f;
     bool kbActive      = ImGui::IsItemActive();
     bool kbDeactivated = ImGui::IsItemDeactivated();
 
@@ -116,10 +123,6 @@ inline void DrawPianoKeyboard(
         dl->AddLine({kMin.x + 1.f, kMin.y + 1.f}, {kMin.x + 1.f, kMax.y - 2.f}, IM_COL32(255,255,255,160), 1.f);
         // Bottom shadow
         dl->AddLine({kMin.x + 1.f, kMax.y - 1.f}, {kMax.x - 1.f, kMax.y - 1.f}, IM_COL32(80,75,100,200), 1.f);
-
-        if (note == 61)  // middle C dot
-            dl->AddCircleFilled({kx + whiteW * 0.5f, kMin.y + h - 10.f},
-                                3.f, IM_COL32(0, 160, 255, 200));
 
         if (fontMono) {
             // Computer keyboard shortcut label

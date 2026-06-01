@@ -132,12 +132,16 @@ App::App() : m_controller(m_state), m_audio(m_state), m_tracker(m_state), m_gene
     m_tracker.onNoteEntry    = [this](int note) { m_tracker.inputNote(note); };
     m_tracker.onKbdNeedAudio = [this]() { if (m_hasModule) m_audio.ensureRunning(); };
     m_tracker.onKbdPlay = [this](int note, int key) {
-        int instr = m_tracker.getCurrentInstrument();
-        if (instr > 0) m_audio.copyPreviewInstrument(instr);
+        int instr        = m_tracker.getCurrentInstrument();
+        int previewInstr = std::max(1, instr);   // fallback to 1 when cell has no instrument
+        if (previewInstr != m_lastKbdPreviewInstr) {
+            m_audio.copyPreviewInstrument(previewInstr);
+            m_lastKbdPreviewInstr = previewInstr;
+        }
         AudioEngine::PreviewEvent ev{};
         ev.type   = AudioEngine::PreviewEvent::INSTR_ON;
         ev.key    = (uint8_t)key;
-        ev.idx    = std::max(0, instr - 1);
+        ev.idx    = previewInstr - 1;
         ev.opnote = note - 1;
         ev.vol    = 0.85f;
         ev.pan    = 0.5f;
@@ -273,6 +277,7 @@ void App::switchToSong(int idx)
     }
 
     m_activeSongIdx = idx;
+    m_lastKbdPreviewInstr = -1;
     auto& doc = m_songs[idx];
 
     // Hand module to audio engine (stops stream, restarts paused)
@@ -314,6 +319,7 @@ void App::activateViews()
 
     m_audio.copyPreviewSample(m_sampleView.getSelection());
     m_audio.copyPreviewInstrument(m_instrView.getSelection());
+    m_audio.ensureRunning();
 }
 
 void App::closeSong(int idx)
@@ -494,6 +500,18 @@ void App::render(int winW, int winH)
     }
 
     // ── Shared piano keyboard (tabs: Patterns / Samples / Instruments) ────
+    // Keep the preview instrument in sync every frame so MIDI has it ready
+    if (displayTab == 1 && m_hasModule) {
+        int pi = std::max(1, m_tracker.getCurrentInstrument());
+        if (pi != m_lastKbdPreviewInstr) {
+            m_audio.copyPreviewInstrument(pi);
+            m_lastKbdPreviewInstr = pi;
+        }
+    }
+    // processInput handles note-key audio preview only when the KB panel is not doing it
+    m_tracker.setNoteKeyAudioEnabled(
+        !(m_kbdAnimT > 0.f && displayTab == 1 && !m_tracker.isEditMode()));
+
     if (m_kbdAnimT > 0.f) {
         m_kbState.baseOctave = m_toolbarState.octave;
 

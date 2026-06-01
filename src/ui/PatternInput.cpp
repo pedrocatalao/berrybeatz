@@ -249,6 +249,22 @@ void TrackerView::processInput() {
     if (ImGui::IsKeyPressed(ImGuiKey_Enter) || ImGui::IsKeyPressed(ImGuiKey_KeypadEnter))
         { setEditMode(!m_editMode); return; }
 
+    // Non-edit mode audio preview — runs when the KB panel is not capturing note keys
+    if (!m_editMode && m_noteKeyAudioEnabled && m_cur.col == EditCol::Note
+            && !ImGui::GetIO().WantTextInput) {
+        for (const auto& nm : kPianoNoteKeys) {
+            int note = (m_baseOctave + nm.semi / 12) * 12 + (nm.semi % 12) + 1;
+            if (note < NOTE_MIN || note > NOTE_MAX) continue;
+            if (ImGui::IsKeyPressed(nm.key, false)) {
+                if (onKbdNeedAudio) onKbdNeedAudio();
+                if (onKbdPlay) onKbdPlay(note, note - 1);
+            }
+            if (ImGui::IsKeyReleased(nm.key))
+                if (onKbdStop) onKbdStop(note - 1);
+        }
+        return;
+    }
+
     if (!m_editMode) return;
 
     // Delete key: selection → delete selection; otherwise clear current cell

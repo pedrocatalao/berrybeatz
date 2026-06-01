@@ -69,6 +69,7 @@ public:
     int  getCurrentInstrument()   const { return m_curInstrument; }
 
     void inputNote(int note1based);  // enter note at cursor (edit mode only)
+    void setNoteKeyAudioEnabled(bool v) { m_noteKeyAudioEnabled = v; }
 
     // Call each frame when the patterns tab is visible.
     // (x,y,w,h) is the area allocated by the App for the pattern editor.
@@ -175,5 +176,5 @@ private:
     int32_t m_curInstrument {0};
     bool    m_overflowPaste {false};
     int     m_detailView    {0};     // 0=note+inst+vol+fx, 1=+vol, 2=+inst, 3=note
-
+    bool    m_noteKeyAudioEnabled {true};
 };

@@ -66,7 +66,7 @@ public:
     void setBaseOctave(int o)  { m_baseOctave = std::clamp(o, 0, 8); }
     bool getLoopPattern() const { return m_loopPattern; }
     bool isEditMode()             const { return m_editMode; }
-    int  getCurrentInstrument()   const { return m_curInstrument; }
+    int  getSelectedInstrument()   const { return m_selectedInstrument; }
 
     void inputNote(int note1based);  // enter note at cursor (edit mode only)
     void setNoteKeyAudioEnabled(bool v) { m_noteKeyAudioEnabled = v; }
@@ -88,7 +88,8 @@ public:
     std::function<void()>          onKbdNeedAudio;
     std::function<void(int, int)>  onKbdPlay;    // (note1based, key) — audio only
     std::function<void(int)>       onKbdStop;    // (key)
-    std::function<void(int)>       onNoteEntry;  // (note1based) — pattern entry, distinct from audio
+    std::function<void(int)>       onNoteEntry;        // (note1based) — pattern entry, distinct from audio
+    std::function<void(int)>       onInstrumentChanged; // (instrIdx 1-based) — fired when dropdown changes
 
 private:
     void processInput();
@@ -173,7 +174,7 @@ private:
     float   m_scrollSuppressTimer {0.f};
     int32_t m_lastAbsRow          {0};
     std::unordered_map<int32_t, float> m_slotDim;   // orderIdx → animated dim factor
-    int32_t m_curInstrument {0};
+    int32_t m_selectedInstrument {0};
     bool    m_overflowPaste {false};
     int     m_detailView    {0};     // 0=note+inst+vol+fx, 1=+vol, 2=+inst, 3=note
     bool    m_noteKeyAudioEnabled {true};

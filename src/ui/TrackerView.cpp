@@ -348,14 +348,14 @@ void TrackerView::drawPatternToolbar2(float /*x*/, float /*y*/, float /*w*/) {
             }
         }
         char preview[80];
-        if (m_curInstrument <= 0)
+        if (m_selectedInstrument <= 0)
             snprintf(preview, sizeof(preview), "No instrument");
         else {
-            int idx = m_curInstrument - 1;
+            int idx = m_selectedInstrument - 1;
             if (idx < (int)names.size() && !names[idx].empty())
-                snprintf(preview, sizeof(preview), "%02d: %s", m_curInstrument, names[idx].c_str());
+                snprintf(preview, sizeof(preview), "%02d: %s", m_selectedInstrument, names[idx].c_str());
             else
-                snprintf(preview, sizeof(preview), "%02d", m_curInstrument);
+                snprintf(preview, sizeof(preview), "%02d", m_selectedInstrument);
         }
         ImGui::SetNextItemWidth(160.0f);
         bool comboOpen = ImGui::BeginCombo("##instr", preview,
@@ -370,9 +370,9 @@ void TrackerView::drawPatternToolbar2(float /*x*/, float /*y*/, float /*w*/) {
                 IM_COL32(180, 180, 200, 200));
         }
         if (comboOpen) {
-            if (ImGui::Selectable("No instrument", m_curInstrument <= 0))
-                m_curInstrument = 0;
-            if (m_curInstrument <= 0) ImGui::SetItemDefaultFocus();
+            if (ImGui::Selectable("No instrument", m_selectedInstrument <= 0))
+                m_selectedInstrument = 0;
+            if (m_selectedInstrument <= 0) ImGui::SetItemDefaultFocus();
             for (int i = 1; i <= total; i++) {
                 char lbl[80];
                 int idx = i - 1;
@@ -380,8 +380,11 @@ void TrackerView::drawPatternToolbar2(float /*x*/, float /*y*/, float /*w*/) {
                     snprintf(lbl, sizeof(lbl), "%02d: %s", i, names[idx].c_str());
                 else
                     snprintf(lbl, sizeof(lbl), "%02d", i);
-                bool sel = (m_curInstrument == i);
-                if (ImGui::Selectable(lbl, sel)) m_curInstrument = i;
+                bool sel = (m_selectedInstrument == i);
+                if (ImGui::Selectable(lbl, sel)) {
+                    m_selectedInstrument = i;
+                    if (onInstrumentChanged) onInstrumentChanged(i);
+                }
                 if (sel) ImGui::SetItemDefaultFocus();
             }
             ImGui::EndCombo();

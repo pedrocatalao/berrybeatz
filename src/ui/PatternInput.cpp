@@ -27,7 +27,7 @@ void TrackerView::inputNote(int note1based) {
     PatternCell cell;
     pe_get_cell(m_ctrl->module(), pat, m_cur.row, m_cur.channel, cell);
     cell.note = (uint8_t)note1based;
-    if (m_curInstrument > 0) cell.instr = (uint8_t)m_curInstrument;
+    if (m_selectedInstrument > 0) cell.instr = (uint8_t)m_selectedInstrument;
     setCell(pat, m_cur.row, m_cur.channel, cell);
     advanceCursor();
 }
@@ -300,7 +300,7 @@ void TrackerView::processInput() {
                 if (ImGui::IsKeyPressed(nm.key, false)) {
                     PatternCell newCell = cell;
                     newCell.note = (uint8_t)note;
-                    if (m_curInstrument > 0) newCell.instr = (uint8_t)m_curInstrument;
+                    if (m_selectedInstrument > 0) newCell.instr = (uint8_t)m_selectedInstrument;
                     setCell(pat, m_cur.row, m_cur.channel, newCell);
                     advanceCursor();
                     if (onKbdNeedAudio) onKbdNeedAudio();

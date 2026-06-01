@@ -87,7 +87,6 @@ private:
 
     PianoKeyboardState m_kbState;
     float              m_kbdAnimT {0.f};   // 0=hidden, 1=fully shown
-    int                m_lastKbdPreviewInstr {-1};
 
     std::atomic<int> m_activeTab       {0};
     std::atomic<int> m_midiTrackerNote {-1};  // RT→UI handoff for pattern note entry

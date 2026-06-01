@@ -356,6 +356,11 @@ void App::render(int winW, int winH)
     const float h = (float)winH;
     const float contentH = h - kSongBarH;  // reserve bottom for song bar
 
+    if (m_chrome.isResizing()) {
+        ImGui::GetIO().MouseDown[0]    = false;
+        ImGui::GetIO().MouseClicked[0] = false;
+    }
+
     syncToolbarState();
 
     float contentY = DrawToolbar(m_toolbarState, m_fontUI, 0.f, 0.f, w, kToolbarH);

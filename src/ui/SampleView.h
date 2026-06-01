@@ -1,7 +1,7 @@
 #pragma once
 #include "SoundFileOps.h"
 #include "ModuleController.h"
-#include <cstdint>
+#include <atomic>
 #include <functional>
 #include <vector>
 
@@ -35,7 +35,7 @@ private:
     ImFont* m_fontMono{nullptr};
     ImFont* m_fontUI{nullptr};
     int m_sampleCount{0};
-    int m_sel{1};
+    std::atomic<int> m_sel{1};
     SampleData m_data;
     bool m_dirty{false};
     int  m_pitchBend{8192};

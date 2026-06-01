@@ -1,4 +1,5 @@
 #pragma once
+#include <atomic>
 #include <functional>
 #include <cstdint>
 #include <unordered_map>
@@ -174,7 +175,7 @@ private:
     float   m_scrollSuppressTimer {0.f};
     int32_t m_lastAbsRow          {0};
     std::unordered_map<int32_t, float> m_slotDim;   // orderIdx → animated dim factor
-    int32_t m_selectedInstrument {0};
+    std::atomic<int32_t> m_selectedInstrument {0};
     bool    m_overflowPaste {false};
     int     m_detailView    {0};     // 0=note+inst+vol+fx, 1=+vol, 2=+inst, 3=note
     bool    m_noteKeyAudioEnabled {true};

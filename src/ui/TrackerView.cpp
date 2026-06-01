@@ -353,9 +353,9 @@ void TrackerView::drawPatternToolbar2(float /*x*/, float /*y*/, float /*w*/) {
         else {
             int idx = m_selectedInstrument - 1;
             if (idx < (int)names.size() && !names[idx].empty())
-                snprintf(preview, sizeof(preview), "%02d: %s", m_selectedInstrument, names[idx].c_str());
+                snprintf(preview, sizeof(preview), "%02d: %s", m_selectedInstrument.load(), names[idx].c_str());
             else
-                snprintf(preview, sizeof(preview), "%02d", m_selectedInstrument);
+                snprintf(preview, sizeof(preview), "%02d", m_selectedInstrument.load());
         }
         ImGui::SetNextItemWidth(160.0f);
         bool comboOpen = ImGui::BeginCombo("##instr", preview,

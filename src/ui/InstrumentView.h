@@ -1,7 +1,7 @@
 #pragma once
 #include "SoundFileOps.h"
 #include "ModuleController.h"
-#include <cstdint>
+#include <atomic>
 #include <functional>
 
 struct ImFont;
@@ -35,7 +35,7 @@ private:
     ImFont* m_fontMono{nullptr};
     ImFont* m_fontUI{nullptr};
     int m_instrCount{0};
-    int m_sel{1};
+    std::atomic<int> m_sel{1};
     InstrumentData m_data;
     bool m_dirty{false};
     int m_activeEnv{0};       // 0=vol 1=pan 2=pitch

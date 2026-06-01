@@ -125,7 +125,7 @@ void InstrumentView::drawEditor(float x, float y, float w, float h) {
     {
         // Number badge
         char nbuf[8];
-        snprintf(nbuf, sizeof(nbuf), "[%02d]", m_sel);
+        snprintf(nbuf, sizeof(nbuf), "[%02d]", m_sel.load());
         ImGui::TextColored({0.f, 0.78f, 1.f, 1.f}, "%s", nbuf);
         ImGui::SameLine(0, 8);
 

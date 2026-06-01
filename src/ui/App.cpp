@@ -249,7 +249,7 @@ void App::openFile(const std::string& path)
     auto slash = path.rfind('/');
     std::string filename = (slash != std::string::npos) ? path.substr(slash + 1) : path;
     auto dot = filename.rfind('.');
-    doc->displayName = (dot != std::string::npos) ? filename.substr(0, dot) : filename;
+    doc->displayName = filename;
     doc->path = path;
 
     m_songs.push_back(std::move(doc));
@@ -608,31 +608,54 @@ void App::drawSongBar(float w, float h)
             kClrStatusGradBot, kClrStatusGradBot);
     }
 
-    bool closed = false;
+    bool closed   = false;
     int  closeIdx = -1;
 
+    ImDrawList* dl  = ImGui::GetWindowDrawList();
+    ImVec2      mp  = ImGui::GetIO().MousePos;
+    const float tabH   = kSongBarH - 6.f;
+    const float padX   = 7.f;
+    const float xGap   = 6.f;
+    const float xW     = ImGui::CalcTextSize("x").x + xGap * 2.f;
+    const ImU32 kActBg = ImGui::ColorConvertFloat4ToU32(ImGui::GetStyle().Colors[ImGuiCol_TabSelected]);
+
     for (int i = 0; i < (int)m_songs.size(); ++i) {
-        if (i > 0) ImGui::SameLine();
+        if (i > 0) ImGui::SameLine(0, 2.f);
 
         bool isActive = (i == m_activeSongIdx);
+        const std::string& name = m_songs[i]->displayName;
+        float textW = ImGui::CalcTextSize(name.c_str()).x;
+        float tabW  = padX + textW + xW + padX;
+
+        ImVec2 tMin = ImGui::GetCursorScreenPos();
+        ImVec2 tMax = {tMin.x + tabW, tMin.y + tabH};
+        ImVec2 xMin = {tMax.x - xW, tMin.y};
+
+        bool xHov = (mp.x >= xMin.x && mp.x < tMax.x && mp.y >= tMin.y && mp.y < tMax.y);
+
+        // Background
         if (isActive)
-            ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyle().Colors[ImGuiCol_TabSelected]);
+            dl->AddRectFilled(tMin, tMax, kActBg, kStyleTabRounding);
+        else if (ImGui::IsMouseHoveringRect(tMin, tMax))
+            dl->AddRectFilled(tMin, tMax, IM_COL32(60, 60, 80, 120), kStyleTabRounding);
 
-        std::string tabLabel = m_songs[i]->displayName + "##st" + std::to_string(i);
-        if (ImGui::Button(tabLabel.c_str()) && !isActive)
-            switchToSong(i);
+        // Name
+        float ty = tMin.y + (tabH - ImGui::GetTextLineHeight()) * 0.5f;
+        dl->AddText({tMin.x + padX, ty}, IM_COL32(220, 220, 235, 255), name.c_str());
 
-        if (isActive) ImGui::PopStyleColor();
+        // X
+        if (xHov)
+            dl->AddRectFilled(xMin, tMax, kClrRed, kStyleTabRounding, ImDrawFlags_RoundCornersRight);
+        ImU32 xCol = xHov ? IM_COL32(255, 220, 220, 255) : IM_COL32(180, 175, 200, 200);
+        float xTy  = tMin.y + (tabH - ImGui::GetTextLineHeight()) * 0.5f;
+        dl->AddText({xMin.x + xGap, xTy}, xCol, "x");
 
-        ImGui::SameLine(0, 0);
-        ImGui::PushStyleColor(ImGuiCol_Button,        IM_COL32(0, 0, 0, 0));
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(180, 60, 60, 200));
-        std::string closeLabel = " x ##sc" + std::to_string(i);
-        if (ImGui::Button(closeLabel.c_str())) {
-            closed = true;
-            closeIdx = i;
+        // Hit area
+        std::string bid = "##st" + std::to_string(i);
+        if (ImGui::InvisibleButton(bid.c_str(), {tabW, tabH})) {
+            if (xHov) { closed = true; closeIdx = i; }
+            else if (!isActive) switchToSong(i);
         }
-        ImGui::PopStyleColor(2);
     }
 
     ImGui::End();

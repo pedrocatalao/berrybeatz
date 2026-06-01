@@ -102,15 +102,20 @@ inline void DrawPianoKeyboard(
         bool isHit  = (note == hitNote);
         bool isPlay = (note == st.playNote && st.playHeld);
         bool isKb   = (note >= 1 && note <= 128 && st.kbHeld[note - 1]);
+        bool active = isHit || isPlay || isKb;
         bool hov    = (!kbActive && mp.x >= kMin.x && mp.x < kMax.x &&
                                     mp.y >= kMin.y && mp.y < kMax.y);
 
-        ImU32 col = (isHit || isPlay || isKb) ? IM_COL32(180, 220, 255, 255)
-                  : hov                        ? IM_COL32(210, 230, 255, 255)
-                                               : IM_COL32(230, 230, 240, 255);
-
-        dl->AddRectFilled(kMin, kMax, col);
-        dl->AddRect      (kMin, kMax, IM_COL32(80, 80, 100, 255), 0.f, 0, 0.5f);
+        // Gradient fill
+        ImU32 topCol = active ? IM_COL32(140,190,255,255) : hov ? IM_COL32(225,235,255,255) : IM_COL32(248,248,254,255);
+        ImU32 botCol = active ? IM_COL32( 90,150,230,255) : hov ? IM_COL32(195,210,240,255) : IM_COL32(200,198,215,255);
+        dl->AddRectFilledMultiColor(kMin, kMax, topCol, topCol, botCol, botCol);
+        // Border
+        dl->AddRect(kMin, kMax, IM_COL32(70, 68, 90, 255), 0.f, 0, 0.5f);
+        // Left highlight
+        dl->AddLine({kMin.x + 1.f, kMin.y + 1.f}, {kMin.x + 1.f, kMax.y - 2.f}, IM_COL32(255,255,255,160), 1.f);
+        // Bottom shadow
+        dl->AddLine({kMin.x + 1.f, kMax.y - 1.f}, {kMax.x - 1.f, kMax.y - 1.f}, IM_COL32(80,75,100,200), 1.f);
 
         if (note == 61)  // middle C dot
             dl->AddCircleFilled({kx + whiteW * 0.5f, kMin.y + h - 10.f},
@@ -158,15 +163,22 @@ inline void DrawPianoKeyboard(
         bool isHit  = (note == hitNote);
         bool isPlay = (note == st.playNote && st.playHeld);
         bool isKb   = (note >= 1 && note <= 128 && st.kbHeld[note - 1]);
+        bool active = isHit || isPlay || isKb;
         bool hov    = (!kbActive && mp.x >= kMin.x && mp.x < kMax.x &&
                                     mp.y >= kMin.y && mp.y < kMax.y);
 
-        ImU32 col = (isHit || isPlay || isKb) ? IM_COL32( 80, 120, 180, 255)
-                  : hov                        ? IM_COL32( 60,  80, 120, 255)
-                                               : IM_COL32( 30,  30,  40, 255);
-
-        dl->AddRectFilled(kMin, kMax, col);
-        dl->AddRect      (kMin, kMax, IM_COL32(0, 0, 0, 255), 0.f, 0, 0.5f);
+        // Gradient fill
+        ImU32 bkTop = active ? IM_COL32(50, 90,170,255) : hov ? IM_COL32(55,55,75,255) : IM_COL32(50,50,65,255);
+        ImU32 bkBot = active ? IM_COL32(20, 50,110,255) : hov ? IM_COL32(18,18,28,255) : IM_COL32(12,12,18,255);
+        dl->AddRectFilledMultiColor(kMin, kMax, bkTop, bkTop, bkBot, bkBot);
+        // Shine strip at top
+        dl->AddRectFilled({kMin.x+2.f, kMin.y+2.f}, {kMax.x-2.f, kMin.y+7.f}, IM_COL32(90,90,120, active?60:110));
+        // Left highlight
+        dl->AddLine({kMin.x+1.f, kMin.y+1.f}, {kMin.x+1.f, kMax.y-2.f}, IM_COL32(90,90,120,160), 1.f);
+        // Right shadow
+        dl->AddLine({kMax.x-1.f, kMin.y+1.f}, {kMax.x-1.f, kMax.y-1.f}, IM_COL32(0,0,0,200), 1.f);
+        // Border
+        dl->AddRect(kMin, kMax, IM_COL32(0,0,0,255), 0.f, 0, 0.5f);
 
         if (fontMono) {
             static const char* kLo[] = {"","S","","D","","","G","","H","","J",""};

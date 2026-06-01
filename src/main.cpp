@@ -116,7 +116,7 @@ int main(int argc, char* argv[])
 
     // ── Render loop ───────────────────────────────────────────────────────
     while (!glfwWindowShouldClose(window)) {
-        if (app->isPlaying())
+        if (app->isPlaying() || app->isAnimating())
             glfwPollEvents();
         else
             glfwWaitEventsTimeout(0.1);

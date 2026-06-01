@@ -34,7 +34,8 @@ public:
     void openFile(const std::string& path);
     void tickChrome() { m_chrome.tick(); }
     void render(int winW, int winH);
-    bool isPlaying() const { return m_transport == Transport::Playing; }
+    bool isPlaying()   const { return m_transport == Transport::Playing; }
+    bool isAnimating() const { return m_kbdAnimT > 0.f && m_kbdAnimT < 1.f; }
 
 private:
     void syncToolbarState();
@@ -85,6 +86,7 @@ private:
     Transport m_transport {Transport::Stopped};
 
     PianoKeyboardState m_kbState;
+    float              m_kbdAnimT {0.f};   // 0=hidden, 1=fully shown
 
     std::atomic<int> m_activeTab       {0};
     std::atomic<int> m_midiTrackerNote {-1};  // RT→UI handoff for pattern note entry

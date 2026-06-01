@@ -458,10 +458,17 @@ void App::render(int winW, int winH)
 
     const int displayTab = (m_pendingTab >= 0) ? m_pendingTab : m_activeTab.load();
 
-    constexpr float kKbdH  = 120.f;
-    const bool      showKbd = m_hasModule && m_toolbarState.showKeyboard &&
-                              (displayTab == 1 || displayTab == 2 || displayTab == 3);
-    const float     activeH = showKbd ? ch - kKbdH : ch;
+    constexpr float kKbdH = 120.f;
+    {
+        const float dt     = std::min(ImGui::GetIO().DeltaTime, 1.f / 30.f);
+        const float target = (m_hasModule && m_toolbarState.showKeyboard &&
+                              (displayTab == 1 || displayTab == 2 || displayTab == 3)) ? 1.f : 0.f;
+        const float step = 12.f * dt;
+        m_kbdAnimT = (target > m_kbdAnimT) ? std::min(m_kbdAnimT + step, target)
+                                           : std::max(m_kbdAnimT - step, target);
+    }
+    const float visibleH = kKbdH * m_kbdAnimT;
+    const float activeH  = ch - visibleH;
 
     if (displayTab == 1) {
         m_tracker.render(cx, cy, cw, activeH);
@@ -487,15 +494,17 @@ void App::render(int winW, int winH)
     }
 
     // ── Shared piano keyboard (tabs: Patterns / Samples / Instruments) ────
-    if (showKbd) {
+    if (m_kbdAnimT > 0.f) {
         m_kbState.baseOctave = m_toolbarState.octave;
 
         constexpr ImGuiWindowFlags kNoDecoFlags =
             ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoScrollWithMouse |
             ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings |
             ImGuiWindowFlags_NoBringToFrontOnFocus;
-        ImGui::SetNextWindowPos ({cx, cy + activeH}, ImGuiCond_Always);
-        ImGui::SetNextWindowSize({cw, kKbdH},        ImGuiCond_Always);
+        // Window sized to the visible slice; cursor set to where the full keyboard
+        // would start so the bottom portion is what's revealed as visibleH grows.
+        ImGui::SetNextWindowPos ({cx, cy + ch - visibleH}, ImGuiCond_Always);
+        ImGui::SetNextWindowSize({cw, visibleH},            ImGuiCond_Always);
         ImGui::PushStyleColor(ImGuiCol_WindowBg, IM_COL32(0, 0, 0, 0));
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.f, 0.f));
         ImGui::Begin("##appKbd", nullptr, kNoDecoFlags | ImGuiWindowFlags_NoScrollbar);

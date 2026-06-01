@@ -106,8 +106,9 @@ void setWindowCornerRadius(GLFWwindow* glfwWin, float radius)
         win.contentView.wantsLayer = YES;
         win.contentView.layer.cornerRadius = radius;
         win.contentView.layer.masksToBounds = YES;
-        // Round top-right corner only
-        win.contentView.layer.maskedCorners = kCALayerMaxXMinYCorner;
+        win.contentView.layer.maskedCorners =
+            kCALayerMinXMinYCorner | kCALayerMaxXMinYCorner |
+            kCALayerMinXMaxYCorner | kCALayerMaxXMaxYCorner;
     }
 }
 

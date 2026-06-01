@@ -67,6 +67,8 @@ static constexpr ImVec2  kTabInnerSpacing = {1.f, 0.f};
 // ── Toolbar ───────────────────────────────────────────────────────────────────
 static constexpr ImU32  kClrToolbarGradTop    = IM_COL32(  0,   0,  20, 255);
 static constexpr ImU32  kClrToolbarGradBot    = IM_COL32( 20,  20,  40, 255);
+static constexpr ImU32  kClrStatusGradTop     = IM_COL32( 20,  20,  40, 255);
+static constexpr ImU32  kClrStatusGradBot     = IM_COL32( 15,   15, 35, 255);
 static constexpr ImU32  kClrBtnBg             = IM_COL32( 45,  45,  68, 255);
 static constexpr ImU32  kClrBtnHover          = IM_COL32( 65,  65,  98, 255);
 static constexpr ImU32  kClrBtnActive         = IM_COL32( 80,  80, 120, 255);
@@ -86,7 +88,7 @@ static constexpr ImU32 kClrWinFullscr   = IM_COL32( 18, 110,  75, 255);
 
 
 // ── Scrollbar ─────────────────────────────────────────────────────────────────
-static constexpr ImU32 kClrScrollBg     = IM_COL32( 12,  12,  22, 255);
+static constexpr ImU32 kClrScrollBg     = IM_COL32(  0,   0,   0,   0);
 static constexpr ImU32 kClrScrollGrab   = IM_COL32( 40,  85, 145, 200);
 static constexpr ImU32 kClrScrollHover  = IM_COL32( 55, 112, 175, 230);
 static constexpr ImU32 kClrScrollActive = IM_COL32( 66, 130, 205, 255);

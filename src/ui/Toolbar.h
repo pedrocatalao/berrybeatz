@@ -39,6 +39,9 @@ struct ToolbarState {
     float  speakerConeW   {0.f};
     float  speakerConeH   {0.f};
 
+    // View toggles
+    bool showKeyboard {false};
+
     // Settings
     std::function<void()>      onSetup;
 

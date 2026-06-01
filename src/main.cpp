@@ -8,7 +8,7 @@
 #include "backends/imgui_impl_opengl3.h"
 
 #include "App.h"
-#include "Theme.h"
+#include "Style.h"
 #include "CocoaHelpers.h"
 #include <CoreFoundation/CoreFoundation.h>
 #include <cstdio>
@@ -67,67 +67,13 @@ int main(int argc, char* argv[])
     ImGuiIO& io = ImGui::GetIO();
     io.IniFilename  = nullptr;  // no imgui.ini clutter
 
-    // Style: dark, square, dense
-    ImGui::StyleColorsDark();
-    ImGuiStyle& style = ImGui::GetStyle();
-    style.WindowRounding    = kStyleWindowRounding;
-    style.FrameRounding     = kStyleFrameRounding;
-    style.ScrollbarRounding = kStyleScrollbarRounding;
-    style.TabRounding       = kStyleTabRounding;
-    style.WindowBorderSize  = 0.f;
-    style.FrameBorderSize   = 0.f;
-    style.Colors[ImGuiCol_WindowBg]      = kStyleWindowBg;
-    style.Colors[ImGuiCol_TitleBg]       = kStyleTitleBg;
-    style.Colors[ImGuiCol_TitleBgActive] = kStyleTitleBgAct;
+    applyImGuiStyle();
 
     ImGui_ImplGlfw_InitForOpenGL(window, false);  // we install callbacks manually below
     ImGui_ImplOpenGL3_Init("#version 150");
 
     // ── Fonts ─────────────────────────────────────────────────────────────
-    // Pixel-sharp config: no oversampling, snaps to pixel grid
-    ImFontConfig pixCfg;
-    pixCfg.OversampleH = 1;
-    pixCfg.OversampleV = 1;
-    pixCfg.PixelSnapH  = true;
-
-    // Smooth config for outline fonts (Michroma)
-    ImFontConfig smCfg;
-    smCfg.OversampleH = 2;
-    smCfg.OversampleV = 2;
-
-    auto loadFont = [&](const char* file, float size, bool smooth) -> ImFont* {
-        std::string path = bundleResource(file);
-        if (path.empty()) return nullptr;
-        return io.Fonts->AddFontFromFileTTF(path.c_str(), size, smooth ? &smCfg : &pixCfg);
-    };
-
-    // Michroma 13 — buttons, tabs, fields, knob labels (same font+size → same pointer)
-    ImFont* michroma13 = loadFont("Michroma.ttf", 13.f, true);
-    if (!michroma13) michroma13 = io.Fonts->AddFontDefault();
-
-    // 35px2 — pixel font at four sizes used across tracker UI
-    ImFont* px2_8  = loadFont("35px2.ttf",  8.f, false);
-    ImFont* px2_9  = loadFont("35px2.ttf",  9.f, false);
-    ImFont* px2_10 = loadFont("35px2.ttf", 10.f, false);
-    ImFont* px2_11 = loadFont("35px2.ttf", 11.f, false);
-    if (!px2_8)  px2_8  = io.Fonts->AddFontDefault();
-    if (!px2_9)  px2_9  = px2_8;
-    if (!px2_10) px2_10 = px2_8;
-    if (!px2_11) px2_11 = px2_8;
-
-    // terminal-6-mono 11 — tracker pattern cells
-    ImFont* term11 = loadFont("terminal-6-mono.ttf", 11.f, false);
-    if (!term11) term11 = io.Fonts->AddFontDefault();
-
-    io.Fonts->Build();
-
-    g_fontBtnTab    = michroma13;   // buttons, tabs, fields
-    g_fontKnobLabel = michroma13;   // knob labels  (same font)
-    g_fontKnobValue = px2_8;        // knob value text
-    g_fontRowNum    = px2_11;       // tracker row number column
-    g_fontTracker   = term11;       // tracker pattern cells
-    g_fontOrderRow  = px2_10;       // pattern order row
-    g_fontSidebar   = px2_9;        // sidebar
+    loadFonts(io, bundleResource);
 
     // ── Application ───────────────────────────────────────────────────────
     auto app = std::make_unique<App>();
@@ -135,6 +81,7 @@ int main(int argc, char* argv[])
     g_app = app.get();
 
     app->setGLFWWindow(window);
+    setWindowCornerRadius(window, 10.f);
     setupWindowEventMonitor(window);
     glfwSetDropCallback(window, dropCallback);
 
@@ -169,7 +116,7 @@ int main(int argc, char* argv[])
 
     // ── Render loop ───────────────────────────────────────────────────────
     while (!glfwWindowShouldClose(window)) {
-        if (app->isPlaying())
+        if (app->isPlaying() || app->isAnimating())
             glfwPollEvents();
         else
             glfwWaitEventsTimeout(0.1);

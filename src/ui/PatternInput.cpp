@@ -1,22 +1,10 @@
 #include "TrackerView.h"
+#include "PianoKeyboard.h"
 #include "ModuleController.h"
 #include "PatternEditor.h"
 #include <imgui.h>
 #include <algorithm>
-
-// ── Note key table (FT2-style piano layout) ───────────────────────────────────
-struct NoteKey { ImGuiKey key; int semi; };
-static constexpr NoteKey kNoteKeys[] = {
-    // Lower row → base octave
-    {ImGuiKey_Z,0},{ImGuiKey_S,1},{ImGuiKey_X,2},{ImGuiKey_D,3},
-    {ImGuiKey_C,4},{ImGuiKey_V,5},{ImGuiKey_G,6},{ImGuiKey_B,7},
-    {ImGuiKey_H,8},{ImGuiKey_N,9},{ImGuiKey_J,10},{ImGuiKey_M,11},
-    // Upper row → base+1 octave
-    {ImGuiKey_Q,12},{ImGuiKey_2,13},{ImGuiKey_W,14},{ImGuiKey_3,15},
-    {ImGuiKey_E,16},{ImGuiKey_R,17},{ImGuiKey_5,18},{ImGuiKey_T,19},
-    {ImGuiKey_6,20},{ImGuiKey_Y,21},{ImGuiKey_7,22},{ImGuiKey_U,23},
-};
-static constexpr NoteKey kHexKeys[] = {
+static constexpr PianoNoteKey kHexKeys[] = {
     {ImGuiKey_0,0},{ImGuiKey_1,1},{ImGuiKey_2,2},{ImGuiKey_3,3},
     {ImGuiKey_4,4},{ImGuiKey_5,5},{ImGuiKey_6,6},{ImGuiKey_7,7},
     {ImGuiKey_8,8},{ImGuiKey_9,9},
@@ -30,6 +18,19 @@ void TrackerView::setEditMode(bool on) {
 }
 
 // ── Cursor helpers ────────────────────────────────────────────────────────────
+
+void TrackerView::inputNote(int note1based) {
+    if (!m_editMode || !m_ctrl) return;
+    int32_t pat   = m_state.current_pattern.load();
+    int32_t nrows = pe_num_rows(m_ctrl->module(), pat);
+    if (nrows <= 0 || m_cur.row >= nrows) return;
+    PatternCell cell;
+    pe_get_cell(m_ctrl->module(), pat, m_cur.row, m_cur.channel, cell);
+    cell.note = (uint8_t)note1based;
+    if (m_selectedInstrument > 0) cell.instr = (uint8_t)m_selectedInstrument;
+    setCell(pat, m_cur.row, m_cur.channel, cell);
+    advanceCursor();
+}
 
 void TrackerView::clampCursor() {
     if (!m_ctrl) return;
@@ -248,6 +249,22 @@ void TrackerView::processInput() {
     if (ImGui::IsKeyPressed(ImGuiKey_Enter) || ImGui::IsKeyPressed(ImGuiKey_KeypadEnter))
         { setEditMode(!m_editMode); return; }
 
+    // Non-edit mode audio preview — runs when the KB panel is not capturing note keys
+    if (!m_editMode && m_noteKeyAudioEnabled && m_cur.col == EditCol::Note
+            && !ImGui::GetIO().WantTextInput) {
+        for (const auto& nm : kPianoNoteKeys) {
+            int note = (m_baseOctave + nm.semi / 12) * 12 + (nm.semi % 12) + 1;
+            if (note < NOTE_MIN || note > NOTE_MAX) continue;
+            if (ImGui::IsKeyPressed(nm.key, false)) {
+                if (onKbdNeedAudio) onKbdNeedAudio();
+                if (onKbdPlay) onKbdPlay(note, note - 1);
+            }
+            if (ImGui::IsKeyReleased(nm.key))
+                if (onKbdStop) onKbdStop(note - 1);
+        }
+        return;
+    }
+
     if (!m_editMode) return;
 
     // Delete key: selection → delete selection; otherwise clear current cell
@@ -277,15 +294,23 @@ void TrackerView::processInput() {
             setCell(pat, m_cur.row, m_cur.channel, newCell);
             advanceCursor(); return;
         }
-        for (const auto& nm : kNoteKeys) {
-            if (ImGui::IsKeyPressed(nm.key)) {
-                int note = (m_baseOctave + nm.semi/12) * 12 + (nm.semi % 12) + 1;
-                if (note >= NOTE_MIN && note <= NOTE_MAX) {
-                    PatternCell newCell = cell; newCell.note = (uint8_t)note;
+        for (const auto& nm : kPianoNoteKeys) {
+            int note = (m_baseOctave + nm.semi/12) * 12 + (nm.semi % 12) + 1;
+            if (note >= NOTE_MIN && note <= NOTE_MAX) {
+                if (ImGui::IsKeyPressed(nm.key, false)) {
+                    PatternCell newCell = cell;
+                    newCell.note = (uint8_t)note;
+                    if (m_selectedInstrument > 0) newCell.instr = (uint8_t)m_selectedInstrument;
                     setCell(pat, m_cur.row, m_cur.channel, newCell);
                     advanceCursor();
+                    if (onKbdNeedAudio) onKbdNeedAudio();
+                    if (onKbdPlay) onKbdPlay(note, note - 1);
+                    return;
                 }
-                return;
+                if (ImGui::IsKeyReleased(nm.key)) {
+                    if (onKbdStop) onKbdStop(note - 1);
+                    return;
+                }
             }
         }
         return;

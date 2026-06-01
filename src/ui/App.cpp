@@ -129,6 +129,26 @@ App::App() : m_controller(m_state), m_audio(m_state), m_tracker(m_state), m_gene
     m_tracker.onInsertPatternRequested = [this]() { insertPattern(); };
     m_tracker.onLoopToggled     = [this](bool loop) { m_audio.setLoopPattern(loop); };
 
+    m_tracker.onNoteEntry         = [this](int note) { m_tracker.inputNote(note); };
+    m_tracker.onInstrumentChanged = [this](int instr) { m_audio.copyPreviewInstrument(instr); };
+    m_tracker.onKbdNeedAudio = [this]() { if (m_hasModule) m_audio.ensureRunning(); };
+    m_tracker.onKbdPlay = [this](int note, int key) {
+        AudioEngine::PreviewEvent ev{};
+        ev.type   = AudioEngine::PreviewEvent::INSTR_ON;
+        ev.key    = (uint8_t)key;
+        ev.idx    = std::max(0, m_tracker.getSelectedInstrument() - 1);
+        ev.opnote = note - 1;
+        ev.vol    = 0.85f;
+        ev.pan    = 0.5f;
+        m_audio.enqueuePreviewEvent(ev);
+    };
+    m_tracker.onKbdStop = [this](int key) {
+        AudioEngine::PreviewEvent ev{};
+        ev.type = AudioEngine::PreviewEvent::NOTE_OFF;
+        ev.key  = (uint8_t)key;
+        m_audio.enqueuePreviewEvent(ev);
+    };
+
     m_sidebar.onLeafActivated = [this](int tab, int idx) {
         m_pendingTab = tab;
         if (tab == 3) {
@@ -229,7 +249,7 @@ void App::openFile(const std::string& path)
     auto slash = path.rfind('/');
     std::string filename = (slash != std::string::npos) ? path.substr(slash + 1) : path;
     auto dot = filename.rfind('.');
-    doc->displayName = (dot != std::string::npos) ? filename.substr(0, dot) : filename;
+    doc->displayName = filename;
     doc->path = path;
 
     m_songs.push_back(std::move(doc));
@@ -336,6 +356,11 @@ void App::render(int winW, int winH)
     const float h = (float)winH;
     const float contentH = h - kSongBarH;  // reserve bottom for song bar
 
+    if (m_chrome.isResizing()) {
+        ImGui::GetIO().MouseDown[0]    = false;
+        ImGui::GetIO().MouseClicked[0] = false;
+    }
+
     syncToolbarState();
 
     float contentY = DrawToolbar(m_toolbarState, m_fontUI, 0.f, 0.f, w, kToolbarH);
@@ -437,14 +462,26 @@ void App::render(int winW, int winH)
 
     const int displayTab = (m_pendingTab >= 0) ? m_pendingTab : m_activeTab.load();
 
+    constexpr float kKbdH = 120.f;
+    {
+        const float dt     = std::min(ImGui::GetIO().DeltaTime, 1.f / 30.f);
+        const float target = (m_hasModule && m_toolbarState.showKeyboard &&
+                              (displayTab == 1 || displayTab == 2 || displayTab == 3)) ? 1.f : 0.f;
+        const float step = 12.f * dt;
+        m_kbdAnimT = (target > m_kbdAnimT) ? std::min(m_kbdAnimT + step, target)
+                                           : std::max(m_kbdAnimT - step, target);
+    }
+    const float visibleH = kKbdH * m_kbdAnimT;
+    const float activeH  = ch - visibleH;
+
     if (displayTab == 1) {
-        m_tracker.render(cx, cy, cw, ch);
+        m_tracker.render(cx, cy, cw, activeH);
     } else {
         ImGui::PushStyleColor(ImGuiCol_WindowBg, kClrBgContent);
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,    ImVec2(12.f, 10.f));
         ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f);
         ImGui::SetNextWindowPos({cx, cy}, ImGuiCond_Always);
-        ImGui::SetNextWindowSize({cw, ch}, ImGuiCond_Always);
+        ImGui::SetNextWindowSize({cw, activeH}, ImGuiCond_Always);
         ImGui::Begin("##content", nullptr,
             ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
             ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoBringToFrontOnFocus);
@@ -457,6 +494,60 @@ void App::render(int winW, int winH)
         case 3: drawInstrumentsTab(); break;
         case 4: drawCommentsTab();    break;
         }
+        ImGui::End();
+    }
+
+    // ── Shared piano keyboard (tabs: Patterns / Samples / Instruments) ────
+    // processInput handles note-key audio preview only when the KB panel is not doing it
+    m_tracker.setNoteKeyAudioEnabled(
+        !(m_kbdAnimT > 0.f && displayTab == 1 && !m_tracker.isEditMode()));
+
+    if (m_kbdAnimT > 0.f) {
+        m_kbState.baseOctave = m_toolbarState.octave;
+
+        constexpr ImGuiWindowFlags kNoDecoFlags =
+            ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoScrollWithMouse |
+            ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings |
+            ImGuiWindowFlags_NoBringToFrontOnFocus;
+        // Window sized to the visible slice; cursor set to where the full keyboard
+        // would start so the bottom portion is what's revealed as visibleH grows.
+        ImGui::SetNextWindowPos ({cx, cy + ch - visibleH}, ImGuiCond_Always);
+        ImGui::SetNextWindowSize({cw, visibleH},            ImGuiCond_Always);
+        ImGui::PushStyleColor(ImGuiCol_WindowBg, IM_COL32(0, 0, 0, 0));
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.f, 0.f));
+        ImGui::Begin("##appKbd", nullptr, kNoDecoFlags | ImGuiWindowFlags_NoScrollbar);
+        ImGui::PopStyleVar();
+        ImGui::PopStyleColor();
+
+        bool captureKb = (displayTab == 2 || displayTab == 3) ||
+                         (displayTab == 1 && !m_tracker.isEditMode());
+
+        DrawPianoKeyboard("##appkbd", cw, kKbdH, m_kbState, m_fontMono, captureKb,
+            [this, displayTab](int note, int key) {
+                if (displayTab == 1) {
+                    if (m_tracker.onNoteEntry)    m_tracker.onNoteEntry(note);
+                    if (m_tracker.onKbdNeedAudio) m_tracker.onKbdNeedAudio();
+                    if (m_tracker.onKbdPlay)      m_tracker.onKbdPlay(note, key);
+                } else if (displayTab == 2) {
+                    if (m_sampleView.onNeedAudio) m_sampleView.onNeedAudio();
+                    if (m_sampleView.onEnqueuePlay)
+                        m_sampleView.onEnqueuePlay(m_sampleView.getSelection(), note, 0.85f, 0.5f, key);
+                } else {
+                    if (m_instrView.onNeedAudio) m_instrView.onNeedAudio();
+                    if (m_instrView.onEnqueuePlay)
+                        m_instrView.onEnqueuePlay(m_instrView.getSelection() - 1, note - 1, 0.85f, 0.5f, key);
+                }
+            },
+            [this, displayTab](int key) {
+                if (displayTab == 1) {
+                    if (m_tracker.onKbdStop) m_tracker.onKbdStop(key);
+                } else if (displayTab == 2) {
+                    if (m_sampleView.onEnqueueStop) m_sampleView.onEnqueueStop(key);
+                } else {
+                    if (m_instrView.onEnqueueStop) m_instrView.onEnqueueStop(key);
+                }
+            });
+
         ImGui::End();
     }
 
@@ -480,6 +571,10 @@ void App::render(int winW, int winH)
         int pb = m_midi.getPitchBend();
         if (m_activeTab == 2) m_sampleView.midiPitchBend(pb);
         if (m_activeTab == 3) m_instrView.midiPitchBend(pb);
+
+        // Drain MIDI note-entry for patterns tab (RT→UI handoff)
+        int midiEntry = m_midiTrackerNote.exchange(-1);
+        if (midiEntry > 0) m_tracker.inputNote(midiEntry);
     }
 
     m_settingsView.draw();
@@ -494,7 +589,7 @@ void App::drawSongBar(float w, float h)
 {
     ImGui::SetNextWindowPos({0.f, h - kSongBarH}, ImGuiCond_Always);
     ImGui::SetNextWindowSize({w, kSongBarH}, ImGuiCond_Always);
-    ImGui::PushStyleColor(ImGuiCol_WindowBg, kClrBgPanel);
+    ImGui::PushStyleColor(ImGuiCol_WindowBg, IM_COL32(0, 0, 0, 0));
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,  {4.f, 3.f});
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f);
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,    {2.f, 0.f});
@@ -504,32 +599,63 @@ void App::drawSongBar(float w, float h)
         ImGuiWindowFlags_NoBringToFrontOnFocus);
     ImGui::PopStyleVar(3);
     ImGui::PopStyleColor();
+    {
+        ImVec2 wp = ImGui::GetWindowPos();
+        ImVec2 ws = ImGui::GetWindowSize();
+        ImGui::GetWindowDrawList()->AddRectFilledMultiColor(
+            wp, {wp.x + ws.x, wp.y + ws.y},
+            kClrStatusGradTop, kClrStatusGradTop,
+            kClrStatusGradBot, kClrStatusGradBot);
+    }
 
-    bool closed = false;
+    bool closed   = false;
     int  closeIdx = -1;
 
+    ImDrawList* dl  = ImGui::GetWindowDrawList();
+    ImVec2      mp  = ImGui::GetIO().MousePos;
+    const float tabH   = kSongBarH - 6.f;
+    const float padX   = 7.f;
+    const float xGap   = 6.f;
+    const float xW     = ImGui::CalcTextSize("x").x + xGap * 2.f;
+    const ImU32 kActBg = ImGui::ColorConvertFloat4ToU32(ImGui::GetStyle().Colors[ImGuiCol_TabSelected]);
+
     for (int i = 0; i < (int)m_songs.size(); ++i) {
-        if (i > 0) ImGui::SameLine();
+        if (i > 0) ImGui::SameLine(0, 2.f);
 
         bool isActive = (i == m_activeSongIdx);
+        const std::string& name = m_songs[i]->displayName;
+        float textW = ImGui::CalcTextSize(name.c_str()).x;
+        float tabW  = padX + textW + xW + padX;
+
+        ImVec2 tMin = ImGui::GetCursorScreenPos();
+        ImVec2 tMax = {tMin.x + tabW, tMin.y + tabH};
+        ImVec2 xMin = {tMax.x - xW, tMin.y};
+
+        bool xHov = (mp.x >= xMin.x && mp.x < tMax.x && mp.y >= tMin.y && mp.y < tMax.y);
+
+        // Background
         if (isActive)
-            ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyle().Colors[ImGuiCol_TabSelected]);
+            dl->AddRectFilled(tMin, tMax, kActBg, kStyleTabRounding);
+        else if (ImGui::IsMouseHoveringRect(tMin, tMax))
+            dl->AddRectFilled(tMin, tMax, IM_COL32(60, 60, 80, 120), kStyleTabRounding);
 
-        std::string tabLabel = m_songs[i]->displayName + "##st" + std::to_string(i);
-        if (ImGui::Button(tabLabel.c_str()) && !isActive)
-            switchToSong(i);
+        // Name
+        float ty = tMin.y + (tabH - ImGui::GetTextLineHeight()) * 0.5f;
+        dl->AddText({tMin.x + padX, ty}, IM_COL32(220, 220, 235, 255), name.c_str());
 
-        if (isActive) ImGui::PopStyleColor();
+        // X
+        if (xHov)
+            dl->AddRectFilled(xMin, tMax, kClrRed, kStyleTabRounding, ImDrawFlags_RoundCornersRight);
+        ImU32 xCol = xHov ? IM_COL32(255, 220, 220, 255) : IM_COL32(180, 175, 200, 200);
+        float xTy  = tMin.y + (tabH - ImGui::GetTextLineHeight()) * 0.5f;
+        dl->AddText({xMin.x + xGap, xTy}, xCol, "x");
 
-        ImGui::SameLine(0, 0);
-        ImGui::PushStyleColor(ImGuiCol_Button,        IM_COL32(0, 0, 0, 0));
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(180, 60, 60, 200));
-        std::string closeLabel = " x ##sc" + std::to_string(i);
-        if (ImGui::Button(closeLabel.c_str())) {
-            closed = true;
-            closeIdx = i;
+        // Hit area
+        std::string bid = "##st" + std::to_string(i);
+        if (ImGui::InvisibleButton(bid.c_str(), {tabW, tabH})) {
+            if (xHov) { closed = true; closeIdx = i; }
+            else if (!isActive) switchToSong(i);
         }
-        ImGui::PopStyleColor(2);
     }
 
     ImGui::End();
@@ -578,7 +704,6 @@ void App::drawSamplesTab()
         ImGui::TextDisabled("No module loaded.");
         return;
     }
-    m_sampleView.setBaseOctave(m_toolbarState.octave);
     ImVec2 pos   = ImGui::GetCursorScreenPos();
     ImVec2 avail = ImGui::GetContentRegionAvail();
     m_sampleView.render(pos.x, pos.y, avail.x, avail.y);
@@ -592,7 +717,6 @@ void App::drawInstrumentsTab()
         ImGui::TextDisabled("No module loaded.");
         return;
     }
-    m_instrView.setBaseOctave(m_toolbarState.octave);
     ImVec2 pos   = ImGui::GetCursorScreenPos();
     ImVec2 avail = ImGui::GetContentRegionAvail();
     m_instrView.render(pos.x, pos.y, avail.x, avail.y);
@@ -718,7 +842,7 @@ void App::wireNoteRT()
 {
     m_midi.onNoteRT = [this](int note, int vel) {
         int tab = m_activeTab.load();
-        if (tab != 2 && tab != 3) return;
+        if (tab != 1 && tab != 2 && tab != 3) return;
 
         AudioEngine::PreviewEvent ev{};
         if (vel > 0) {
@@ -729,21 +853,22 @@ void App::wireNoteRT()
                 ev.opnote = note + 1;
                 ev.vol    = vel / 127.f;
                 ev.pan    = 0.5f;
-                m_sampleView.setKbHeld(note, true);
             } else {
                 ev.type   = AudioEngine::PreviewEvent::INSTR_ON;
                 ev.key    = (uint8_t)note;
-                ev.idx    = m_instrView.getSelection() - 1;
+                ev.idx    = (tab == 1) ? std::max(0, m_tracker.getSelectedInstrument() - 1)
+                                       : m_instrView.getSelection() - 1;
                 ev.opnote = note;
                 ev.vol    = vel / 127.f;
                 ev.pan    = 0.5f;
-                m_instrView.setKbHeld(note, true);
+                if (tab == 1)
+                    m_midiTrackerNote.store(note + 1);  // hand off to UI thread for pattern entry
             }
+            m_kbState.kbHeld[note] = true;
         } else {
             ev.type = AudioEngine::PreviewEvent::NOTE_OFF;
             ev.key  = (uint8_t)note;
-            if (tab == 2) m_sampleView.setKbHeld(note, false);
-            else          m_instrView.setKbHeld(note, false);
+            m_kbState.kbHeld[note] = false;
         }
         m_audio.enqueuePreviewEvent(ev);
     };

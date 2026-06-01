@@ -13,6 +13,7 @@ public:
 
     bool isMaximized()  const { return m_isMaximized; }
     bool isFullscreen() const { return m_isFullscreen; }
+    bool isResizing()   const { return m_resizeEdge != ResizeEdge::None; }
 
 private:
     GLFWwindow* m_window {nullptr};

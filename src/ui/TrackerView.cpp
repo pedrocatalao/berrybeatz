@@ -164,7 +164,7 @@ void TrackerView::render(float x, float y, float w, float h) {
     float patH  = h - (chanY - y);
     ImGui::SetNextWindowPos ({x, chanY});
     ImGui::SetNextWindowSize({w, patH});
-    ImGui::PushStyleColor(ImGuiCol_ScrollbarBg,          IM_COL32( 12,  12,  22, 255));
+    ImGui::PushStyleColor(ImGuiCol_ScrollbarBg,          IM_COL32(  0,   0,   0,   0));
     ImGui::PushStyleColor(ImGuiCol_ScrollbarGrab,        IM_COL32( 40,  85, 145, 200));
     ImGui::PushStyleColor(ImGuiCol_ScrollbarGrabHovered, IM_COL32( 55, 112, 175, 230));
     ImGui::PushStyleColor(ImGuiCol_ScrollbarGrabActive,  IM_COL32( 66, 130, 205, 255));
@@ -201,6 +201,7 @@ void TrackerView::render(float x, float y, float w, float h) {
         m_pluginPopup.end();
     }
     ImGui::End();
+
 }
 
 // ── Pattern toolbar row 1 ─────────────────────────────────────────────────────
@@ -316,7 +317,7 @@ void TrackerView::drawPatternToolbar3(float /*x*/, float /*y*/, float /*w*/) {
     };
     tip(detailTips[m_detailView]);
     tbSep();
-    togBtn("Overflow##ovf",      m_overflowPaste);  tip("Overflow paste");
+    togBtn("Overflow##ovf", m_overflowPaste);  tip("Overflow paste");
 
     popToolbarStyle();
     if (m_fontUI) ImGui::PopFont();
@@ -347,14 +348,14 @@ void TrackerView::drawPatternToolbar2(float /*x*/, float /*y*/, float /*w*/) {
             }
         }
         char preview[80];
-        if (m_curInstrument <= 0)
+        if (m_selectedInstrument <= 0)
             snprintf(preview, sizeof(preview), "No instrument");
         else {
-            int idx = m_curInstrument - 1;
+            int idx = m_selectedInstrument - 1;
             if (idx < (int)names.size() && !names[idx].empty())
-                snprintf(preview, sizeof(preview), "%02d: %s", m_curInstrument, names[idx].c_str());
+                snprintf(preview, sizeof(preview), "%02d: %s", m_selectedInstrument.load(), names[idx].c_str());
             else
-                snprintf(preview, sizeof(preview), "%02d", m_curInstrument);
+                snprintf(preview, sizeof(preview), "%02d", m_selectedInstrument.load());
         }
         ImGui::SetNextItemWidth(160.0f);
         bool comboOpen = ImGui::BeginCombo("##instr", preview,
@@ -369,9 +370,9 @@ void TrackerView::drawPatternToolbar2(float /*x*/, float /*y*/, float /*w*/) {
                 IM_COL32(180, 180, 200, 200));
         }
         if (comboOpen) {
-            if (ImGui::Selectable("No instrument", m_curInstrument <= 0))
-                m_curInstrument = 0;
-            if (m_curInstrument <= 0) ImGui::SetItemDefaultFocus();
+            if (ImGui::Selectable("No instrument", m_selectedInstrument <= 0))
+                m_selectedInstrument = 0;
+            if (m_selectedInstrument <= 0) ImGui::SetItemDefaultFocus();
             for (int i = 1; i <= total; i++) {
                 char lbl[80];
                 int idx = i - 1;
@@ -379,8 +380,11 @@ void TrackerView::drawPatternToolbar2(float /*x*/, float /*y*/, float /*w*/) {
                     snprintf(lbl, sizeof(lbl), "%02d: %s", i, names[idx].c_str());
                 else
                     snprintf(lbl, sizeof(lbl), "%02d", i);
-                bool sel = (m_curInstrument == i);
-                if (ImGui::Selectable(lbl, sel)) m_curInstrument = i;
+                bool sel = (m_selectedInstrument == i);
+                if (ImGui::Selectable(lbl, sel)) {
+                    m_selectedInstrument = i;
+                    if (onInstrumentChanged) onInstrumentChanged(i);
+                }
                 if (sel) ImGui::SetItemDefaultFocus();
             }
             ImGui::EndCombo();

@@ -16,6 +16,7 @@
 #include "SidebarView.h"
 #include "NewModuleDialog.h"
 #include "SongDocument.h"
+#include "PianoKeyboard.h"
 #include <string>
 #include <vector>
 #include <memory>
@@ -33,7 +34,8 @@ public:
     void openFile(const std::string& path);
     void tickChrome() { m_chrome.tick(); }
     void render(int winW, int winH);
-    bool isPlaying() const { return m_transport == Transport::Playing; }
+    bool isPlaying()   const { return m_transport == Transport::Playing; }
+    bool isAnimating() const { return m_kbdAnimT > 0.f && m_kbdAnimT < 1.f; }
 
 private:
     void syncToolbarState();
@@ -83,7 +85,13 @@ private:
 
     Transport m_transport {Transport::Stopped};
 
-    std::atomic<int> m_activeTab  {0};
+    PianoKeyboardState m_kbState;
+    float              m_kbdAnimT {0.f};   // 0=hidden, 1=fully shown
+
+    std::atomic<int> m_activeTab       {0};
+    // TODO: single-slot — drops all but the last note if two MIDI notes arrive in one frame. Fine for
+    // monophonic step entry; replace with a lock-free ring if chord recording is ever needed.
+    std::atomic<int> m_midiTrackerNote {-1};
     int              m_pendingTab {-1};
     bool             m_tabsInited {false};
 

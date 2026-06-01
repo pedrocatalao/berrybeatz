@@ -44,15 +44,23 @@ inline void DrawPianoKeyboard(
     std::function<void(int, int)> onPlay,
     std::function<void(int)>      onStop)
 {
-    constexpr int kNoteFirst  = 25;
-    constexpr int kNoteLast   = 84;
-    constexpr int kOctaves    = 5;
-    constexpr int kWhiteCount = kOctaves * 7;
-
     static const bool  kIsBlack[12]     = {false,true,false,true,false,false,true,false,true,false,true,false};
     static const float kBlackOffset[12] = {0,0.67f,0,0.83f,0,0,0.67f,0,0.74f,0,0.82f,0};
 
-    constexpr float kPad = 3.f;
+    constexpr int kNoteFirst = 25;
+
+    constexpr float kPadL = 3.f;
+    constexpr float kPadR = 15.f;
+    constexpr float kPadV = 3.f;
+
+    // Extend note range to fill available width at fixed key size
+    const int visibleWhite = std::max(7, (int)((w - kPadL - kPadR) / 28.f) + 1);
+    int kNoteLast = kNoteFirst - 1;
+    for (int n = kNoteFirst, wc = 0; n <= 128 && wc < visibleWhite; ++n) {
+        if (!kIsBlack[(n - 1) % 12]) wc++;
+        kNoteLast = n;
+    }
+    kNoteLast = std::min(kNoteLast, 128);
 
     ImVec2      origin = ImGui::GetCursorScreenPos();
     ImDrawList* dl     = ImGui::GetWindowDrawList();
@@ -60,16 +68,18 @@ inline void DrawPianoKeyboard(
 
     ImGui::InvisibleButton(id, {w, h});
 
-    origin.x += kPad;
-    origin.y += kPad;
-    w -= kPad * 6.f;
-    h -= kPad * 2.f;
+    origin.x += kPadL;
+    origin.y += kPadV;
+    w -= kPadL + kPadR;
+    h -= kPadV * 2.f;
 
-    float whiteW = w / (float)kWhiteCount;
+    float whiteW = 28.f;
     float blackW = whiteW * 0.65f;
     float blackH = h * 0.60f;
     bool kbActive      = ImGui::IsItemActive();
     bool kbDeactivated = ImGui::IsItemDeactivated();
+
+    dl->PushClipRect({origin.x, origin.y}, {origin.x + w, origin.y + h}, true);
 
     // Hit detection — black keys take priority
     int hitNote = -1;
@@ -198,6 +208,8 @@ inline void DrawPianoKeyboard(
             }
         }
     }
+
+    dl->PopClipRect();
 
     // ── Mouse play / stop ─────────────────────────────────────────────────────
     if (hitNote > 0 && hitNote != st.playNote) {

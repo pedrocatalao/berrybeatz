@@ -106,7 +106,7 @@ void SidebarView::render(float x, float y, float w, float h,
                          float topPad)
 {
     // ── Window style ──────────────────────────────────────────────────────────
-    ImGui::PushStyleColor(ImGuiCol_WindowBg, kClrBgPanel);
+    ImGui::PushStyleColor(ImGuiCol_WindowBg, IM_COL32(0, 0, 0, 0));
     // Suppress all built-in selection/hover/nav visuals — we draw our own.
     ImGui::PushStyleColor(ImGuiCol_Header,        IM_COL32(0, 0, 0, 0));
     ImGui::PushStyleColor(ImGuiCol_HeaderHovered, IM_COL32(0, 0, 0, 0));

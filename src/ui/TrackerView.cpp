@@ -121,7 +121,7 @@ void TrackerView::render(float x, float y, float w, float h) {
         ImGuiWindowFlags_NoMove     | ImGuiWindowFlags_NoBringToFrontOnFocus |
         ImGuiWindowFlags_NoSavedSettings;
 
-    const ImVec4 kBarBg{10/255.f, 10/255.f, 20/255.f, 1.f};
+    const ImVec4 kBarBg{0.f, 0.f, 0.f, 0.f};
 
     // Pattern toolbar row 1
     ImGui::SetNextWindowPos ({x, y});
@@ -169,7 +169,7 @@ void TrackerView::render(float x, float y, float w, float h) {
     ImGui::PushStyleColor(ImGuiCol_ScrollbarGrabHovered, IM_COL32( 55, 112, 175, 230));
     ImGui::PushStyleColor(ImGuiCol_ScrollbarGrabActive,  IM_COL32( 66, 130, 205, 255));
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.f, 0.f));
-    ImGui::PushStyleColor(ImGuiCol_WindowBg, kBgNormal); // pushed last → popped first below
+    ImGui::PushStyleColor(ImGuiCol_WindowBg, IM_COL32(0, 0, 0, 0)); // pushed last → popped first below
     ImGui::Begin("##pattern", nullptr, noDecoFlags);
     ImGui::PopStyleVar(1);   // WindowPadding — no longer needed after Begin
     ImGui::PopStyleColor(1); // WindowBg — no longer needed after Begin
@@ -670,7 +670,7 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
         int32_t plugClickCh = -1;
 
         ImGui::TableNextRow(ImGuiTableRowFlags_None, m_chanH);
-        ImGui::TableSetBgColor(ImGuiTableBgTarget_CellBg, IM_COL32(20, 20, 40, 255), 0);
+        ImGui::TableSetBgColor(ImGuiTableBgTarget_CellBg, IM_COL32(0, 0, 0, 0), 0);
 
         ImGui::TableSetColumnIndex(0);
         ImGui::Dummy({m_rowNumW, m_chanH});

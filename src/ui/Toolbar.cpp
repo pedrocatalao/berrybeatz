@@ -106,16 +106,6 @@ float DrawToolbar(ToolbarState& state,
         ImGuiWindowFlags_NoSavedSettings   |
         ImGuiWindowFlags_NoBringToFrontOnFocus);
 
-    // ─── Gradient background (black → dark grey, top to bottom) ──────────────
-    {
-        ImVec2 wp = ImGui::GetWindowPos();
-        ImVec2 ws = ImGui::GetWindowSize();
-        ImGui::GetWindowDrawList()->AddRectFilledMultiColor(
-            wp, {wp.x + ws.x, wp.y + ws.y},
-            kClrToolbarGradTop, kClrToolbarGradTop,
-            kClrToolbarGradBot, kClrToolbarGradBot);
-    }
-
     const float frameH   = ImGui::GetFrameHeight();
     const float knobSz   = 36.f;
     const float btnMidY  = 7.f;
@@ -264,14 +254,7 @@ float DrawToolbar(ToolbarState& state,
     ImGui::SetCursorPos({13.f, knobMidY});
 
     // ─── Knobs ────────────────────────────────────────────────────────────────
-    const float kPad  = 5.f;
-    const float rowX0 = ImGui::GetCursorScreenPos().x - kPad;
-    const float rowY0 = ImGui::GetWindowPos().y + knobMidY - kPad;
-
-    // Split channels: knobs/VU draw in ch1 (front), background fills in ch0 (back)
     ImDrawList* dl = ImGui::GetWindowDrawList();
-    dl->ChannelsSplit(2);
-    dl->ChannelsSetCurrent(1);
 
     auto doKnob = [&](const char* id, int* val, int vmin, int vmax,
                       std::function<void(int)> cb)
@@ -300,16 +283,6 @@ float DrawToolbar(ToolbarState& state,
         drawVU(dl, vuX, vuY, vuW, vuH, state.vuLeft, state.vuRight);
         ImGui::SetCursorScreenPos({vuX, ImGui::GetWindowPos().y + knobMidY});
         ImGui::Dummy({vuW, knobSz});
-    }
-
-    // ─── Background fill behind knobs + VU ───────────────────────────────────
-    {
-        float rowX1 = ImGui::GetItemRectMax().x + kPad;
-        float rowY1 = ImGui::GetWindowPos().y + knobMidY + knobSz + kPad;
-        dl->ChannelsSetCurrent(0);
-        dl->AddRectFilled({rowX0, rowY0}, {rowX1, rowY1},
-                          IM_COL32(28, 28, 44, 86));
-        dl->ChannelsMerge();
     }
 
     // ─── Logo (top-right) ─────────────────────────────────────────────────────

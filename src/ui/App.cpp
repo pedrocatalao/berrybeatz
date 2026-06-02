@@ -420,7 +420,7 @@ void App::render(int winW, int winH)
     const float cw = w - cx;
 
     // ── Tab bar ───────────────────────────────────────────────────────────
-    ImGui::PushStyleColor(ImGuiCol_WindowBg,  kClrBgPanel);
+    ImGui::PushStyleColor(ImGuiCol_WindowBg,  IM_COL32(0, 0, 0, 0));
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,    ImVec2(4.f, 2.f));
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f);
     ImGui::SetNextWindowPos({cx, contentY}, ImGuiCond_Always);
@@ -477,7 +477,7 @@ void App::render(int winW, int winH)
     if (displayTab == 1) {
         m_tracker.render(cx, cy, cw, activeH);
     } else {
-        ImGui::PushStyleColor(ImGuiCol_WindowBg, kClrBgContent);
+        ImGui::PushStyleColor(ImGuiCol_WindowBg, IM_COL32(0, 0, 0, 0));
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,    ImVec2(12.f, 10.f));
         ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f);
         ImGui::SetNextWindowPos({cx, cy}, ImGuiCond_Always);
@@ -606,15 +606,6 @@ void App::drawSongBar(float w, float h)
         ImGuiWindowFlags_NoBringToFrontOnFocus);
     ImGui::PopStyleVar(3);
     ImGui::PopStyleColor();
-    {
-        ImVec2 wp = ImGui::GetWindowPos();
-        ImVec2 ws = ImGui::GetWindowSize();
-        ImGui::GetWindowDrawList()->AddRectFilledMultiColor(
-            wp, {wp.x + ws.x, wp.y + ws.y},
-            kClrStatusGradTop, kClrStatusGradTop,
-            kClrStatusGradBot, kClrStatusGradBot);
-    }
-
     bool closed   = false;
     int  closeIdx = -1;
 

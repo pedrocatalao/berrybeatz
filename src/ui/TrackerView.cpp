@@ -1078,8 +1078,9 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
             bool hasInst = showInst && !inst.empty() && inst != ".." && inst != "00";
             bool hasFx   = showFx && !fx.empty() && fx != ".";
 
-            auto dimColor = [dimFactor](const ImVec4& c) -> ImVec4 {
-                return {c.x * dimFactor, c.y * dimFactor, c.z * dimFactor, c.w};
+            float cellDim = isActive ? ((m_muteState >> ch) & 1 ? 0.5f : 1.0f) : dimFactor;
+            auto dimColor = [cellDim](const ImVec4& c) -> ImVec4 {
+                return {c.x * cellDim, c.y * cellDim, c.z * cellDim, c.w};
             };
 
             {
@@ -1122,8 +1123,9 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
                     {x0cell, y0-1}, {x1cell, y1+1}, IM_COL32(255,255,255,220));
             }
 
-            // Glow on non-empty cells — active pattern only
-            if (isActive && g_glowPattern > 0.f && (hasNote || hasInst || hasVol || hasFx)) {
+            // Glow on non-empty cells — active pattern, unmuted channels only
+            bool chMuted = (m_muteState >> ch) & 1;
+            if (isActive && !chMuted && g_glowPattern > 0.f && (hasNote || hasInst || hasVol || hasFx)) {
                 ImDrawList* gdl  = ImGui::GetWindowDrawList();
                 ImFont*     font = ImGui::GetFont();
                 float       fsz  = ImGui::GetFontSize();

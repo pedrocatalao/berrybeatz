@@ -29,7 +29,8 @@ struct PaCallbackData {
     std::atomic<bool>*    pat_play_loop     {nullptr};
     std::atomic<bool>*    pat_play_single   {nullptr};
 
-    SoundModule*          previewMod  {nullptr};
+    SoundModule*          previewMod      {nullptr};
+    std::mutex*           previewCopyMtx  {nullptr};
     std::atomic<bool>*    songEnded   {nullptr};
 
     bool    inPatternPlay   {false};
@@ -159,13 +160,17 @@ void AudioEngine::ensureRunning() {
 }
 
 void AudioEngine::copyPreviewSample(int idx) {
-    if (m_mod && m_previewMod)
+    if (m_mod && m_previewMod) {
+        std::lock_guard<std::mutex> lk(m_previewCopyMutex);
         bb_copy_sample(m_previewMod.get(), m_mod, idx);
+    }
 }
 
 void AudioEngine::copyPreviewInstrument(int instrIdx) {
-    if (m_mod && m_previewMod)
+    if (m_mod && m_previewMod) {
+        std::lock_guard<std::mutex> lk(m_previewCopyMutex);
         bb_copy_instrument(m_previewMod.get(), m_mod, instrIdx);
+    }
 }
 
 void AudioEngine::seekSeconds(double s)     { m_seek.store(s); }
@@ -272,11 +277,13 @@ int AudioEngine::paCallback(const void*, void* output,
     bool paused = d->paused->load();
 
     // ── Preview module — always rendered, fully isolated from song state ──────
-    drainPreviewQueue(d);
     size_t pc = 0;
-    if (d->previewMod) {
-        pc = d->previewMod->read(d->sampleRate, frameCount,
-                                  d->previewLeft.data(), d->previewRight.data());
+    if (d->previewCopyMtx && d->previewCopyMtx->try_lock()) {
+        drainPreviewQueue(d);
+        if (d->previewMod)
+            pc = d->previewMod->read(d->sampleRate, frameCount,
+                                      d->previewLeft.data(), d->previewRight.data());
+        d->previewCopyMtx->unlock();
     }
 
     if (paused) {
@@ -474,6 +481,7 @@ void AudioEngine::run() {
     cbData.pat_play_loop     = &m_patPlayLoop;
     cbData.pat_play_single   = &m_patPlaySingle;
     cbData.previewMod        = m_previewMod.get();
+    cbData.previewCopyMtx    = &m_previewCopyMutex;
     cbData.songEnded         = &m_songEnded;
     cbData.sampleRate        = m_samplerate;
     cbData.previewQueue = m_previewQueue;

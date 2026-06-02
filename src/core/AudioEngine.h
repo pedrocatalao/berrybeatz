@@ -124,6 +124,9 @@ private:
     std::atomic<bool>        m_restartStream   {false};
     AudioDeviceMonitor       m_deviceMonitor;
 
+    // Guards previewMod during bb_copy_sample (UI thread) vs drainPreviewQueue+read (audio thread).
+    // Callback uses try_lock and skips one frame rather than blocking.
+    std::mutex                m_previewCopyMutex;
     // MPSC queue — producers: UI thread + CoreMIDI RT thread, consumer: audio callback
     std::mutex                m_previewMutex;     // serialises producers only
     PreviewEvent              m_previewQueue[kPreviewQueueSize];

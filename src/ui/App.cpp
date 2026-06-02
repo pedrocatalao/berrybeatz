@@ -580,6 +580,13 @@ void App::render(int winW, int winH)
     m_settingsView.draw();
     m_newModuleDialog.draw();
 
+    // ── macOS-style window border ─────────────────────────────────────────
+    {
+        ImDrawList* dl = ImGui::GetForegroundDrawList();
+        dl->AddRect({0.5f, 0.5f}, {w - 0.5f, h - 0.5f},
+                    IM_COL32(255, 255, 255, 38), 10.f, 0, 1.0f);
+    }
+
     ImGui::PopFont();
 }
 

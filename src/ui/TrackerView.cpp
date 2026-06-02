@@ -161,7 +161,7 @@ void TrackerView::render(float x, float y, float w, float h) {
 
     // Order list
     ImGui::SetNextWindowPos ({x + 26.f + 7.f, y + PTBAR1_H + PTBAR2_H + PTBAR3_H});
-    ImGui::SetNextWindowSize({w - 26.f - 7.f, ORDER_H});
+    ImGui::SetNextWindowSize({w - 26.f - 7.f - 4.f, ORDER_H});
     ImGui::PushStyleColor(ImGuiCol_WindowBg, kOrderBg);
     ImGui::Begin("##orders", nullptr, noDecoFlags | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_HorizontalScrollbar);
     ImGui::PopStyleColor();

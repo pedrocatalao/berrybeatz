@@ -154,14 +154,14 @@ void TrackerView::render(float x, float y, float w, float h) {
     {
         ImDrawList* bg = ImGui::GetBackgroundDrawList();
         float        bY = y + PTBAR1_H + PTBAR2_H + PTBAR3_H;
-        ImVec2       p0 = {x, bY};
-        ImVec2       p1 = {x + w, y + h};
+        ImVec2       p0 = {x + 7.f, bY};
+        ImVec2       p1 = {x + w - 2.f,   y + h};
         bg->AddRectFilled(p0, p1, IM_COL32(14, 14, 26, 255));
     }
 
     // Order list
-    ImGui::SetNextWindowPos ({x + 26.f, y + PTBAR1_H + PTBAR2_H + PTBAR3_H});
-    ImGui::SetNextWindowSize({w - 26.f, ORDER_H});
+    ImGui::SetNextWindowPos ({x + 26.f + 7.f, y + PTBAR1_H + PTBAR2_H + PTBAR3_H});
+    ImGui::SetNextWindowSize({w - 26.f - 7.f, ORDER_H});
     ImGui::PushStyleColor(ImGuiCol_WindowBg, kOrderBg);
     ImGui::Begin("##orders", nullptr, noDecoFlags | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_HorizontalScrollbar);
     ImGui::PopStyleColor();
@@ -171,8 +171,8 @@ void TrackerView::render(float x, float y, float w, float h) {
     // Pattern panel — channel headers are the frozen first row of the table
     float chanY = y + PTBAR1_H + PTBAR2_H + PTBAR3_H + ORDER_H;
     float patH  = h - (chanY - y);
-    ImGui::SetNextWindowPos ({x, chanY});
-    ImGui::SetNextWindowSize({w, patH});
+    ImGui::SetNextWindowPos ({x + 7.f, chanY});
+    ImGui::SetNextWindowSize({w - 7.f, patH});
     ImGui::PushStyleColor(ImGuiCol_ScrollbarBg,          IM_COL32(  0,   0,   0,   0));
     ImGui::PushStyleColor(ImGuiCol_ScrollbarGrab,        IM_COL32( 40,  85, 145, 200));
     ImGui::PushStyleColor(ImGuiCol_ScrollbarGrabHovered, IM_COL32( 55, 112, 175, 230));

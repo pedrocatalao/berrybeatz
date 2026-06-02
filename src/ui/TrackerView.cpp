@@ -103,7 +103,7 @@ static void popToolbarStyle() {
 void TrackerView::render(float x, float y, float w, float h) {
     if (m_fontMono) ImGui::PushFont(m_fontMono);
     m_charW   = ImGui::CalcTextSize("A").x;
-    m_rowNumW = m_charW * 3.0f + 2.0f;
+    m_rowNumW = m_charW * 3.0f + 10.0f;
     static constexpr float kCellChars[4] = {11.f, 8.f, 5.f, 3.f};
     static constexpr float kCellPad[4]  = {26.f, 20.f, 14.f, 8.f};
     m_cellW = m_charW * kCellChars[m_detailView] + kCellPad[m_detailView];
@@ -149,6 +149,15 @@ void TrackerView::render(float x, float y, float w, float h) {
     ImGui::PopStyleColor();
     drawPatternToolbar2(x, y + PTBAR1_H + PTBAR3_H, w);
     ImGui::End();
+
+    // Box behind order list + pattern panel
+    {
+        ImDrawList* bg = ImGui::GetBackgroundDrawList();
+        float        bY = y + PTBAR1_H + PTBAR2_H + PTBAR3_H;
+        ImVec2       p0 = {x, bY};
+        ImVec2       p1 = {x + w, y + h};
+        bg->AddRectFilled(p0, p1, IM_COL32(14, 14, 26, 255));
+    }
 
     // Order list
     ImGui::SetNextWindowPos ({x, y + PTBAR1_H + PTBAR2_H + PTBAR3_H});

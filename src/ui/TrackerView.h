@@ -66,7 +66,8 @@ public:
     int  baseOctave() const    { return m_baseOctave; }
     void setBaseOctave(int o)  { m_baseOctave = std::clamp(o, 0, 8); }
     bool getLoopPattern() const { return m_loopPattern; }
-    bool isEditMode()             const { return m_editMode; }
+    bool isEditMode()     const { return m_editMode; }
+    bool showKbd()        const { return m_showKbd; }
     int  getSelectedInstrument()   const { return m_selectedInstrument; }
 
     void inputNote(int note1based);  // enter note at cursor (edit mode only)
@@ -168,6 +169,7 @@ private:
     bool    m_showVU        {true};
     bool    m_showWave      {true};
     bool    m_showPluginRow {true};
+    bool    m_showKbd       {false};
     bool    m_loopPattern   {false};
     bool    m_continuousScroll   {false};
     bool    m_followSong         {true};

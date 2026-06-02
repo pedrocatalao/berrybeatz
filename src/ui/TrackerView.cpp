@@ -327,6 +327,8 @@ void TrackerView::drawPatternToolbar3(float /*x*/, float /*y*/, float /*w*/) {
     tip(detailTips[m_detailView]);
     tbSep();
     togBtn("Overflow##ovf", m_overflowPaste);  tip("Overflow paste");
+    tbSep();
+    togBtn("KB##kbd", m_showKbd);  tip("Show piano keyboard");
 
     popToolbarStyle();
     if (m_fontUI) ImGui::PopFont();

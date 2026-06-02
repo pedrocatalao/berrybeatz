@@ -6,6 +6,8 @@
 #include <vector>
 
 struct SidebarData {
+    int                      songIdx{0};
+    bool                     isActive{false};
     std::string              songTitle;
     std::vector<std::string> instrNames;
     std::vector<std::string> sampleNames;
@@ -17,28 +19,31 @@ class SidebarView {
 public:
     // Called when user activates a leaf (click or Enter).
     // tab: 1=tracker/patterns, 2=samples, 3=instruments; idx: 0-based item index.
-    std::function<void(int tab, int idx)> onLeafActivated;
+    std::function<void(int songIdx, int tab, int idx)> onLeafActivated;
 
     void render(float x, float y, float w, float h,
-                bool hasModule, const SidebarData& data,
+                bool hasModule, const std::vector<SidebarData>& songs,
                 float topPad = 0.f);
 
     // Call when a new module is loaded/cleared so stale cursor state is reset.
     void resetState();
+    // Collapse all group nodes for a given song (call on module load).
+    void collapseAll(int songIdx);
 
 private:
     struct Node {
         int  id;
         int  depth;
         bool isGroup;
-        bool enabled;      // false = dimmed + non-activatable (unused patterns)
-        std::string name;  // display name only (no number, no leading spaces)
-        int  displayNum{-1}; // -1 = none; shown in yellow before the name
-        int  tab{-1};      // leaf: tab to switch to
-        int  idx{-1};      // leaf: 0-based item index
+        bool enabled;
+        std::string name;
+        int  displayNum{-1};
+        int  tab{-1};
+        int  idx{-1};
+        int  songIdx{0};
     };
 
-    void buildNodes(std::vector<Node>& out, const SidebarData& d) const;
+    void buildNodes(std::vector<Node>& out, const std::vector<SidebarData>& songs) const;
     bool isExpanded(int id) const;
 
     std::unordered_map<int, bool> m_expanded;

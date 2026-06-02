@@ -39,6 +39,7 @@ App::App() : m_controller(m_state), m_audio(m_state), m_tracker(m_state), m_gene
         doc->displayName = name;
         m_songs.push_back(std::move(doc));
         switchToSong((int)m_songs.size() - 1);
+        m_sidebar.collapseAll((int)m_songs.size() - 1);
     };
 
     m_toolbarState.onOpen = [this]() { openFileDialog(); };
@@ -149,7 +150,8 @@ App::App() : m_controller(m_state), m_audio(m_state), m_tracker(m_state), m_gene
         m_audio.enqueuePreviewEvent(ev);
     };
 
-    m_sidebar.onLeafActivated = [this](int tab, int idx) {
+    m_sidebar.onLeafActivated = [this](int songIdx, int tab, int idx) {
+        if (songIdx != m_activeSongIdx) switchToSong(songIdx);
         m_pendingTab = tab;
         if (tab == 3) {
             m_instrView.setSelection(idx + 1);
@@ -254,6 +256,7 @@ void App::openFile(const std::string& path)
 
     m_songs.push_back(std::move(doc));
     switchToSong((int)m_songs.size() - 1);
+    m_sidebar.collapseAll((int)m_songs.size() - 1);
 }
 
 // ─── Song management ──────────────────────────────────────────────────────────
@@ -372,23 +375,42 @@ void App::render(int winW, int winH)
 
     // ── Sidebar ───────────────────────────────────────────────────────────
     {
-        SidebarData sd;
-        int numOrd = 0;
-        {
-            std::lock_guard<std::mutex> lk(m_state.meta_mutex);
-            sd.songTitle   = m_state.title;
-            sd.instrNames  = m_state.instrument_names;
-            sd.sampleNames = m_state.sample_names;
-            sd.patNames    = m_state.pattern_names;
-            numOrd         = m_state.num_orders;
-        }
-        if (auto* mod = m_audio.getModule())
-            for (int o = 0; o < numOrd; ++o) {
-                int p = mod->getOrderPattern(o);
-                if (p >= 0) sd.usedPats.insert(p);
+        std::vector<SidebarData> allSongs;
+        for (int si = 0; si < (int)m_songs.size(); ++si) {
+            SidebarData sd;
+            sd.songIdx  = si;
+            sd.isActive = (si == m_activeSongIdx);
+            auto* mod   = m_songs[si]->mod.get();
+            if (!mod) { allSongs.push_back(sd); continue; }
+            if (sd.isActive) {
+                int numOrd = 0;
+                {
+                    std::lock_guard<std::mutex> lk(m_state.meta_mutex);
+                    sd.songTitle   = m_state.title;
+                    sd.instrNames  = m_state.instrument_names;
+                    sd.sampleNames = m_state.sample_names;
+                    sd.patNames    = m_state.pattern_names;
+                    numOrd         = m_state.num_orders;
+                }
+                for (int o = 0; o < numOrd; ++o) {
+                    int p = mod->getOrderPattern(o);
+                    if (p >= 0) sd.usedPats.insert(p);
+                }
+            } else {
+                sd.songTitle   = mod->getTitle();
+                sd.instrNames  = mod->getInstrumentNames();
+                sd.sampleNames = mod->getSampleNames();
+                sd.patNames    = mod->getPatternNames();
+                int numOrd = mod->getNumOrders();
+                for (int o = 0; o < numOrd; ++o) {
+                    int p = mod->getOrderPattern(o);
+                    if (p >= 0) sd.usedPats.insert(p);
+                }
             }
+            allSongs.push_back(sd);
+        }
         if (g_fontSidebar) ImGui::PushFont(g_fontSidebar);
-        m_sidebar.render(0.f, contentY, m_sidebarW, contentH - contentY, m_hasModule, sd, kTabBarH);
+        m_sidebar.render(0.f, contentY, m_sidebarW, contentH - contentY, m_hasModule, allSongs, kTabBarH);
         if (g_fontSidebar) ImGui::PopFont();
     }
 
@@ -465,8 +487,9 @@ void App::render(int winW, int winH)
     constexpr float kKbdH = 120.f;
     {
         const float dt     = std::min(ImGui::GetIO().DeltaTime, 1.f / 30.f);
-        const float target = (m_hasModule && m_toolbarState.showKeyboard &&
-                              (displayTab == 1 || displayTab == 2 || displayTab == 3)) ? 1.f : 0.f;
+        const float target = m_hasModule && (
+            (displayTab == 1 && m_tracker.showKbd()) ||
+            displayTab == 2 || displayTab == 3) ? 1.f : 0.f;
         const float step = 12.f * dt;
         m_kbdAnimT = (target > m_kbdAnimT) ? std::min(m_kbdAnimT + step, target)
                                            : std::max(m_kbdAnimT - step, target);

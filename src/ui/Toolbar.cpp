@@ -187,11 +187,6 @@ float DrawToolbar(ToolbarState& state,
         if (ImGui::Button("Config"))  { if (state.onSetup) state.onSetup(); }
         ImGui::SameLine(0.f, 3.f);
         ImGui::SetCursorPosY(by);
-        { bool on = state.showKeyboard;
-          if (on) ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(64, 64, 160, 255));
-          if (ImGui::Button("KB")) state.showKeyboard = !state.showKeyboard;
-          if (on) ImGui::PopStyleColor(); }
-
         // Window drag is handled in the GLFW mouse button callback (main.cpp),
         // which fires from inside GLFW's mouseDown: delegate — the only context
         // where performWindowDragWithEvent: is valid.

@@ -160,8 +160,8 @@ void TrackerView::render(float x, float y, float w, float h) {
     }
 
     // Order list
-    ImGui::SetNextWindowPos ({x, y + PTBAR1_H + PTBAR2_H + PTBAR3_H});
-    ImGui::SetNextWindowSize({w, ORDER_H});
+    ImGui::SetNextWindowPos ({x + 26.f, y + PTBAR1_H + PTBAR2_H + PTBAR3_H});
+    ImGui::SetNextWindowSize({w - 26.f, ORDER_H});
     ImGui::PushStyleColor(ImGuiCol_WindowBg, kOrderBg);
     ImGui::Begin("##orders", nullptr, noDecoFlags | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_HorizontalScrollbar);
     ImGui::PopStyleColor();
@@ -462,29 +462,43 @@ void TrackerView::drawOrderList(float /*x*/, float /*y*/, float /*w*/) {
     float boxH = ORDER_H - 4.0f;
 
     ImGui::SetCursorPosY(2);
-    ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 0.0f);
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,   {2.0f, 0.0f});
-    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,  {2.0f, 1.0f});
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, {2.0f, 0.0f});
+
+    ImDrawList* dl = ImGui::GetWindowDrawList();
 
     for (int32_t i = 0; i < norders; i++) {
-        bool isCur  = (i == curOrder);
-        ImVec4 btnBg = isCur ? kOrderCur : kOrderBg;
-        ImGui::PushStyleColor(ImGuiCol_Button,        btnBg);
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, {btnBg.x+.1f, btnBg.y+.1f, btnBg.z+.2f, 1.f});
-        ImGui::PushStyleColor(ImGuiCol_ButtonActive,  {btnBg.x+.2f, btnBg.y+.2f, btnBg.z+.3f, 1.f});
-        ImGui::PushStyleColor(ImGuiCol_Text,          isCur ? kTextCurRow : kTextNormal);
+        bool    isCur = (i == curOrder);
+        int32_t pat   = m_ctrl ? m_ctrl->module()->getOrderPattern(i) : i;
 
-        int32_t pat = m_ctrl ? m_ctrl->module()->getOrderPattern(i) : i;
-        char label[12];
-        snprintf(label, sizeof(label), "%02d##o%d", pat, i);
-        if (ImGui::Button(label, {boxW, boxH}))
-            if (onOrderSeekRequested) onOrderSeekRequested(i);
+        char id[12], txt[8];
+        snprintf(id,  sizeof(id),  "##o%d", i);
+        snprintf(txt, sizeof(txt), "%02d",  pat);
 
-        ImGui::PopStyleColor(4);
+        ImVec2 p = ImGui::GetCursorScreenPos();
+        ImGui::InvisibleButton(id, {boxW, boxH});
+        bool hov     = ImGui::IsItemHovered();
+        bool pressed = ImGui::IsItemActive();
+        if (ImGui::IsItemClicked() && onOrderSeekRequested)
+            onOrderSeekRequested(i);
+
+        // Background
+        ImVec4 bg = isCur ? kOrderCur : kOrderBg;
+        if (pressed)   bg = {bg.x+.2f, bg.y+.2f, bg.z+.3f, 1.f};
+        else if (hov)  bg = {bg.x+.1f, bg.y+.1f, bg.z+.2f, 1.f};
+        if (isCur || hov || pressed)
+            dl->AddRectFilled(p, {p.x + boxW, p.y + boxH},
+                              ImGui::ColorConvertFloat4ToU32(bg));
+
+        // Text — explicitly centred, no FramePadding interference
+        ImVec2 ts  = ImGui::CalcTextSize(txt);
+        float  tx  = p.x + (boxW - ts.x) * 0.5f + 1.f;
+        float  ty  = p.y + (boxH - ts.y) * 0.5f;
+        dl->AddText({tx, ty}, ImGui::ColorConvertFloat4ToU32(isCur ? kTextCurRow : kTextNormal), txt);
+
         ImGui::SameLine(0, 2);
     }
 
-    ImGui::PopStyleVar(3);
+    ImGui::PopStyleVar();
     if (g_fontOrderRow) ImGui::PopFont();
 }
 

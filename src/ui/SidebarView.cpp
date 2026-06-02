@@ -309,7 +309,8 @@ void SidebarView::render(float x, float y, float w, float h,
             if (n.displayNum >= 0) {
                 char numBuf[8];
                 snprintf(numBuf, sizeof(numBuf), "%02d", n.displayNum);
-                dl->AddText({cx, textY}, n.enabled ? kNumYellow : kTextDim, numBuf);
+                float numX = cx + numW - ImGui::CalcTextSize(numBuf).x - 3.f;
+                dl->AddText({numX, textY}, n.enabled ? kNumYellow : kTextDim, numBuf);
             }
             dl->AddText({cx + numW, textY}, n.enabled ? kTextNorm : kTextDim, n.name.c_str());
         }

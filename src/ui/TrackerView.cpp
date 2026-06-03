@@ -831,23 +831,30 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
             // Plugin row
             float plugTop = vuBot + (m_showWave ? WAVE_H : 0.f);
             if (m_showPluginRow) {
+                // Register button first so we can query press state for drawing
+                ImGui::SetCursorScreenPos({p.x, plugTop});
+                if (ImGui::InvisibleButton("##plug", {cw, PLUGIN_H}))
+                    plugClickCh = ch;
+                bool fxPressed = ImGui::IsItemActive();
+
                 float bvR = p.x + cw - 2.f;
                 float bvT = plugTop;
                 float bvB = plugTop + PLUGIN_H - 1.f;
                 dl->AddRectFilled({p.x, bvT}, {p.x + cw - 1, bvT + PLUGIN_H}, hdrCol);
-                dl->AddLine({p.x, bvT}, {bvR, bvT}, hiCol);
-                dl->AddLine({p.x, bvT}, {p.x, bvB}, hiCol);
-                dl->AddLine({p.x, bvB}, {bvR, bvB}, loCol);
-                dl->AddLine({bvR, bvT}, {bvR, bvB}, loCol);
+                // Swap bevel when pressed: top-left becomes shadow, bottom-right becomes highlight
+                ImU32 tlCol = fxPressed ? loCol : hiCol;
+                ImU32 brCol = fxPressed ? hiCol : loCol;
+                dl->AddLine({p.x, bvT}, {bvR, bvT}, tlCol);
+                dl->AddLine({p.x, bvT}, {p.x, bvB}, tlCol);
+                dl->AddLine({p.x, bvB}, {bvR, bvB}, brCol);
+                dl->AddLine({bvR, bvT}, {bvR, bvB}, brCol);
                 {
                     const char* lbl = "NO FX";
-                    ImVec2 ts = ImGui::CalcTextSize(lbl);
+                    ImVec2 ts  = ImGui::CalcTextSize(lbl);
+                    float  off = fxPressed ? 1.f : 0.f;
                     ImU32 fxCol = muted ? IM_COL32(45, 45, 55, 255) : IM_COL32(80, 80, 115, 255);
-                    dl->AddText({p.x + (cw - ts.x) * 0.5f, bvT + (PLUGIN_H - ts.y) * 0.5f}, fxCol, lbl);
+                    dl->AddText({p.x + (cw - ts.x) * 0.5f + off, bvT + (PLUGIN_H - ts.y) * 0.5f + off}, fxCol, lbl);
                 }
-                ImGui::SetCursorScreenPos({p.x, plugTop});
-                if (ImGui::InvisibleButton("##plug", {cw, PLUGIN_H}))
-                    plugClickCh = ch;
             }
             ImGui::PopID();
 

@@ -719,7 +719,7 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
                 float bvB = p.y + float(CHANNAME_H) - 1.f;
                 dl->AddLine({p.x, p.y }, {bvR,  p.y }, hiCol);  // top
                 dl->AddLine({p.x, p.y }, {p.x,  bvB }, hiCol);  // left
-                dl->AddLine({p.x, bvB }, {bvR,  bvB }, loCol);  // bottom
+                dl->AddLine({p.x, bvB }, {bvR,  bvB }, loCol, 2.f);  // bottom
                 dl->AddLine({bvR, p.y }, {bvR,  bvB }, loCol);  // right
             }
             // Fill left and right padding gutters with the same dark blue as pattern rows
@@ -728,7 +728,7 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
             dl->AddLine({p.x,          hdrTop}, {p.x,          hdrBot}, hiCol);
             dl->AddLine({p.x + cw - 1, hdrTop}, {p.x + cw - 1, hdrBot}, loCol);
             // Redraw channel name bottom shadow — full column hiCol line overwrites its left pixel
-            dl->AddLine({p.x, p.y + CHANNAME_H - 1.f}, {p.x + cw - 2.f, p.y + CHANNAME_H - 1.f}, loCol);
+            dl->AddLine({p.x, p.y + CHANNAME_H - 2.f}, {p.x + cw - 2.f, p.y + CHANNAME_H - 2.f}, loCol, 2.f);
 
             // Channel name, centred
             float textH = ImGui::GetTextLineHeight();

@@ -36,11 +36,7 @@ void SidebarView::resetState()
 
 void SidebarView::collapseAll(int s)
 {
-    int base = s * 10000;
-    m_expanded[base + kIdSongRoot]    = false;
-    m_expanded[base + kIdInstrGroup]  = false;
-    m_expanded[base + kIdSampleGroup] = false;
-    m_expanded[base + kIdPatGroup]    = false;
+    m_expanded[s * 10000 + kIdSongRoot] = false;
 }
 
 void SidebarView::expandSong(int s)

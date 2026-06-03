@@ -845,7 +845,7 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
                 ImU32 tlCol = fxPressed ? loCol : hiCol;
                 ImU32 brCol = fxPressed ? hiCol : loCol;
                 dl->AddLine({p.x, bvT}, {bvR, bvT}, tlCol);
-                dl->AddLine({p.x, bvT}, {p.x, bvB}, tlCol);
+                dl->AddLine({p.x, bvT}, {p.x, bvB + 3.f}, tlCol);
                 dl->AddLine({p.x, bvB}, {bvR, bvB}, brCol);
                 dl->AddLine({bvR, bvT}, {bvR, bvB}, brCol);
                 {
@@ -855,6 +855,16 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
                     ImU32 fxCol = muted ? IM_COL32(45, 45, 55, 255) : IM_COL32(80, 80, 115, 255);
                     dl->AddText({p.x + (cw - ts.x) * 0.5f + off, bvT + (PLUGIN_H - ts.y) * 0.5f + off}, fxCol, lbl);
                 }
+            }
+
+            // Fill the CellPadding.y gap between channel header bottom and first pattern row
+            {
+                float padY   = ImGui::GetStyle().CellPadding.y;
+                float gapTop = p.y + m_chanH;
+                float gapBot = gapTop + padY + 1.f;
+                dl->AddRectFilled({p.x, gapTop}, {p.x + cw - 1, gapBot}, hdrCol);
+                dl->AddLine({p.x,          gapTop}, {p.x,          gapBot}, hiCol);
+                dl->AddLine({p.x + cw - 1, gapTop}, {p.x + cw - 1, gapBot}, loCol);
             }
             ImGui::PopID();
 

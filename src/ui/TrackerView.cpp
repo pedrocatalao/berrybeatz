@@ -774,12 +774,9 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
                 float wx0 = p.x + 1.f, wy0 = wy, wx1 = p.x + cw - 1.f, wy1 = wy + WAVE_H;
 
                 // Spherical gradient background — bright top-left (CRT bulge highlight)
-                dl->AddRectFilled({wx0, wy0}, {wx1, wy1}, IM_COL32(14, 15, 24, 255));
+                dl->AddRectFilled({wx0, wy0}, {wx1, wy1}, kClrWaveGradBase);
                 dl->AddRectFilledMultiColor({wx0, wy0}, {wx1, wy1},
-                    IM_COL32(58, 54, 72, 255),   // TL — brightest
-                    IM_COL32(20, 22, 30, 255),   // TR
-                    IM_COL32(18, 20, 32, 255),   // BR — darkest
-                    IM_COL32(18, 20, 32, 255));  // BL
+                    kClrWaveGradTL, kClrWaveGradTR, kClrWaveGradBR, kClrWaveGradBL);
 
                 // Black 1px grid — masks gradient down to phosphor dot array (3px dots, 1px gap)
                 {

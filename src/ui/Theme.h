@@ -120,6 +120,11 @@ static constexpr ImU32 kClrPatRowBg      = IM_COL32( 21,  21,  30, 255);
 static constexpr ImU32 kClrPatCurRowBg   = IM_COL32( 40,  85, 145, 145);
 static constexpr ImU32 kClrPatWaveform   = IM_COL32(190, 190, 200, 220);
 static constexpr ImU32 kClrPatWaveMuted  = IM_COL32( 80,  80,  80, 120);
+static constexpr ImU32 kClrWaveGradBase  = IM_COL32( 14,  15,  24, 255);  // solid base fill
+static constexpr ImU32 kClrWaveGradTL    = IM_COL32( 58,  54,  72, 255);  // top-left  — brightest
+static constexpr ImU32 kClrWaveGradTR    = IM_COL32( 20,  22,  30, 255);  // top-right
+static constexpr ImU32 kClrWaveGradBR    = IM_COL32( 18,  20,  32, 255);  // bot-right — darkest
+static constexpr ImU32 kClrWaveGradBL    = IM_COL32( 18,  20,  32, 255);  // bot-left
 
 static constexpr ImU32 kClrToggleBg      = IM_COL32( 64,  64, 160, 255);
 static constexpr ImU32 kClrToggleBgHover = IM_COL32( 80,  80, 190, 255);

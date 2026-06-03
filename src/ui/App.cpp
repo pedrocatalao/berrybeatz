@@ -503,7 +503,7 @@ void App::render(int winW, int winH)
         m_tracker.render(cx, cy, cw, activeH, 3.f);
     } else {
         ImGui::GetBackgroundDrawList()->AddRectFilled(
-            {cx + 4.f, cy}, {cx + cw - 2.f, cy + activeH}, IM_COL32(14, 14, 26, 255));
+            {cx + 4.f, cy - 3.f}, {cx + cw - 2.f, cy + activeH}, IM_COL32(14, 14, 26, 255));
 
         ImGui::PushStyleColor(ImGuiCol_WindowBg, IM_COL32(0, 0, 0, 0));
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,    ImVec2(12.f, 10.f));

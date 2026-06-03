@@ -708,15 +708,26 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
 
             // Background + divider
             ImU32 hdrCol = muted ? IM_COL32(20,20,30,255) : IM_COL32(30,30,60,255);
+            ImU32 hiCol  = muted ? IM_COL32(45,45,60,255) : IM_COL32(68,68,115,255);
+            ImU32 loCol  = muted ? IM_COL32(8, 8,14, 255) : IM_COL32(10,10, 20, 255);
             float padX   = ImGui::GetStyle().CellPadding.x;
             float hdrTop = p.y;
             float hdrBot = hdrTop + m_chanH + 4.f;
             dl->AddRectFilled(p, {p.x + cw - 1, p.y + CHANNAME_H}, hdrCol);
+            // 3D raised bevel on header button
+            {
+                float bvR = p.x + cw - 2.f;
+                float bvB = p.y + float(CHANNAME_H) - 1.f;
+                dl->AddLine({p.x, p.y }, {bvR,  p.y }, hiCol);  // top
+                dl->AddLine({p.x, p.y }, {p.x,  bvB }, hiCol);  // left
+                dl->AddLine({p.x, bvB }, {bvR,  bvB }, loCol);  // bottom
+                dl->AddLine({bvR, p.y }, {bvR,  bvB }, loCol);  // right
+            }
             // Fill left and right padding gutters with the same dark blue as pattern rows
             dl->AddRectFilled({p.x - padX, hdrTop}, {p.x,          hdrBot}, IM_COL32(46, 46, 92, 200));
             dl->AddRectFilled({p.x + cw,   hdrTop}, {p.x + cw + padX, hdrBot}, IM_COL32(46, 46, 92, 200));
-            dl->AddLine({p.x,          hdrTop}, {p.x,          hdrBot}, IM_COL32(46, 46, 92, 200));
-            dl->AddLine({p.x + cw - 1, hdrTop}, {p.x + cw - 1, hdrBot}, IM_COL32(46, 46, 92, 200));
+            dl->AddLine({p.x,          hdrTop}, {p.x,          hdrBot}, hiCol);
+            dl->AddLine({p.x + cw - 1, hdrTop}, {p.x + cw - 1, hdrBot}, loCol);
 
             // Channel name, centred
             float textH = ImGui::GetTextLineHeight();
@@ -1017,16 +1028,19 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
 
             // Channel divider lines
             {
-                ImVec2 cp   = ImGui::GetCursorScreenPos();
-                float  padX = ImGui::GetStyle().CellPadding.x;
-                float  padY = ImGui::GetStyle().CellPadding.y;
-                float  rowH = ImGui::GetTextLineHeight() + 2.f * padY;
-                float  top  = cp.y - padY;
+                ImVec2 cp    = ImGui::GetCursorScreenPos();
+                float  padX  = ImGui::GetStyle().CellPadding.x;
+                float  padY  = ImGui::GetStyle().CellPadding.y;
+                float  rowH  = ImGui::GetTextLineHeight() + 2.f * padY;
+                float  top   = cp.y - padY;
+                bool   chMut = (m_muteState >> ch) & 1;
+                ImU32  hiCol = chMut ? IM_COL32(45,45,60,255) : IM_COL32(68,68,115,255);
+                ImU32  loCol = chMut ? IM_COL32(8, 8,14, 255) : IM_COL32(10,10, 20, 255);
                 ImDrawList* sdl = ImGui::GetWindowDrawList();
                 sdl->AddRectFilled({cp.x - padX, top}, {cp.x,               top + rowH}, IM_COL32(46, 46, 92, 200));
                 sdl->AddRectFilled({cp.x + m_cellW, top}, {cp.x + m_cellW + padX, top + rowH}, IM_COL32(46, 46, 92, 200));
-                sdl->AddLine({cp.x,               top}, {cp.x,               top + rowH}, IM_COL32(46, 46, 92, 200));
-                sdl->AddLine({cp.x + m_cellW - 1, top}, {cp.x + m_cellW - 1, top + rowH}, IM_COL32(46, 46, 92, 200));
+                sdl->AddLine({cp.x,               top}, {cp.x,               top + rowH}, hiCol);
+                sdl->AddLine({cp.x + m_cellW - 1, top}, {cp.x + m_cellW - 1, top + rowH}, loCol);
             }
 
             // Measure actual cell origins from the first rendered cell.

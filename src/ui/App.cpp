@@ -421,6 +421,10 @@ void App::render(int winW, int winH)
 
     // ── Splitter ──────────────────────────────────────────────────────────
     {
+        ImVec2& minSz = ImGui::GetStyle().WindowMinSize;
+        ImVec2  savedMin = minSz;
+        minSz = {1.f, 1.f};
+
         ImGui::PushStyleColor(ImGuiCol_WindowBg, IM_COL32(0, 0, 0, 0));
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.f, 0.f));
         ImGui::SetNextWindowPos({m_sidebarW, contentY}, ImGuiCond_Always);
@@ -431,13 +435,11 @@ void App::render(int winW, int winH)
             ImGuiWindowFlags_NoBringToFrontOnFocus);
         ImGui::PopStyleVar();
         ImGui::PopStyleColor();
-        ImGui::InvisibleButton("##drag", ImGui::GetContentRegionAvail());
-        {
-            float mx = ImGui::GetIO().MousePos.x;
-            bool inBand = (mx >= m_sidebarW && mx < m_sidebarW + kSplitterW);
-            if (inBand || ImGui::IsItemActive())
-                ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
-        }
+        minSz = savedMin;
+
+        ImGui::InvisibleButton("##drag", {kSplitterW, contentH - contentY});
+        if (ImGui::IsItemHovered() || ImGui::IsItemActive())
+            ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
         if (ImGui::IsItemActive())
             m_sidebarW = std::clamp(m_sidebarW + ImGui::GetIO().MouseDelta.x, 100.f, 500.f);
         ImGui::End();

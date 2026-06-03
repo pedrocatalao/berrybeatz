@@ -712,15 +712,23 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
             float padX   = ImGui::GetStyle().CellPadding.x;
             float hdrTop = p.y;
             float hdrBot = hdrTop + m_chanH + 4.f;
+            // Register button first so we can query press state for drawing
+            ImGui::SetCursorScreenPos(p);
+            ImGui::PushID(0x10000 + ch);
+            ImGui::InvisibleButton("##mute", {cw, CHANNAME_H});
+            bool namePressed = ImGui::IsItemActive();
+
             dl->AddRectFilled(p, {p.x + cw - 1, p.y + CHANNAME_H}, hdrCol);
-            // 3D raised bevel on header button
+            // 3D raised bevel on header button — swap colors when pressed
             {
-                float bvR = p.x + cw - 2.f;
-                float bvB = p.y + float(CHANNAME_H) - 1.f;
-                dl->AddLine({p.x, p.y }, {bvR,  p.y }, hiCol);  // top
-                dl->AddLine({p.x, p.y }, {p.x,  bvB }, hiCol);  // left
-                dl->AddLine({p.x, bvB }, {bvR,  bvB }, loCol, 2.f);  // bottom
-                dl->AddLine({bvR, p.y }, {bvR,  bvB }, loCol);  // right
+                float bvR  = p.x + cw - 2.f;
+                float bvB  = p.y + float(CHANNAME_H) - 1.f;
+                ImU32 tlCol = namePressed ? loCol : hiCol;
+                ImU32 brCol = namePressed ? hiCol : loCol;
+                dl->AddLine({p.x, p.y }, {bvR,  p.y }, tlCol);       // top
+                dl->AddLine({p.x, p.y }, {p.x,  bvB }, tlCol);       // left
+                dl->AddLine({p.x, bvB }, {bvR,  bvB }, brCol, 2.f);  // bottom
+                dl->AddLine({bvR, p.y }, {bvR,  bvB }, brCol);       // right
             }
             // Fill left and right padding gutters with the same dark blue as pattern rows
             dl->AddRectFilled({p.x - padX, hdrTop}, {p.x,          hdrBot}, IM_COL32(46, 46, 92, 200));
@@ -728,19 +736,20 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
             dl->AddLine({p.x,          hdrTop}, {p.x,          hdrBot}, hiCol);
             dl->AddLine({p.x + cw - 1, hdrTop}, {p.x + cw - 1, hdrBot}, loCol);
             // Redraw channel name bottom shadow — full column hiCol line overwrites its left pixel
-            dl->AddLine({p.x, p.y + CHANNAME_H - 2.f}, {p.x + cw - 2.f, p.y + CHANNAME_H - 2.f}, loCol, 2.f);
+            {
+                ImU32 brCol = namePressed ? hiCol : loCol;
+                dl->AddLine({p.x, p.y + CHANNAME_H - 2.f}, {p.x + cw - 2.f, p.y + CHANNAME_H - 2.f}, brCol, 2.f);
+            }
 
             // Channel name, centred
             float textH = ImGui::GetTextLineHeight();
             ImU32 textCol = muted ? IM_COL32(60,60,60,255) : IM_COL32(200,200,120,255);
-            ImVec2 ts = ImGui::CalcTextSize(chNames[ch].c_str());
-            dl->AddText({p.x + (cw - ts.x) * 0.5f, p.y + (CHANNAME_H - textH) * 0.5f - 1.f},
+            ImVec2 ts  = ImGui::CalcTextSize(chNames[ch].c_str());
+            float  off = namePressed ? 1.f : 0.f;
+            dl->AddText({p.x + (cw - ts.x) * 0.5f + off, p.y + (CHANNAME_H - textH) * 0.5f - 1.f + off},
                         textCol, chNames[ch].c_str());
 
-            // Mute / solo click target (both detected on press to avoid release-timing conflicts)
-            ImGui::SetCursorScreenPos(p);
-            ImGui::PushID(0x10000 + ch);
-            ImGui::InvisibleButton("##mute", {cw, CHANNAME_H});
+            // Mute / solo click target
             {
                 ImVec2 pMax = {p.x + cw, p.y + float(CHANNAME_H)};
                 bool hov = ImGui::IsMouseHoveringRect(p, pMax);

@@ -727,6 +727,8 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
             dl->AddRectFilled({p.x + cw,   hdrTop}, {p.x + cw + padX, hdrBot}, IM_COL32(46, 46, 92, 200));
             dl->AddLine({p.x,          hdrTop}, {p.x,          hdrBot}, hiCol);
             dl->AddLine({p.x + cw - 1, hdrTop}, {p.x + cw - 1, hdrBot}, loCol);
+            // Redraw channel name bottom shadow — full column hiCol line overwrites its left pixel
+            dl->AddLine({p.x, p.y + CHANNAME_H - 1.f}, {p.x + cw - 2.f, p.y + CHANNAME_H - 1.f}, loCol);
 
             // Channel name, centred
             float textH = ImGui::GetTextLineHeight();
@@ -839,8 +841,8 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
 
                 float bvR = p.x + cw - 2.f;
                 float bvT = plugTop;
-                float bvB = plugTop + PLUGIN_H - 1.f;
-                dl->AddRectFilled({p.x, bvT}, {p.x + cw - 1, bvT + PLUGIN_H}, hdrCol);
+                float bvB = plugTop + PLUGIN_H;
+                dl->AddRectFilled({p.x, bvT}, {p.x + cw - 1, bvT + PLUGIN_H + 1.f}, hdrCol);
                 // Swap bevel when pressed: top-left becomes shadow, bottom-right becomes highlight
                 ImU32 tlCol = fxPressed ? loCol : hiCol;
                 ImU32 brCol = fxPressed ? hiCol : loCol;
@@ -862,9 +864,14 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
                 float padY   = ImGui::GetStyle().CellPadding.y;
                 float gapTop = p.y + m_chanH;
                 float gapBot = gapTop + padY + 1.f;
-                dl->AddRectFilled({p.x, gapTop}, {p.x + cw - 1, gapBot}, hdrCol);
+                dl->AddRectFilled({p.x, gapTop}, {p.x + cw - 1, gapBot}, IM_COL32(20, 20, 33, 255));
                 dl->AddLine({p.x,          gapTop - 1.f}, {p.x,          gapBot}, hiCol);
                 dl->AddLine({p.x + cw - 1, gapTop}, {p.x + cw - 1, gapBot}, loCol);
+                // Redraw FX button bottom shadow — fill rect covers it
+                if (m_showPluginRow) {
+                    ImU32 shadowCol = ImGui::IsItemActive() ? hiCol : loCol;
+                    dl->AddLine({p.x, gapTop}, {p.x + cw - 2.f, gapTop}, shadowCol);
+                }
             }
             ImGui::PopID();
 

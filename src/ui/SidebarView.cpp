@@ -43,6 +43,11 @@ void SidebarView::collapseAll(int s)
     m_expanded[base + kIdPatGroup]    = false;
 }
 
+void SidebarView::expandSong(int s)
+{
+    m_expanded[s * 10000 + kIdSongRoot] = true;
+}
+
 // ─── isExpanded ──────────────────────────────────────────────────────────────
 
 bool SidebarView::isExpanded(int id) const

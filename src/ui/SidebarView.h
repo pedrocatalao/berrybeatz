@@ -29,6 +29,7 @@ public:
     void resetState();
     // Collapse all group nodes for a given song (call on module load).
     void collapseAll(int songIdx);
+    void expandSong(int songIdx);
 
 private:
     struct Node {

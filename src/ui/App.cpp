@@ -39,7 +39,8 @@ App::App() : m_controller(m_state), m_audio(m_state), m_tracker(m_state), m_gene
         doc->displayName = name;
         m_songs.push_back(std::move(doc));
         switchToSong((int)m_songs.size() - 1);
-        m_sidebar.collapseAll((int)m_songs.size() - 1);
+        { int n = (int)m_songs.size() - 1; for (int i = 0; i < n; ++i) m_sidebar.collapseAll(i); }
+        m_sidebar.expandSong((int)m_songs.size() - 1);
     };
 
     m_toolbarState.onOpen = [this]() { openFileDialog(); };
@@ -256,7 +257,8 @@ void App::openFile(const std::string& path)
 
     m_songs.push_back(std::move(doc));
     switchToSong((int)m_songs.size() - 1);
-    m_sidebar.collapseAll((int)m_songs.size() - 1);
+    { int n = (int)m_songs.size() - 1; for (int i = 0; i < n; ++i) m_sidebar.collapseAll(i); }
+    m_sidebar.expandSong((int)m_songs.size() - 1);
 }
 
 // ─── Song management ──────────────────────────────────────────────────────────

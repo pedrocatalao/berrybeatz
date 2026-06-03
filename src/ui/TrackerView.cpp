@@ -1092,8 +1092,8 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
                 ImDrawList* sdl = ImGui::GetWindowDrawList();
                 sdl->AddRectFilled({cp.x - padX, top}, {cp.x,               top + rowH}, IM_COL32(46, 46, 92, 200));
                 sdl->AddRectFilled({cp.x + m_cellW, top}, {cp.x + m_cellW + padX, top + rowH}, IM_COL32(46, 46, 92, 200));
-                sdl->AddLine({cp.x,               top}, {cp.x,               top + rowH}, hiCol);
-                sdl->AddLine({cp.x + m_cellW - 1, top}, {cp.x + m_cellW - 1, top + rowH}, loCol);
+                sdl->AddLine({cp.x,               top - 1.f}, {cp.x,               top + rowH}, hiCol);
+                sdl->AddLine({cp.x + m_cellW - 1, top - 1.f}, {cp.x + m_cellW - 1, top + rowH}, loCol);
             }
 
             bool isEditCell = m_editMode && (absR == editAbsRow) && (ch == m_cur.channel);

@@ -237,7 +237,7 @@ float DrawToolbar(ToolbarState& state,
     // ─── Seek slider ──────────────────────────────────────────────────────────
     if (!state.hasModule) ImGui::BeginDisabled();
 
-    ImGui::SetNextItemWidth(165.f);
+    ImGui::SetNextItemWidth(174.f);
     btnY();
     float seek = state.seekFrac;
     if (ImGui::SliderFloat("##seek", &seek, 0.f, 1.f, "")) {
@@ -271,13 +271,21 @@ float DrawToolbar(ToolbarState& state,
 
     // ─── VU meters (knob row) ─────────────────────────────────────────────────
     {
-        const float vuW = 202.f;
-        const float vuH = 25.f;
-        float vuX = ImGui::GetItemRectMax().x + 12.f;
+        const float vuW   = 202.f;
+        const float vuH   = 25.f;
+        const float kGap  = 4.f;
+        if (g_fontKnobLabel) ImGui::PushFont(g_fontKnobLabel);
+        const float lblW  = ImGui::CalcTextSize("VU").x;
+        const float lblH  = ImGui::GetTextLineHeight();
+        if (g_fontKnobLabel) ImGui::PopFont();
+        float vuX = ImGui::GetItemRectMax().x + 12.f + lblW + kGap;
         float vuY = ImGui::GetWindowPos().y + knobMidY + (knobSz - vuH) * 0.5f;
+        if (g_fontKnobLabel) ImGui::PushFont(g_fontKnobLabel);
+        dl->AddText({vuX - kGap - lblW, vuY + (vuH - lblH) * 0.5f}, kClrTextLabel, "VU");
+        if (g_fontKnobLabel) ImGui::PopFont();
         drawVU(dl, vuX, vuY, vuW, vuH, state.vuLeft, state.vuRight);
-        ImGui::SetCursorScreenPos({vuX, ImGui::GetWindowPos().y + knobMidY});
-        ImGui::Dummy({vuW, knobSz});
+        ImGui::SetCursorScreenPos({vuX - lblW - kGap, ImGui::GetWindowPos().y + knobMidY});
+        ImGui::Dummy({vuW + lblW + kGap, knobSz});
     }
 
     // ─── Logo (top-right) ─────────────────────────────────────────────────────

@@ -1056,7 +1056,7 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
                     IM_COL32(70, 70, 130, 220));
             }
 
-            ImVec4 rnColV = isCur ? kTextCurRow : (isBeat||isMeasure ? kTextNormal : kDim);
+            ImVec4 rnColV = isBeat||isMeasure ? kTextNormal : kDim;
             ImU32 rnCol = ImGui::ColorConvertFloat4ToU32(
                 {rnColV.x * dimFactor, rnColV.y * dimFactor, rnColV.z * dimFactor, rnColV.w});
             ImGui::GetWindowDrawList()->AddText(rnPos, rnCol, rnBuf);

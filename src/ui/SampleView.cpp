@@ -107,7 +107,7 @@ void SampleView::render(float x, float y, float w, float h) {
 
 void SampleView::drawEditor(float x, float y, float w, float h) {
     ImGui::SetCursorScreenPos({x, y});
-    ImGui::PushStyleColor(ImGuiCol_ChildBg, IM_COL32(14, 14, 26, 255));
+    ImGui::PushStyleColor(ImGuiCol_ChildBg, IM_COL32(0, 0, 0, 0));
     if (!ImGui::BeginChild("##sampleEd", {w, h}, false)) {
         ImGui::EndChild();
         ImGui::PopStyleColor();

@@ -118,7 +118,7 @@ void GeneralView::render(float /*x*/, float /*y*/, float /*w*/, float /*h*/)
     float colW = (avW - 12.f) * 0.5f;
 
     // ── Playback panel ───────────────────────────────────────────────────────
-    ImGui::PushStyleColor(ImGuiCol_ChildBg, IM_COL32(14, 14, 26, 255));
+    ImGui::PushStyleColor(ImGuiCol_ChildBg, IM_COL32(0, 0, 0, 0));
     if (ImGui::BeginChild("##genplay", {colW, avH}, true)) {
         ImGui::TextColored(kHdr, "PLAYBACK");
         ImGui::Separator();
@@ -184,7 +184,7 @@ void GeneralView::render(float /*x*/, float /*y*/, float /*w*/, float /*h*/)
     ImGui::SameLine(0, 12.f);
 
     // ── Render panel ─────────────────────────────────────────────────────────
-    ImGui::PushStyleColor(ImGuiCol_ChildBg, IM_COL32(14, 14, 26, 255));
+    ImGui::PushStyleColor(ImGuiCol_ChildBg, IM_COL32(0, 0, 0, 0));
     if (ImGui::BeginChild("##genrender", {colW, avH}, true)) {
         ImGui::TextColored(kHdr, "RENDER");
         ImGui::Separator();

@@ -1,4 +1,4 @@
-# BerryBeatz
+# BerryBeatz 🍓
 
 <p align="center"><img src="docs/github-banner.png" width="400"/></p>
 

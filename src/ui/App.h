@@ -34,7 +34,7 @@ public:
     void openFile(const std::string& path);
     void tickChrome() { m_chrome.tick(); }
     void render(int winW, int winH);
-    bool isPlaying()   const { return m_transport == Transport::Playing; }
+    bool isPlaying()   const { return m_transport == Transport::Playing || (m_audio.isRunning() && !m_audio.isPaused()); }
     bool isAnimating() const { return m_kbdAnimT > 0.f && m_kbdAnimT < 1.f; }
 
 private:

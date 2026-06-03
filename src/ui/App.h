@@ -5,7 +5,7 @@
 #include "ModuleController.h"
 #include "AudioEngine.h"
 #include "TrackerView.h"
-#include "GeneralView.h"
+#include "PropertiesView.h"
 #include "InstrumentView.h"
 #include "SampleView.h"
 #include "Toolbar.h"
@@ -34,7 +34,7 @@ public:
     void openFile(const std::string& path);
     void tickChrome() { m_chrome.tick(); }
     void render(int winW, int winH);
-    bool isPlaying()   const { return m_transport == Transport::Playing; }
+    bool isPlaying()   const { return m_transport == Transport::Playing || (m_audio.isRunning() && !m_audio.isPaused()); }
     bool isAnimating() const { return m_kbdAnimT > 0.f && m_kbdAnimT < 1.f; }
 
 private:
@@ -62,7 +62,7 @@ private:
     ModuleController m_controller;
     AudioEngine      m_audio;
     TrackerView      m_tracker;
-    GeneralView      m_generalView;
+    PropertiesView   m_generalView;
     InstrumentView   m_instrView;
     SampleView       m_sampleView;
 

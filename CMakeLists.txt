@@ -90,7 +90,7 @@ set(SOURCES
     # ui — ImGui views and widgets
     src/ui/App.cpp
     src/ui/SidebarView.cpp
-    src/ui/GeneralView.cpp
+    src/ui/PropertiesView.cpp
     src/ui/InstrumentView.cpp
     src/ui/SampleView.cpp
     src/ui/SettingsView.cpp

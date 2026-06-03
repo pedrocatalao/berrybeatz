@@ -39,6 +39,8 @@ App::App() : m_controller(m_state), m_audio(m_state), m_tracker(m_state), m_gene
         doc->displayName = name;
         m_songs.push_back(std::move(doc));
         switchToSong((int)m_songs.size() - 1);
+        { int n = (int)m_songs.size() - 1; for (int i = 0; i < n; ++i) m_sidebar.collapseAll(i); }
+        m_sidebar.expandSong((int)m_songs.size() - 1);
     };
 
     m_toolbarState.onOpen = [this]() { openFileDialog(); };
@@ -149,7 +151,8 @@ App::App() : m_controller(m_state), m_audio(m_state), m_tracker(m_state), m_gene
         m_audio.enqueuePreviewEvent(ev);
     };
 
-    m_sidebar.onLeafActivated = [this](int tab, int idx) {
+    m_sidebar.onLeafActivated = [this](int songIdx, int tab, int idx) {
+        if (songIdx != m_activeSongIdx) switchToSong(songIdx);
         m_pendingTab = tab;
         if (tab == 3) {
             m_instrView.setSelection(idx + 1);
@@ -157,7 +160,7 @@ App::App() : m_controller(m_state), m_audio(m_state), m_tracker(m_state), m_gene
         } else if (tab == 2) {
             m_sampleView.setSelection(idx + 1);
             m_audio.copyPreviewSample(idx + 1);
-        } else if (tab == 1) {
+        } else if (tab == 0) {
             auto* mod = m_audio.getModule();
             if (mod) {
                 int numOrd;
@@ -254,6 +257,8 @@ void App::openFile(const std::string& path)
 
     m_songs.push_back(std::move(doc));
     switchToSong((int)m_songs.size() - 1);
+    { int n = (int)m_songs.size() - 1; for (int i = 0; i < n; ++i) m_sidebar.collapseAll(i); }
+    m_sidebar.expandSong((int)m_songs.size() - 1);
 }
 
 // ─── Song management ──────────────────────────────────────────────────────────
@@ -370,30 +375,58 @@ void App::render(int winW, int winH)
     // ── Song bar (bottom strip) ───────────────────────────────────────────
     drawSongBar(w, h);
 
+    // ── Status bar divider line ───────────────────────────────────────────
+    DrawFadeDivider(ImGui::GetForegroundDrawList(),
+        ImGui::ColorConvertFloat4ToU32(ImGui::GetStyle().Colors[ImGuiCol_TabSelected]),
+        h - kSongBarH, w);
+
     // ── Sidebar ───────────────────────────────────────────────────────────
     {
-        SidebarData sd;
-        int numOrd = 0;
-        {
-            std::lock_guard<std::mutex> lk(m_state.meta_mutex);
-            sd.songTitle   = m_state.title;
-            sd.instrNames  = m_state.instrument_names;
-            sd.sampleNames = m_state.sample_names;
-            sd.patNames    = m_state.pattern_names;
-            numOrd         = m_state.num_orders;
-        }
-        if (auto* mod = m_audio.getModule())
-            for (int o = 0; o < numOrd; ++o) {
-                int p = mod->getOrderPattern(o);
-                if (p >= 0) sd.usedPats.insert(p);
+        std::vector<SidebarData> allSongs;
+        for (int si = 0; si < (int)m_songs.size(); ++si) {
+            SidebarData sd;
+            sd.songIdx  = si;
+            sd.isActive = (si == m_activeSongIdx);
+            auto* mod   = m_songs[si]->mod.get();
+            if (!mod) { allSongs.push_back(sd); continue; }
+            if (sd.isActive) {
+                int numOrd = 0;
+                {
+                    std::lock_guard<std::mutex> lk(m_state.meta_mutex);
+                    sd.songTitle   = m_state.title;
+                    sd.instrNames  = m_state.instrument_names;
+                    sd.sampleNames = m_state.sample_names;
+                    sd.patNames    = m_state.pattern_names;
+                    numOrd         = m_state.num_orders;
+                }
+                for (int o = 0; o < numOrd; ++o) {
+                    int p = mod->getOrderPattern(o);
+                    if (p >= 0) sd.usedPats.insert(p);
+                }
+            } else {
+                sd.songTitle   = mod->getTitle();
+                sd.instrNames  = mod->getInstrumentNames();
+                sd.sampleNames = mod->getSampleNames();
+                sd.patNames    = mod->getPatternNames();
+                int numOrd = mod->getNumOrders();
+                for (int o = 0; o < numOrd; ++o) {
+                    int p = mod->getOrderPattern(o);
+                    if (p >= 0) sd.usedPats.insert(p);
+                }
             }
+            allSongs.push_back(sd);
+        }
         if (g_fontSidebar) ImGui::PushFont(g_fontSidebar);
-        m_sidebar.render(0.f, contentY, m_sidebarW, contentH - contentY, m_hasModule, sd, kTabBarH);
+        m_sidebar.render(0.f, contentY, m_sidebarW, contentH - contentY, m_hasModule, allSongs, kTabBarH);
         if (g_fontSidebar) ImGui::PopFont();
     }
 
     // ── Splitter ──────────────────────────────────────────────────────────
     {
+        ImVec2& minSz = ImGui::GetStyle().WindowMinSize;
+        ImVec2  savedMin = minSz;
+        minSz = {1.f, 1.f};
+
         ImGui::PushStyleColor(ImGuiCol_WindowBg, IM_COL32(0, 0, 0, 0));
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.f, 0.f));
         ImGui::SetNextWindowPos({m_sidebarW, contentY}, ImGuiCond_Always);
@@ -404,13 +437,11 @@ void App::render(int winW, int winH)
             ImGuiWindowFlags_NoBringToFrontOnFocus);
         ImGui::PopStyleVar();
         ImGui::PopStyleColor();
-        ImGui::InvisibleButton("##drag", ImGui::GetContentRegionAvail());
-        {
-            float mx = ImGui::GetIO().MousePos.x;
-            bool inBand = (mx >= m_sidebarW && mx < m_sidebarW + kSplitterW);
-            if (inBand || ImGui::IsItemActive())
-                ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
-        }
+        minSz = savedMin;
+
+        ImGui::InvisibleButton("##drag", {kSplitterW, contentH - contentY});
+        if (ImGui::IsItemHovered() || ImGui::IsItemActive())
+            ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
         if (ImGui::IsItemActive())
             m_sidebarW = std::clamp(m_sidebarW + ImGui::GetIO().MouseDelta.x, 100.f, 500.f);
         ImGui::End();
@@ -420,7 +451,7 @@ void App::render(int winW, int winH)
     const float cw = w - cx;
 
     // ── Tab bar ───────────────────────────────────────────────────────────
-    ImGui::PushStyleColor(ImGuiCol_WindowBg,  kClrBgPanel);
+    ImGui::PushStyleColor(ImGuiCol_WindowBg,  IM_COL32(0, 0, 0, 0));
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,    ImVec2(4.f, 2.f));
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f);
     ImGui::SetNextWindowPos({cx, contentY}, ImGuiCond_Always);
@@ -433,7 +464,7 @@ void App::render(int winW, int winH)
     ImGui::PopStyleColor();
 
     if (BeginStyledTabBar("##tabs")) {
-        const char* tabs[] = {"General", "Patterns", "Samples", "Instruments", "Comments"};
+        const char* tabs[] = {"Tracker", "Properties", "Samples", "Instruments", "Comments"};
         for (int i = 0; i < 5; ++i) {
             ImGuiTabItemFlags flags = (m_pendingTab == i) ? ImGuiTabItemFlags_SetSelected : 0;
             if (StyledTabItem(tabs[i], nullptr, flags)) {
@@ -447,14 +478,9 @@ void App::render(int winW, int winH)
     }
     ImGui::End();
 
-    {
-        constexpr float tabBarPadX = 1.f;
-        constexpr float tabBarPadY = 2.f;
-        ImVec4 c   = ImGui::GetStyle().Colors[ImGuiCol_TabSelected];
-        ImU32  col = ImGui::ColorConvertFloat4ToU32(c);
-        float  lineY = contentY + kTabBarH - tabBarPadY - 2.f;
-        ImGui::GetForegroundDrawList()->AddLine({0.f, lineY}, {cx + tabBarPadX, lineY}, col, 1.f);
-    }
+    DrawFadeDivider(ImGui::GetForegroundDrawList(),
+        ImGui::ColorConvertFloat4ToU32(ImGui::GetStyle().Colors[ImGuiCol_TabSelected]),
+        contentY + kTabBarH - 4.f, w);
 
     // ── Content area ──────────────────────────────────────────────────────
     float cy = contentY + kTabBarH;
@@ -465,8 +491,9 @@ void App::render(int winW, int winH)
     constexpr float kKbdH = 120.f;
     {
         const float dt     = std::min(ImGui::GetIO().DeltaTime, 1.f / 30.f);
-        const float target = (m_hasModule && m_toolbarState.showKeyboard &&
-                              (displayTab == 1 || displayTab == 2 || displayTab == 3)) ? 1.f : 0.f;
+        const float target = m_hasModule && (
+            (displayTab == 0 && m_tracker.showKbd()) ||
+            displayTab == 2 || displayTab == 3) ? 1.f : 0.f;
         const float step = 12.f * dt;
         m_kbdAnimT = (target > m_kbdAnimT) ? std::min(m_kbdAnimT + step, target)
                                            : std::max(m_kbdAnimT - step, target);
@@ -474,10 +501,13 @@ void App::render(int winW, int winH)
     const float visibleH = kKbdH * m_kbdAnimT;
     const float activeH  = ch - visibleH;
 
-    if (displayTab == 1) {
-        m_tracker.render(cx, cy, cw, activeH);
+    if (displayTab == 0) {
+        m_tracker.render(cx, cy, cw, activeH, 3.f);
     } else {
-        ImGui::PushStyleColor(ImGuiCol_WindowBg, kClrBgContent);
+        ImGui::GetBackgroundDrawList()->AddRectFilled(
+            {cx + 4.f, cy - 3.f}, {cx + cw - 2.f, cy + activeH}, kClrTabBodyBg);
+
+        ImGui::PushStyleColor(ImGuiCol_WindowBg, IM_COL32(0, 0, 0, 0));
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,    ImVec2(12.f, 10.f));
         ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f);
         ImGui::SetNextWindowPos({cx, cy}, ImGuiCond_Always);
@@ -489,7 +519,7 @@ void App::render(int winW, int winH)
         ImGui::PopStyleColor();
 
         switch (displayTab) {
-        case 0: { ImVec2 pos = ImGui::GetCursorScreenPos(); ImVec2 avail = ImGui::GetContentRegionAvail(); m_generalView.render(pos.x, pos.y, avail.x, avail.y); } break;
+        case 1: { ImVec2 pos = ImGui::GetCursorScreenPos(); ImVec2 avail = ImGui::GetContentRegionAvail(); m_generalView.render(pos.x, pos.y, avail.x, avail.y); } break;
         case 2: drawSamplesTab();     break;
         case 3: drawInstrumentsTab(); break;
         case 4: drawCommentsTab();    break;
@@ -500,7 +530,7 @@ void App::render(int winW, int winH)
     // ── Shared piano keyboard (tabs: Patterns / Samples / Instruments) ────
     // processInput handles note-key audio preview only when the KB panel is not doing it
     m_tracker.setNoteKeyAudioEnabled(
-        !(m_kbdAnimT > 0.f && displayTab == 1 && !m_tracker.isEditMode()));
+        !(m_kbdAnimT > 0.f && displayTab == 0 && !m_tracker.isEditMode()));
 
     if (m_kbdAnimT > 0.f) {
         m_kbState.baseOctave = m_toolbarState.octave;
@@ -520,11 +550,11 @@ void App::render(int winW, int winH)
         ImGui::PopStyleColor();
 
         bool captureKb = (displayTab == 2 || displayTab == 3) ||
-                         (displayTab == 1 && !m_tracker.isEditMode());
+                         (displayTab == 0 && !m_tracker.isEditMode());
 
         DrawPianoKeyboard("##appkbd", cw, kKbdH, m_kbState, m_fontMono, captureKb,
             [this, displayTab](int note, int key) {
-                if (displayTab == 1) {
+                if (displayTab == 0) {
                     if (m_tracker.onNoteEntry)    m_tracker.onNoteEntry(note);
                     if (m_tracker.onKbdNeedAudio) m_tracker.onKbdNeedAudio();
                     if (m_tracker.onKbdPlay)      m_tracker.onKbdPlay(note, key);
@@ -539,7 +569,7 @@ void App::render(int winW, int winH)
                 }
             },
             [this, displayTab](int key) {
-                if (displayTab == 1) {
+                if (displayTab == 0) {
                     if (m_tracker.onKbdStop) m_tracker.onKbdStop(key);
                 } else if (displayTab == 2) {
                     if (m_sampleView.onEnqueueStop) m_sampleView.onEnqueueStop(key);
@@ -597,30 +627,21 @@ void App::drawSongBar(float w, float h)
     ImGui::SetNextWindowPos({0.f, h - kSongBarH}, ImGuiCond_Always);
     ImGui::SetNextWindowSize({w, kSongBarH}, ImGuiCond_Always);
     ImGui::PushStyleColor(ImGuiCol_WindowBg, IM_COL32(0, 0, 0, 0));
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,  {4.f, 3.f});
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,    {24.f, 0.f});
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f);
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,    {2.f, 0.f});
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,      {2.f, 0.f});
     ImGui::Begin("##songbar", nullptr,
         ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
         ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoSavedSettings |
         ImGuiWindowFlags_NoBringToFrontOnFocus);
     ImGui::PopStyleVar(3);
     ImGui::PopStyleColor();
-    {
-        ImVec2 wp = ImGui::GetWindowPos();
-        ImVec2 ws = ImGui::GetWindowSize();
-        ImGui::GetWindowDrawList()->AddRectFilledMultiColor(
-            wp, {wp.x + ws.x, wp.y + ws.y},
-            kClrStatusGradTop, kClrStatusGradTop,
-            kClrStatusGradBot, kClrStatusGradBot);
-    }
-
     bool closed   = false;
     int  closeIdx = -1;
 
     ImDrawList* dl  = ImGui::GetWindowDrawList();
     ImVec2      mp  = ImGui::GetIO().MousePos;
-    const float tabH   = kSongBarH - 6.f;
+    const float tabH   = kSongBarH - 3.f;
     const float padX   = 7.f;
     const float xGap   = 6.f;
     const float xW     = ImGui::CalcTextSize("x").x + xGap * 2.f;
@@ -640,11 +661,11 @@ void App::drawSongBar(float w, float h)
 
         bool xHov = (mp.x >= xMin.x && mp.x < tMax.x && mp.y >= tMin.y && mp.y < tMax.y);
 
-        // Background
+        // Background — bottom corners rounded only (bottom tab style)
         if (isActive)
-            dl->AddRectFilled(tMin, tMax, kActBg, kStyleTabRounding);
+            dl->AddRectFilled(tMin, tMax, kActBg, kStyleTabRounding, ImDrawFlags_RoundCornersBottom);
         else if (ImGui::IsMouseHoveringRect(tMin, tMax))
-            dl->AddRectFilled(tMin, tMax, IM_COL32(60, 60, 80, 120), kStyleTabRounding);
+            dl->AddRectFilled(tMin, tMax, IM_COL32(60, 60, 80, 120), kStyleTabRounding, ImDrawFlags_RoundCornersBottom);
 
         // Name
         float ty = tMin.y + (tabH - ImGui::GetTextLineHeight()) * 0.5f;
@@ -652,7 +673,7 @@ void App::drawSongBar(float w, float h)
 
         // X
         if (xHov)
-            dl->AddRectFilled(xMin, tMax, kClrRed, kStyleTabRounding, ImDrawFlags_RoundCornersRight);
+            dl->AddRectFilled(xMin, tMax, kClrRed, kStyleTabRounding, ImDrawFlags_RoundCornersBottomRight);
         ImU32 xCol = xHov ? IM_COL32(255, 220, 220, 255) : IM_COL32(180, 175, 200, 200);
         float xTy  = tMin.y + (tabH - ImGui::GetTextLineHeight()) * 0.5f;
         dl->AddText({xMin.x + xGap, xTy}, xCol, "x");
@@ -737,8 +758,16 @@ void App::drawCommentsTab()
     static std::string msg;
     static const void* lastMod = nullptr;
     if (mod != lastMod) { msg = mod->getMessage(); lastMod = mod; }
+    ImGui::PushStyleColor(ImGuiCol_FrameBg,        IM_COL32(0, 0, 0, 0));
+    ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, IM_COL32(0, 0, 0, 0));
+    ImGui::PushStyleColor(ImGuiCol_FrameBgActive,  IM_COL32(0, 0, 0, 0));
+    ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(160, 160, 175, 255));
+    ImGui::PushFont(g_fontMono);
     ImGui::InputTextMultiline("##msg", msg.data(), msg.size() + 1,
                               {-1.f, -1.f}, ImGuiInputTextFlags_ReadOnly);
+    ImGui::PopFont();
+    ImGui::PopStyleColor();
+    ImGui::PopStyleColor(3);
 }
 
 // ─── Operations ───────────────────────────────────────────────────────────────
@@ -863,12 +892,12 @@ void App::wireNoteRT()
             } else {
                 ev.type   = AudioEngine::PreviewEvent::INSTR_ON;
                 ev.key    = (uint8_t)note;
-                ev.idx    = (tab == 1) ? std::max(0, m_tracker.getSelectedInstrument() - 1)
+                ev.idx    = (tab == 0) ? std::max(0, m_tracker.getSelectedInstrument() - 1)
                                        : m_instrView.getSelection() - 1;
                 ev.opnote = note;
                 ev.vol    = vel / 127.f;
                 ev.pan    = 0.5f;
-                if (tab == 1)
+                if (tab == 0)
                     m_midiTrackerNote.store(note + 1);  // hand off to UI thread for pattern entry
             }
             m_kbState.kbHeld[note] = true;

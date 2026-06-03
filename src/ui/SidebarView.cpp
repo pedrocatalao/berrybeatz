@@ -32,6 +32,18 @@ void SidebarView::resetState()
     // Caller can clear it separately if desired.
 }
 
+// ─── collapseAll ─────────────────────────────────────────────────────────────
+
+void SidebarView::collapseAll(int s)
+{
+    m_expanded[s * 10000 + kIdSongRoot] = false;
+}
+
+void SidebarView::expandSong(int s)
+{
+    m_expanded[s * 10000 + kIdSongRoot] = true;
+}
+
 // ─── isExpanded ──────────────────────────────────────────────────────────────
 
 bool SidebarView::isExpanded(int id) const
@@ -43,57 +55,60 @@ bool SidebarView::isExpanded(int id) const
 
 // ─── buildNodes ──────────────────────────────────────────────────────────────
 
-void SidebarView::buildNodes(std::vector<Node>& out, const SidebarData& d) const
+void SidebarView::buildNodes(std::vector<Node>& out, const std::vector<SidebarData>& songs) const
 {
     out.clear();
+    for (const SidebarData& d : songs) {
+        const int s    = d.songIdx;
+        const int base = s * 10000;
 
-    // ── Song root ─────────────────────────────────────────────────────────────
-    out.push_back({kIdSongRoot, 0, true, true,
-                   d.songTitle.empty() ? "(untitled)" : d.songTitle, -1, -1, -1});
-    if (!isExpanded(kIdSongRoot)) return;
+        // ── Song root ─────────────────────────────────────────────────────────
+        out.push_back({base + kIdSongRoot, 0, true, true,
+                       d.songTitle.empty() ? "(untitled)" : d.songTitle,
+                       -1, -1, -1, s});
+        if (!isExpanded(base + kIdSongRoot)) continue;
 
-    // ── Instruments ──────────────────────────────────────────────────────────
-    if (!d.instrNames.empty()) {
-        char grp[64];
-        snprintf(grp, sizeof(grp), "Instruments (%d)", (int)d.instrNames.size());
-        out.push_back({kIdInstrGroup, 1, true, true, grp, -1, -1, -1});
+        // ── Instruments ──────────────────────────────────────────────────────
+        if (!d.instrNames.empty()) {
+            char grp[64];
+            snprintf(grp, sizeof(grp), "Instruments (%d)", (int)d.instrNames.size());
+            out.push_back({base + kIdInstrGroup, 1, true, true, grp, -1, -1, -1, s});
 
-        if (isExpanded(kIdInstrGroup)) {
-            for (int i = 0; i < (int)d.instrNames.size(); ++i) {
-                out.push_back({kBaseInstr + i, 2, false, true,
-                               d.instrNames[i].empty() ? "---" : d.instrNames[i],
-                               i + 1, 3, i});
+            if (isExpanded(base + kIdInstrGroup)) {
+                for (int i = 0; i < (int)d.instrNames.size(); ++i)
+                    out.push_back({base + kBaseInstr + i, 2, false, true,
+                                   d.instrNames[i].empty() ? "---" : d.instrNames[i],
+                                   i + 1, 3, i, s});
             }
         }
-    }
 
-    // ── Samples ──────────────────────────────────────────────────────────────
-    {
-        char grp[64];
-        snprintf(grp, sizeof(grp), "Samples (%d)", (int)d.sampleNames.size());
-        out.push_back({kIdSampleGroup, 1, true, true, grp, -1, -1, -1});
+        // ── Samples ──────────────────────────────────────────────────────────
+        {
+            char grp[64];
+            snprintf(grp, sizeof(grp), "Samples (%d)", (int)d.sampleNames.size());
+            out.push_back({base + kIdSampleGroup, 1, true, true, grp, -1, -1, -1, s});
 
-        if (isExpanded(kIdSampleGroup)) {
-            for (int i = 0; i < (int)d.sampleNames.size(); ++i) {
-                out.push_back({kBaseSample + i, 2, false, true,
-                               d.sampleNames[i].empty() ? "---" : d.sampleNames[i],
-                               i + 1, 2, i});
+            if (isExpanded(base + kIdSampleGroup)) {
+                for (int i = 0; i < (int)d.sampleNames.size(); ++i)
+                    out.push_back({base + kBaseSample + i, 2, false, true,
+                                   d.sampleNames[i].empty() ? "---" : d.sampleNames[i],
+                                   i + 1, 2, i, s});
             }
         }
-    }
 
-    // ── Patterns ─────────────────────────────────────────────────────────────
-    {
-        char grp[64];
-        snprintf(grp, sizeof(grp), "Patterns (%d)", (int)d.patNames.size());
-        out.push_back({kIdPatGroup, 1, true, true, grp, -1, -1, -1});
+        // ── Patterns ─────────────────────────────────────────────────────────
+        {
+            char grp[64];
+            snprintf(grp, sizeof(grp), "Patterns (%d)", (int)d.patNames.size());
+            out.push_back({base + kIdPatGroup, 1, true, true, grp, -1, -1, -1, s});
 
-        if (isExpanded(kIdPatGroup)) {
-            for (int i = 0; i < (int)d.patNames.size(); ++i) {
-                bool used = d.usedPats.count(i) > 0;
-                out.push_back({kBasePat + i, 2, false, used,
-                               d.patNames[i].empty() ? "---" : d.patNames[i],
-                               i, 1, i});
+            if (isExpanded(base + kIdPatGroup)) {
+                for (int i = 0; i < (int)d.patNames.size(); ++i) {
+                    bool used = d.usedPats.count(i) > 0;
+                    out.push_back({base + kBasePat + i, 2, false, used,
+                                   d.patNames[i].empty() ? "---" : d.patNames[i],
+                                   i, 0, i, s});
+                }
             }
         }
     }
@@ -102,11 +117,11 @@ void SidebarView::buildNodes(std::vector<Node>& out, const SidebarData& d) const
 // ─── render ──────────────────────────────────────────────────────────────────
 
 void SidebarView::render(float x, float y, float w, float h,
-                         bool hasModule, const SidebarData& data,
+                         bool hasModule, const std::vector<SidebarData>& songs,
                          float topPad)
 {
     // ── Window style ──────────────────────────────────────────────────────────
-    ImGui::PushStyleColor(ImGuiCol_WindowBg, kClrBgPanel);
+    ImGui::PushStyleColor(ImGuiCol_WindowBg, IM_COL32(0, 0, 0, 0));
     // Suppress all built-in selection/hover/nav visuals — we draw our own.
     ImGui::PushStyleColor(ImGuiCol_Header,        IM_COL32(0, 0, 0, 0));
     ImGui::PushStyleColor(ImGuiCol_HeaderHovered, IM_COL32(0, 0, 0, 0));
@@ -156,7 +171,7 @@ void SidebarView::render(float x, float y, float w, float h,
 
     // ── Build visible node list ───────────────────────────────────────────────
     std::vector<Node> nodes;
-    buildNodes(nodes, data);
+    buildNodes(nodes, songs);
 
     // Find cursor index in current node list
     int cursorIdx = -1;
@@ -207,7 +222,7 @@ void SidebarView::render(float x, float y, float w, float h,
                 }
             }
             // Rebuild after expand/collapse change, re-find cursor
-            buildNodes(nodes, data);
+            buildNodes(nodes, songs);
             cursorIdx = -1;
             for (int i = 0; i < (int)nodes.size(); ++i) {
                 if (nodes[i].id == m_cursorId) { cursorIdx = i; break; }
@@ -224,7 +239,7 @@ void SidebarView::render(float x, float y, float w, float h,
                 m_expanded[cur.id] = true;
             }
             // Rebuild after expand/collapse change, re-find cursor
-            buildNodes(nodes, data);
+            buildNodes(nodes, songs);
             cursorIdx = -1;
             for (int i = 0; i < (int)nodes.size(); ++i) {
                 if (nodes[i].id == m_cursorId) { cursorIdx = i; break; }
@@ -238,7 +253,7 @@ void SidebarView::render(float x, float y, float w, float h,
         else if (ImGui::IsKeyPressed(ImGuiKey_Enter, false) && cursorIdx >= 0) {
             const Node& cur = nodes[cursorIdx];
             if (!cur.isGroup && cur.enabled && onLeafActivated) {
-                onLeafActivated(cur.tab, cur.idx);
+                onLeafActivated(cur.songIdx, cur.tab, cur.idx);
             }
         }
     }
@@ -295,7 +310,8 @@ void SidebarView::render(float x, float y, float w, float h,
             if (n.displayNum >= 0) {
                 char numBuf[8];
                 snprintf(numBuf, sizeof(numBuf), "%02d", n.displayNum);
-                dl->AddText({cx, textY}, n.enabled ? kNumYellow : kTextDim, numBuf);
+                float numX = cx + numW - ImGui::CalcTextSize(numBuf).x - 3.f;
+                dl->AddText({numX, textY}, n.enabled ? kNumYellow : kTextDim, numBuf);
             }
             dl->AddText({cx + numW, textY}, n.enabled ? kTextNorm : kTextDim, n.name.c_str());
         }
@@ -306,7 +322,7 @@ void SidebarView::render(float x, float y, float w, float h,
             if (n.isGroup) {
                 m_expanded[n.id] = !isExpanded(n.id);
             } else if (n.enabled && onLeafActivated) {
-                onLeafActivated(n.tab, n.idx);
+                onLeafActivated(n.songIdx, n.tab, n.idx);
             }
         }
 

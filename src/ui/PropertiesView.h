@@ -4,9 +4,9 @@
 
 struct ImFont;
 
-class GeneralView {
+class PropertiesView {
 public:
-    explicit GeneralView(ModuleState& state);
+    explicit PropertiesView(ModuleState& state);
     void setController(ModuleController* ctrl);
     void clearModule();
     void setFonts(ImFont* mono, ImFont* ui);

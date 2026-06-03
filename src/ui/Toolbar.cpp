@@ -106,16 +106,6 @@ float DrawToolbar(ToolbarState& state,
         ImGuiWindowFlags_NoSavedSettings   |
         ImGuiWindowFlags_NoBringToFrontOnFocus);
 
-    // ─── Gradient background (black → dark grey, top to bottom) ──────────────
-    {
-        ImVec2 wp = ImGui::GetWindowPos();
-        ImVec2 ws = ImGui::GetWindowSize();
-        ImGui::GetWindowDrawList()->AddRectFilledMultiColor(
-            wp, {wp.x + ws.x, wp.y + ws.y},
-            kClrToolbarGradTop, kClrToolbarGradTop,
-            kClrToolbarGradBot, kClrToolbarGradBot);
-    }
-
     const float frameH   = ImGui::GetFrameHeight();
     const float knobSz   = 36.f;
     const float btnMidY  = 7.f;
@@ -197,11 +187,6 @@ float DrawToolbar(ToolbarState& state,
         if (ImGui::Button("Config"))  { if (state.onSetup) state.onSetup(); }
         ImGui::SameLine(0.f, 3.f);
         ImGui::SetCursorPosY(by);
-        { bool on = state.showKeyboard;
-          if (on) ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(64, 64, 160, 255));
-          if (ImGui::Button("KB")) state.showKeyboard = !state.showKeyboard;
-          if (on) ImGui::PopStyleColor(); }
-
         // Window drag is handled in the GLFW mouse button callback (main.cpp),
         // which fires from inside GLFW's mouseDown: delegate — the only context
         // where performWindowDragWithEvent: is valid.
@@ -252,7 +237,7 @@ float DrawToolbar(ToolbarState& state,
     // ─── Seek slider ──────────────────────────────────────────────────────────
     if (!state.hasModule) ImGui::BeginDisabled();
 
-    ImGui::SetNextItemWidth(165.f);
+    ImGui::SetNextItemWidth(174.f);
     btnY();
     float seek = state.seekFrac;
     if (ImGui::SliderFloat("##seek", &seek, 0.f, 1.f, "")) {
@@ -264,14 +249,7 @@ float DrawToolbar(ToolbarState& state,
     ImGui::SetCursorPos({13.f, knobMidY});
 
     // ─── Knobs ────────────────────────────────────────────────────────────────
-    const float kPad  = 5.f;
-    const float rowX0 = ImGui::GetCursorScreenPos().x - kPad;
-    const float rowY0 = ImGui::GetWindowPos().y + knobMidY - kPad;
-
-    // Split channels: knobs/VU draw in ch1 (front), background fills in ch0 (back)
     ImDrawList* dl = ImGui::GetWindowDrawList();
-    dl->ChannelsSplit(2);
-    dl->ChannelsSetCurrent(1);
 
     auto doKnob = [&](const char* id, int* val, int vmin, int vmax,
                       std::function<void(int)> cb)
@@ -293,23 +271,21 @@ float DrawToolbar(ToolbarState& state,
 
     // ─── VU meters (knob row) ─────────────────────────────────────────────────
     {
-        const float vuW = 202.f;
-        const float vuH = 25.f;
-        float vuX = ImGui::GetItemRectMax().x + 12.f;
+        const float vuW   = 202.f;
+        const float vuH   = 25.f;
+        const float kGap  = 4.f;
+        if (g_fontKnobLabel) ImGui::PushFont(g_fontKnobLabel);
+        const float lblW  = ImGui::CalcTextSize("VU").x;
+        const float lblH  = ImGui::GetTextLineHeight();
+        if (g_fontKnobLabel) ImGui::PopFont();
+        float vuX = ImGui::GetItemRectMax().x + 12.f + lblW + kGap;
         float vuY = ImGui::GetWindowPos().y + knobMidY + (knobSz - vuH) * 0.5f;
+        if (g_fontKnobLabel) ImGui::PushFont(g_fontKnobLabel);
+        dl->AddText({vuX - kGap - lblW, vuY + (vuH - lblH) * 0.5f}, kClrTextLabel, "VU");
+        if (g_fontKnobLabel) ImGui::PopFont();
         drawVU(dl, vuX, vuY, vuW, vuH, state.vuLeft, state.vuRight);
-        ImGui::SetCursorScreenPos({vuX, ImGui::GetWindowPos().y + knobMidY});
-        ImGui::Dummy({vuW, knobSz});
-    }
-
-    // ─── Background fill behind knobs + VU ───────────────────────────────────
-    {
-        float rowX1 = ImGui::GetItemRectMax().x + kPad;
-        float rowY1 = ImGui::GetWindowPos().y + knobMidY + knobSz + kPad;
-        dl->ChannelsSetCurrent(0);
-        dl->AddRectFilled({rowX0, rowY0}, {rowX1, rowY1},
-                          IM_COL32(28, 28, 44, 86));
-        dl->ChannelsMerge();
+        ImGui::SetCursorScreenPos({vuX - lblW - kGap, ImGui::GetWindowPos().y + knobMidY});
+        ImGui::Dummy({vuW + lblW + kGap, knobSz});
     }
 
     // ─── Logo (top-right) ─────────────────────────────────────────────────────

@@ -47,6 +47,8 @@ public:
         ImGui::SetNextWindowSize({w, h},                ImGuiCond_Always);
         ImGui::PushStyleColor(ImGuiCol_ModalWindowDimBg, IM_COL32(0, 0, 0, 0));
         ImGui::PushStyleColor(ImGuiCol_PopupBg,          kClrModalBg);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding,    10.f);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize,   0.f);
 
         bool visible = ImGui::BeginPopupModal(title, &m_open,
             ImGuiWindowFlags_NoTitleBar        |
@@ -55,6 +57,7 @@ public:
             ImGuiWindowFlags_NoScrollWithMouse);
 
         if (!visible) {
+            ImGui::PopStyleVar(2);
             ImGui::PopStyleColor(2);
             if (!ImGui::IsPopupOpen(title)) m_open = false;
             return false;
@@ -74,6 +77,7 @@ public:
     void end()
     {
         ImGui::EndPopup();
+        ImGui::PopStyleVar(2);
         ImGui::PopStyleColor(2);
     }
 
@@ -95,17 +99,16 @@ private:
             if (!a) continue;
             wdl->AddRectFilled({p0.x - r, p0.y + 10.f - r},
                                {p1.x + r, p1.y +  2.f + r},
-                               IM_COL32(0, 0, 0, a), 6.f + r * 0.5f);
+                               IM_COL32(0, 0, 0, a), 10.f + r * 0.5f);
         }
         wdl->PopClipRect();
 
-        // Gradient background
-        wdl->AddRectFilledMultiColor(p0, p1,
-            kClrModalGradTop, kClrModalGradTop,
-            kClrModalGradBot, kClrModalGradBot);
+        // Title bar (rounded top corners only)
+        wdl->AddRectFilled(p0, {p1.x, p0.y + kTitleH}, kClrBgTitle,
+                           10.f, ImDrawFlags_RoundCornersTop);
 
-        // Title bar
-        wdl->AddRectFilled(p0, {p1.x, p0.y + kTitleH}, kClrBgTitle);
+        // Border — same style as the main window
+        wdl->AddRect(p0, p1, IM_COL32(255, 255, 255, 38), 10.f, 0, 1.0f);
         {
             ImVec2 tsz = ImGui::CalcTextSize(title);
             wdl->AddText({p0.x + (w - tsz.x) * 0.5f, p0.y + (kTitleH - tsz.y) * 0.5f},
@@ -121,17 +124,26 @@ private:
             m_winPosY += d.y;
         }
 
-        // × close button
+        // × close button — custom draw so hover rect clips to top-right rounded corner
         ImGui::SetCursorPos({w - kTitleH, 0.f});
-        ImGui::PushStyleColor(ImGuiCol_Button,        IM_COL32(0, 0, 0, 0));
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, kClrModalClose);
-        ImGui::PushStyleColor(ImGuiCol_ButtonActive,  kClrModalCloseAct);
-        ImGui::PushStyleColor(ImGuiCol_Text,          IM_COL32(180, 180, 200, 220));
-        if (ImGui::Button("X##close", {kTitleH, kTitleH})) {
+        ImGui::InvisibleButton("##close", {kTitleH, kTitleH});
+        {
+            bool hov = ImGui::IsItemHovered();
+            bool act = ImGui::IsItemActive();
+            if (hov) {
+                ImU32 col = act ? kClrModalCloseAct : kClrModalClose;
+                wdl->AddRectFilled({p0.x + w - kTitleH, p0.y}, {p1.x, p0.y + kTitleH},
+                                   col, 10.f, ImDrawFlags_RoundCornersTopRight);
+            }
+            ImVec2 xsz = ImGui::CalcTextSize("X");
+            wdl->AddText({p0.x + w - kTitleH * 0.5f - xsz.x * 0.5f,
+                          p0.y + (kTitleH - xsz.y) * 0.5f},
+                         IM_COL32(180, 180, 200, 220), "X");
+        }
+        if (ImGui::IsItemClicked()) {
             m_open = false;
             ImGui::CloseCurrentPopup();
         }
-        ImGui::PopStyleColor(4);
 
         // Position cursor below title bar for content
         ImGui::SetCursorPos({0.f, kTitleH});

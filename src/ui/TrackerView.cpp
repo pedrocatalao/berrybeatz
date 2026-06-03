@@ -100,7 +100,7 @@ static void popToolbarStyle() {
 
 // ── Main render entry point ───────────────────────────────────────────────────
 
-void TrackerView::render(float x, float y, float w, float h) {
+void TrackerView::render(float x, float y, float w, float h, float boxTopExt) {
     if (m_fontMono) ImGui::PushFont(m_fontMono);
     m_charW   = ImGui::CalcTextSize("A").x;
     m_rowNumW = m_charW * 3.0f + 10.0f;
@@ -150,12 +150,11 @@ void TrackerView::render(float x, float y, float w, float h) {
     drawPatternToolbar2(x, y + PTBAR1_H + PTBAR3_H, w);
     ImGui::End();
 
-    // Box behind order list + pattern panel
+    // Box behind order list + pattern panel (extends up behind tab bar)
     {
         ImDrawList* bg = ImGui::GetBackgroundDrawList();
-        float        bY = y + PTBAR1_H + PTBAR2_H + PTBAR3_H;
-        ImVec2       p0 = {x + 7.f, bY};
-        ImVec2       p1 = {x + w - 2.f,   y + h};
+        ImVec2       p0 = {x + 4.f, y - boxTopExt};
+        ImVec2       p1 = {x + w - 2.f, y + h};
         bg->AddRectFilled(p0, p1, IM_COL32(14, 14, 26, 255));
     }
 

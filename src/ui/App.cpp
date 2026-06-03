@@ -498,7 +498,7 @@ void App::render(int winW, int winH)
     const float activeH  = ch - visibleH;
 
     if (displayTab == 1) {
-        m_tracker.render(cx, cy, cw, activeH);
+        m_tracker.render(cx, cy, cw, activeH, 3.f);
     } else {
         ImGui::PushStyleColor(ImGuiCol_WindowBg, IM_COL32(0, 0, 0, 0));
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,    ImVec2(12.f, 10.f));

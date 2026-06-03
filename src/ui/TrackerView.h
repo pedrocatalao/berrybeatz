@@ -75,7 +75,7 @@ public:
 
     // Call each frame when the patterns tab is visible.
     // (x,y,w,h) is the area allocated by the App for the pattern editor.
-    void render(float x, float y, float w, float h);
+    void render(float x, float y, float w, float h, float boxTopExt = 0.f);
 
     // Callbacks wired up by App
     std::function<void(int32_t)>                onOrderSeekRequested;

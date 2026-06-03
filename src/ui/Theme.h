@@ -116,6 +116,7 @@ static constexpr ImU32 kClrPatDivider    = IM_COL32( 46,  46,  92, 200);
 static constexpr ImU32 kClrPatSelection  = IM_COL32( 80,  80, 200,  60);
 static constexpr ImU32 kClrPatEditCell   = IM_COL32(255, 220,  80,  80);
 static constexpr ImU32 kClrPatEditBorder = IM_COL32(255, 255, 255, 220);
+static constexpr ImU32 kClrPatRowBg      = IM_COL32( 21,  21,  30, 255);
 static constexpr ImU32 kClrPatCurRowBg   = IM_COL32( 40,  85, 145, 145);
 static constexpr ImU32 kClrPatWaveform   = IM_COL32(190, 190, 200, 220);
 static constexpr ImU32 kClrPatWaveMuted  = IM_COL32( 80,  80,  80, 120);

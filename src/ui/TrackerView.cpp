@@ -1009,24 +1009,12 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
 
         ImGui::TableNextRow();
 
+        ImU32 rowBg = isCur     ? kClrPatCurRowBg
+                    : isMeasure ? ImGui::ColorConvertFloat4ToU32(kBgMeasure)
+                    : isBeat    ? ImGui::ColorConvertFloat4ToU32(kBgHilight)
+                    :             kClrPatRowBg;
+
         ImGui::TableNextColumn();
-        {
-            ImVec2 p0     = ImGui::GetCursorScreenPos();
-            float  pad    = ImGui::GetStyle().CellPadding.y;
-            float  winR   = ImGui::GetWindowPos().x + ImGui::GetWindowSize().x - ImGui::GetStyle().ScrollbarSize;
-            float  step   = m_colStep > 0.f ? m_colStep : m_cellW;
-            float  ry0    = p0.y - pad;
-            float  ry1    = ry0 + m_rowH;
-            float  rx0    = p0.x + m_rowNumW;
-            float  x1     = std::min(winR, rx0 + nch * step);
-            ImDrawList* rdl = ImGui::GetWindowDrawList();
-            if (isCur)
-                rdl->AddRectFilled({rx0, ry0}, {x1, ry1}, kClrPatCurRowBg);
-            else if (isMeasure)
-                rdl->AddRectFilled({rx0, ry0}, {x1, ry1}, ImGui::ColorConvertFloat4ToU32(kBgMeasure));
-            else if (isBeat)
-                rdl->AddRectFilled({rx0, ry0}, {x1, ry1}, ImGui::ColorConvertFloat4ToU32(kBgHilight));
-        }
         {
             char rnBuf[8]; snprintf(rnBuf, sizeof(rnBuf), "%3d", localR);
             if (g_fontRowNum) ImGui::PushFont(g_fontRowNum);
@@ -1047,7 +1035,7 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
                     IM_COL32(70, 70, 130, 220));
             }
 
-            ImVec4 rnColV = (isBeat||isMeasure) ? kTextNormal : kDim;
+            ImVec4 rnColV = isCur ? kTextCurRow : (isBeat||isMeasure ? kTextNormal : kDim);
             ImU32 rnCol = ImGui::ColorConvertFloat4ToU32(
                 {rnColV.x * dimFactor, rnColV.y * dimFactor, rnColV.z * dimFactor, rnColV.w});
             ImGui::GetWindowDrawList()->AddText(rnPos, rnCol, rnBuf);
@@ -1069,6 +1057,15 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
                 } else if (ch == 1) {
                     m_colStep = (cp.x + m_hscroll) - m_tableOriginX;
                 }
+            }
+
+            // Row background — drawn per channel cell so it excludes the row-number
+            // column and any empty space to the right of the last channel.
+            {
+                ImVec2 cp  = ImGui::GetCursorScreenPos();
+                float  padY = ImGui::GetStyle().CellPadding.y;
+                ImGui::GetWindowDrawList()->AddRectFilled(
+                    {cp.x, cp.y - padY}, {cp.x + m_cellW, cp.y - padY + m_rowH}, rowBg);
             }
 
             // Channel divider lines

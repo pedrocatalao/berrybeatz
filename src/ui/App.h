@@ -5,7 +5,7 @@
 #include "ModuleController.h"
 #include "AudioEngine.h"
 #include "TrackerView.h"
-#include "GeneralView.h"
+#include "PropertiesView.h"
 #include "InstrumentView.h"
 #include "SampleView.h"
 #include "Toolbar.h"
@@ -62,7 +62,7 @@ private:
     ModuleController m_controller;
     AudioEngine      m_audio;
     TrackerView      m_tracker;
-    GeneralView      m_generalView;
+    PropertiesView   m_generalView;
     InstrumentView   m_instrView;
     SampleView       m_sampleView;
 

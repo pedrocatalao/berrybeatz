@@ -471,10 +471,16 @@ void App::render(int winW, int winH)
 
     {
         constexpr float tabBarPadY = 2.f;
-        ImVec4 c   = ImGui::GetStyle().Colors[ImGuiCol_TabSelected];
-        ImU32  col = ImGui::ColorConvertFloat4ToU32(c);
-        float  lineY = contentY + kTabBarH - tabBarPadY - 2.f;
-        ImGui::GetForegroundDrawList()->AddLine({0.f, lineY}, {w, lineY}, col, 1.f);
+        constexpr float kFade      = 20.f;
+        ImVec4 c    = ImGui::GetStyle().Colors[ImGuiCol_TabSelected];
+        ImU32  col  = ImGui::ColorConvertFloat4ToU32(c);
+        ImU32  fade = col & 0x00FFFFFFu;
+        float  y0   = contentY + kTabBarH - tabBarPadY - 2.f;
+        float  y1   = y0 + 1.f;
+        ImDrawList* fdl = ImGui::GetForegroundDrawList();
+        fdl->AddRectFilledMultiColor({0.f,        y0}, {kFade,     y1}, fade, col,  col,  fade);
+        fdl->AddRectFilled          ({kFade,       y0}, {w - kFade, y1}, col);
+        fdl->AddRectFilledMultiColor({w - kFade,   y0}, {w,         y1}, col,  fade, fade, col);
     }
 
     // ── Content area ──────────────────────────────────────────────────────

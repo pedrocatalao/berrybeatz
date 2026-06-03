@@ -727,7 +727,7 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
                 ImU32 brCol = namePressed ? hiCol : loCol;
                 dl->AddLine({p.x, p.y }, {bvR,  p.y }, tlCol);       // top
                 dl->AddLine({p.x, p.y }, {p.x,  bvB }, tlCol);       // left
-                dl->AddLine({p.x, bvB }, {bvR,  bvB }, brCol, 2.f);       // bottom
+                dl->AddLine({p.x, bvB }, {bvR,  bvB }, brCol, 2.f);  // bottom
                 dl->AddLine({bvR, p.y }, {bvR,  bvB }, brCol);       // right
             }
             // Fill left and right padding gutters with the same dark blue as pattern rows

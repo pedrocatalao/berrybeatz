@@ -734,7 +734,7 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
             float textH = ImGui::GetTextLineHeight();
             ImU32 textCol = muted ? IM_COL32(60,60,60,255) : IM_COL32(200,200,120,255);
             ImVec2 ts = ImGui::CalcTextSize(chNames[ch].c_str());
-            dl->AddText({p.x + (cw - ts.x) * 0.5f, p.y + (CHANNAME_H - textH) * 0.5f},
+            dl->AddText({p.x + (cw - ts.x) * 0.5f, p.y + (CHANNAME_H - textH) * 0.5f - 1.f},
                         textCol, chNames[ch].c_str());
 
             // Mute / solo click target (both detected on press to avoid release-timing conflicts)

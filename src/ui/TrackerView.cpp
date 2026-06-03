@@ -769,7 +769,7 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
 
             // Oscilloscope waveform
             float vuBot = vuTop + (m_showVU ? VU_H : 0.f);
-            if (m_showWave && channelWave[ch].count > 1) {
+            if (m_showWave) {
                 float wy    = vuBot;
                 float wx0 = p.x + 1.f, wy0 = wy, wx1 = p.x + cw - 1.f, wy1 = wy + WAVE_H;
 
@@ -790,7 +790,10 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
                     for (float gx = wx0 + (kP - 1.f); gx < wx1; gx += kP)
                         dl->AddRectFilled({gx, wy0}, {gx + 1.f, wy1}, blk);
                 }
-
+            }
+            if (m_showWave && channelWave[ch].count > 1) {
+                float wy    = vuBot;
+                float wx0 = p.x + 1.f;
                 float cy    = wy + WAVE_H * 0.5f;
                 float halfH = WAVE_H * 0.5f - 2.f;
 

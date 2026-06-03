@@ -159,7 +159,7 @@ App::App() : m_controller(m_state), m_audio(m_state), m_tracker(m_state), m_gene
         } else if (tab == 2) {
             m_sampleView.setSelection(idx + 1);
             m_audio.copyPreviewSample(idx + 1);
-        } else if (tab == 1) {
+        } else if (tab == 0) {
             auto* mod = m_audio.getModule();
             if (mod) {
                 int numOrd;
@@ -460,7 +460,7 @@ void App::render(int winW, int winH)
     ImGui::PopStyleColor();
 
     if (BeginStyledTabBar("##tabs")) {
-        const char* tabs[] = {"General", "Patterns", "Samples", "Instruments", "Comments"};
+        const char* tabs[] = {"Tracker", "Properties", "Samples", "Instruments", "Comments"};
         for (int i = 0; i < 5; ++i) {
             ImGuiTabItemFlags flags = (m_pendingTab == i) ? ImGuiTabItemFlags_SetSelected : 0;
             if (StyledTabItem(tabs[i], nullptr, flags)) {
@@ -488,7 +488,7 @@ void App::render(int winW, int winH)
     {
         const float dt     = std::min(ImGui::GetIO().DeltaTime, 1.f / 30.f);
         const float target = m_hasModule && (
-            (displayTab == 1 && m_tracker.showKbd()) ||
+            (displayTab == 0 && m_tracker.showKbd()) ||
             displayTab == 2 || displayTab == 3) ? 1.f : 0.f;
         const float step = 12.f * dt;
         m_kbdAnimT = (target > m_kbdAnimT) ? std::min(m_kbdAnimT + step, target)
@@ -497,7 +497,7 @@ void App::render(int winW, int winH)
     const float visibleH = kKbdH * m_kbdAnimT;
     const float activeH  = ch - visibleH;
 
-    if (displayTab == 1) {
+    if (displayTab == 0) {
         m_tracker.render(cx, cy, cw, activeH, 3.f);
     } else {
         ImGui::GetBackgroundDrawList()->AddRectFilled(
@@ -515,7 +515,7 @@ void App::render(int winW, int winH)
         ImGui::PopStyleColor();
 
         switch (displayTab) {
-        case 0: { ImVec2 pos = ImGui::GetCursorScreenPos(); ImVec2 avail = ImGui::GetContentRegionAvail(); m_generalView.render(pos.x, pos.y, avail.x, avail.y); } break;
+        case 1: { ImVec2 pos = ImGui::GetCursorScreenPos(); ImVec2 avail = ImGui::GetContentRegionAvail(); m_generalView.render(pos.x, pos.y, avail.x, avail.y); } break;
         case 2: drawSamplesTab();     break;
         case 3: drawInstrumentsTab(); break;
         case 4: drawCommentsTab();    break;
@@ -526,7 +526,7 @@ void App::render(int winW, int winH)
     // ── Shared piano keyboard (tabs: Patterns / Samples / Instruments) ────
     // processInput handles note-key audio preview only when the KB panel is not doing it
     m_tracker.setNoteKeyAudioEnabled(
-        !(m_kbdAnimT > 0.f && displayTab == 1 && !m_tracker.isEditMode()));
+        !(m_kbdAnimT > 0.f && displayTab == 0 && !m_tracker.isEditMode()));
 
     if (m_kbdAnimT > 0.f) {
         m_kbState.baseOctave = m_toolbarState.octave;
@@ -546,11 +546,11 @@ void App::render(int winW, int winH)
         ImGui::PopStyleColor();
 
         bool captureKb = (displayTab == 2 || displayTab == 3) ||
-                         (displayTab == 1 && !m_tracker.isEditMode());
+                         (displayTab == 0 && !m_tracker.isEditMode());
 
         DrawPianoKeyboard("##appkbd", cw, kKbdH, m_kbState, m_fontMono, captureKb,
             [this, displayTab](int note, int key) {
-                if (displayTab == 1) {
+                if (displayTab == 0) {
                     if (m_tracker.onNoteEntry)    m_tracker.onNoteEntry(note);
                     if (m_tracker.onKbdNeedAudio) m_tracker.onKbdNeedAudio();
                     if (m_tracker.onKbdPlay)      m_tracker.onKbdPlay(note, key);
@@ -565,7 +565,7 @@ void App::render(int winW, int winH)
                 }
             },
             [this, displayTab](int key) {
-                if (displayTab == 1) {
+                if (displayTab == 0) {
                     if (m_tracker.onKbdStop) m_tracker.onKbdStop(key);
                 } else if (displayTab == 2) {
                     if (m_sampleView.onEnqueueStop) m_sampleView.onEnqueueStop(key);
@@ -754,8 +754,12 @@ void App::drawCommentsTab()
     static std::string msg;
     static const void* lastMod = nullptr;
     if (mod != lastMod) { msg = mod->getMessage(); lastMod = mod; }
+    ImGui::PushStyleColor(ImGuiCol_FrameBg,        IM_COL32( 8,  8, 20, 255));
+    ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, IM_COL32(10, 10, 24, 255));
+    ImGui::PushStyleColor(ImGuiCol_FrameBgActive,  IM_COL32(10, 10, 24, 255));
     ImGui::InputTextMultiline("##msg", msg.data(), msg.size() + 1,
                               {-1.f, -1.f}, ImGuiInputTextFlags_ReadOnly);
+    ImGui::PopStyleColor(3);
 }
 
 // ─── Operations ───────────────────────────────────────────────────────────────
@@ -880,12 +884,12 @@ void App::wireNoteRT()
             } else {
                 ev.type   = AudioEngine::PreviewEvent::INSTR_ON;
                 ev.key    = (uint8_t)note;
-                ev.idx    = (tab == 1) ? std::max(0, m_tracker.getSelectedInstrument() - 1)
+                ev.idx    = (tab == 0) ? std::max(0, m_tracker.getSelectedInstrument() - 1)
                                        : m_instrView.getSelection() - 1;
                 ev.opnote = note;
                 ev.vol    = vel / 127.f;
                 ev.pan    = 0.5f;
-                if (tab == 1)
+                if (tab == 0)
                     m_midiTrackerNote.store(note + 1);  // hand off to UI thread for pattern entry
             }
             m_kbState.kbHeld[note] = true;

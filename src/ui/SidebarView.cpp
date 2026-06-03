@@ -106,7 +106,7 @@ void SidebarView::buildNodes(std::vector<Node>& out, const std::vector<SidebarDa
                     bool used = d.usedPats.count(i) > 0;
                     out.push_back({base + kBasePat + i, 2, false, used,
                                    d.patNames[i].empty() ? "---" : d.patNames[i],
-                                   i, 1, i, s});
+                                   i, 0, i, s});
                 }
             }
         }

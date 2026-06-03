@@ -834,12 +834,19 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
             // Plugin row
             float plugTop = vuBot + (m_showWave ? WAVE_H : 0.f);
             if (m_showPluginRow) {
-                dl->AddRectFilled({p.x + 1, plugTop}, {p.x + cw - 1, plugTop + PLUGIN_H},
-                                  IM_COL32(20, 20, 35, 255));
+                float bvR = p.x + cw - 2.f;
+                float bvT = plugTop;
+                float bvB = plugTop + PLUGIN_H - 1.f;
+                dl->AddRectFilled({p.x, bvT}, {p.x + cw - 1, bvT + PLUGIN_H}, hdrCol);
+                dl->AddLine({p.x, bvT}, {bvR, bvT}, hiCol);
+                dl->AddLine({p.x, bvT}, {p.x, bvB}, hiCol);
+                dl->AddLine({p.x, bvB}, {bvR, bvB}, loCol);
+                dl->AddLine({bvR, bvT}, {bvR, bvB}, loCol);
                 {
-                    ImVec2 ts = ImGui::CalcTextSize("\xe2\x80\x93");
-                    dl->AddText({p.x + (cw - ts.x) * 0.5f, plugTop + (PLUGIN_H - ts.y) * 0.5f},
-                                IM_COL32(60, 60, 80, 255), "\xe2\x80\x93");
+                    const char* lbl = "NO FX";
+                    ImVec2 ts = ImGui::CalcTextSize(lbl);
+                    ImU32 fxCol = muted ? IM_COL32(45, 45, 55, 255) : IM_COL32(80, 80, 115, 255);
+                    dl->AddText({p.x + (cw - ts.x) * 0.5f, bvT + (PLUGIN_H - ts.y) * 0.5f}, fxCol, lbl);
                 }
                 ImGui::SetCursorScreenPos({p.x, plugTop});
                 if (ImGui::InvisibleButton("##plug", {cw, PLUGIN_H}))

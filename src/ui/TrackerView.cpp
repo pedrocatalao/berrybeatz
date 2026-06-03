@@ -1007,9 +1007,12 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
             // Pattern boundary separator line
             if (m_continuousScroll && localR == 0 && absR > 0) {
                 float winLeft  = ImGui::GetWindowPos().x + m_rowNumW;
-                float winRight = ImGui::GetWindowPos().x + ImGui::GetWindowWidth();
+                float winRight = ImGui::GetWindowPos().x + ImGui::GetWindowSize().x
+                                 - ImGui::GetStyle().ScrollbarSize;
+                float step     = m_colStep > 0.f ? m_colStep : m_cellW;
+                float lineRight = std::min(winRight, winLeft + nch * step);
                 ImGui::GetWindowDrawList()->AddLine(
-                    {winLeft, rnPos.y - 2.f}, {winRight, rnPos.y - 2.f},
+                    {winLeft, rnPos.y - 2.f}, {lineRight, rnPos.y - 2.f},
                     IM_COL32(70, 70, 130, 220));
             }
 

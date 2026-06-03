@@ -16,14 +16,16 @@
 
 inline bool BeginStyledTabBar(const char* id)
 {
-    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,     kTabFramePad);
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemInnerSpacing, kTabInnerSpacing);
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,       kTabFramePad);
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemInnerSpacing,   kTabInnerSpacing);
+    ImGui::PushStyleVar(ImGuiStyleVar_TabBarBorderSize,   0.f);
+    ImGui::PushStyleVar(ImGuiStyleVar_TabBarOverlineSize, 0.f);
     ImGui::PushStyleColor(ImGuiCol_Tab,        kClrTabBg);
     ImGui::PushStyleColor(ImGuiCol_TabHovered, kClrTabHover);
     bool open = ImGui::BeginTabBar(id);
     if (!open) {
         ImGui::PopStyleColor(2);
-        ImGui::PopStyleVar(2);
+        ImGui::PopStyleVar(4);
     }
     return open;
 }
@@ -33,7 +35,7 @@ inline void EndStyledTabBar()
 {
     ImGui::EndTabBar();
     ImGui::PopStyleColor(2);
-    ImGui::PopStyleVar(2);
+    ImGui::PopStyleVar(4);
 }
 
 // Drop-in for ImGui::BeginTabItem with automatic active/inactive text colour.

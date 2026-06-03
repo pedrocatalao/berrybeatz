@@ -470,12 +470,11 @@ void App::render(int winW, int winH)
     ImGui::End();
 
     {
-        constexpr float tabBarPadX = 1.f;
         constexpr float tabBarPadY = 2.f;
         ImVec4 c   = ImGui::GetStyle().Colors[ImGuiCol_TabSelected];
         ImU32  col = ImGui::ColorConvertFloat4ToU32(c);
         float  lineY = contentY + kTabBarH - tabBarPadY - 2.f;
-        ImGui::GetForegroundDrawList()->AddLine({0.f, lineY}, {cx + tabBarPadX, lineY}, col, 1.f);
+        ImGui::GetForegroundDrawList()->AddLine({0.f, lineY}, {w, lineY}, col, 1.f);
     }
 
     // ── Content area ──────────────────────────────────────────────────────

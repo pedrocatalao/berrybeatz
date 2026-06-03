@@ -214,3 +214,19 @@ static constexpr float  kStyleTabRounding        = 3.f;
 static constexpr ImVec4 kStyleWindowBg  = {0.08f, 0.08f, 0.13f, 1.f};
 static constexpr ImVec4 kStyleTitleBg   = {0.08f, 0.08f, 0.13f, 1.f};
 static constexpr ImVec4 kStyleTitleBgAct= {0.12f, 0.12f, 0.20f, 1.f};
+
+// ── Widgets ───────────────────────────────────────────────────────────────────
+
+// Full-width 1px divider line with a 20px fade-to-transparent on each end.
+// col  — line colour (typically ImGuiCol_TabSelected)
+// y    — screen Y position of the line
+// w    — total width to span
+inline void DrawFadeDivider(ImDrawList* dl, ImU32 col, float y, float w)
+{
+    constexpr float kFade = 20.f;
+    ImU32 fade = col & 0x00FFFFFFu;
+    float y1   = y + 1.f;
+    dl->AddRectFilledMultiColor({0.f,      y}, {kFade,     y1}, fade, col,  col,  fade);
+    dl->AddRectFilled          ({kFade,    y}, {w - kFade, y1}, col);
+    dl->AddRectFilledMultiColor({w - kFade,y}, {w,         y1}, col,  fade, fade, col);
+}

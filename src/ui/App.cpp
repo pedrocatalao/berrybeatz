@@ -373,6 +373,11 @@ void App::render(int winW, int winH)
     // ── Song bar (bottom strip) ───────────────────────────────────────────
     drawSongBar(w, h);
 
+    // ── Status bar divider line ───────────────────────────────────────────
+    DrawFadeDivider(ImGui::GetForegroundDrawList(),
+        ImGui::ColorConvertFloat4ToU32(ImGui::GetStyle().Colors[ImGuiCol_TabSelected]),
+        h - kSongBarH, w);
+
     // ── Sidebar ───────────────────────────────────────────────────────────
     {
         std::vector<SidebarData> allSongs;
@@ -469,19 +474,9 @@ void App::render(int winW, int winH)
     }
     ImGui::End();
 
-    {
-        constexpr float tabBarPadY = 2.f;
-        constexpr float kFade      = 20.f;
-        ImVec4 c    = ImGui::GetStyle().Colors[ImGuiCol_TabSelected];
-        ImU32  col  = ImGui::ColorConvertFloat4ToU32(c);
-        ImU32  fade = col & 0x00FFFFFFu;
-        float  y0   = contentY + kTabBarH - tabBarPadY - 2.f;
-        float  y1   = y0 + 1.f;
-        ImDrawList* fdl = ImGui::GetForegroundDrawList();
-        fdl->AddRectFilledMultiColor({0.f,        y0}, {kFade,     y1}, fade, col,  col,  fade);
-        fdl->AddRectFilled          ({kFade,       y0}, {w - kFade, y1}, col);
-        fdl->AddRectFilledMultiColor({w - kFade,   y0}, {w,         y1}, col,  fade, fade, col);
-    }
+    DrawFadeDivider(ImGui::GetForegroundDrawList(),
+        ImGui::ColorConvertFloat4ToU32(ImGui::GetStyle().Colors[ImGuiCol_TabSelected]),
+        contentY + kTabBarH - 4.f, w);
 
     // ── Content area ──────────────────────────────────────────────────────
     float cy = contentY + kTabBarH;
@@ -625,9 +620,9 @@ void App::drawSongBar(float w, float h)
     ImGui::SetNextWindowPos({0.f, h - kSongBarH}, ImGuiCond_Always);
     ImGui::SetNextWindowSize({w, kSongBarH}, ImGuiCond_Always);
     ImGui::PushStyleColor(ImGuiCol_WindowBg, IM_COL32(0, 0, 0, 0));
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,  {4.f, 3.f});
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,    {24.f, 0.f});
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f);
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,    {2.f, 0.f});
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,      {2.f, 0.f});
     ImGui::Begin("##songbar", nullptr,
         ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
         ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoSavedSettings |
@@ -639,7 +634,7 @@ void App::drawSongBar(float w, float h)
 
     ImDrawList* dl  = ImGui::GetWindowDrawList();
     ImVec2      mp  = ImGui::GetIO().MousePos;
-    const float tabH   = kSongBarH - 6.f;
+    const float tabH   = kSongBarH - 3.f;
     const float padX   = 7.f;
     const float xGap   = 6.f;
     const float xW     = ImGui::CalcTextSize("x").x + xGap * 2.f;
@@ -659,11 +654,11 @@ void App::drawSongBar(float w, float h)
 
         bool xHov = (mp.x >= xMin.x && mp.x < tMax.x && mp.y >= tMin.y && mp.y < tMax.y);
 
-        // Background
+        // Background — bottom corners rounded only (bottom tab style)
         if (isActive)
-            dl->AddRectFilled(tMin, tMax, kActBg, kStyleTabRounding);
+            dl->AddRectFilled(tMin, tMax, kActBg, kStyleTabRounding, ImDrawFlags_RoundCornersBottom);
         else if (ImGui::IsMouseHoveringRect(tMin, tMax))
-            dl->AddRectFilled(tMin, tMax, IM_COL32(60, 60, 80, 120), kStyleTabRounding);
+            dl->AddRectFilled(tMin, tMax, IM_COL32(60, 60, 80, 120), kStyleTabRounding, ImDrawFlags_RoundCornersBottom);
 
         // Name
         float ty = tMin.y + (tabH - ImGui::GetTextLineHeight()) * 0.5f;
@@ -671,7 +666,7 @@ void App::drawSongBar(float w, float h)
 
         // X
         if (xHov)
-            dl->AddRectFilled(xMin, tMax, kClrRed, kStyleTabRounding, ImDrawFlags_RoundCornersRight);
+            dl->AddRectFilled(xMin, tMax, kClrRed, kStyleTabRounding, ImDrawFlags_RoundCornersBottomRight);
         ImU32 xCol = xHov ? IM_COL32(255, 220, 220, 255) : IM_COL32(180, 175, 200, 200);
         float xTy  = tMin.y + (tabH - ImGui::GetTextLineHeight()) * 0.5f;
         dl->AddText({xMin.x + xGap, xTy}, xCol, "x");

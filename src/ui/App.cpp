@@ -756,11 +756,15 @@ void App::drawCommentsTab()
     static std::string msg;
     static const void* lastMod = nullptr;
     if (mod != lastMod) { msg = mod->getMessage(); lastMod = mod; }
-    ImGui::PushStyleColor(ImGuiCol_FrameBg,        IM_COL32( 8,  8, 20, 255));
-    ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, IM_COL32(10, 10, 24, 255));
-    ImGui::PushStyleColor(ImGuiCol_FrameBgActive,  IM_COL32(10, 10, 24, 255));
+    ImGui::PushStyleColor(ImGuiCol_FrameBg,        IM_COL32(0, 0, 0, 0));
+    ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, IM_COL32(0, 0, 0, 0));
+    ImGui::PushStyleColor(ImGuiCol_FrameBgActive,  IM_COL32(0, 0, 0, 0));
+    ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(160, 160, 175, 255));
+    ImGui::PushFont(g_fontMono);
     ImGui::InputTextMultiline("##msg", msg.data(), msg.size() + 1,
                               {-1.f, -1.f}, ImGuiInputTextFlags_ReadOnly);
+    ImGui::PopFont();
+    ImGui::PopStyleColor();
     ImGui::PopStyleColor(3);
 }
 

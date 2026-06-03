@@ -28,6 +28,7 @@ void SettingsView::draw()
 {
     if (!m_popup.begin("Settings", 500.f, 340.f)) return;
 
+    ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 1.f);
     if (BeginStyledTabBar("##settabs")) {
         const char* tabs[] = {"General", "Audio", "MIDI", "Editor"};
         using DrawFn = void (SettingsView::*)();

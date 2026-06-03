@@ -771,7 +771,26 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
             float vuBot = vuTop + (m_showVU ? VU_H : 0.f);
             if (m_showWave && channelWave[ch].count > 1) {
                 float wy    = vuBot;
-                dl->AddRectFilled({p.x + 1, wy}, {p.x + cw - 1, wy + WAVE_H}, IM_COL32(20, 20, 33, 255));
+                float wx0 = p.x + 1.f, wy0 = wy, wx1 = p.x + cw - 1.f, wy1 = wy + WAVE_H;
+
+                // Spherical gradient background — bright top-left (CRT bulge highlight)
+                dl->AddRectFilled({wx0, wy0}, {wx1, wy1}, IM_COL32(14, 15, 24, 255));
+                dl->AddRectFilledMultiColor({wx0, wy0}, {wx1, wy1},
+                    IM_COL32(48, 54, 82, 255),   // TL — brightest
+                    IM_COL32(20, 22, 36, 255),   // TR
+                    IM_COL32(12, 13, 21, 255),   // BR — darkest
+                    IM_COL32(18, 20, 32, 255));  // BL
+
+                // Black 1px grid — masks gradient down to phosphor dot array (3px dots, 1px gap)
+                {
+                    constexpr float kP = 3.f;
+                    ImU32 blk = IM_COL32(0, 0, 0, 255);
+                    for (float gy = wy0 + (kP - 1.f); gy < wy1; gy += kP)
+                        dl->AddRectFilled({wx0, gy}, {wx1, gy + 1.f}, blk);
+                    for (float gx = wx0 + (kP - 1.f); gx < wx1; gx += kP)
+                        dl->AddRectFilled({gx, wy0}, {gx + 1.f, wy1}, blk);
+                }
+
                 float cy    = wy + WAVE_H * 0.5f;
                 float halfH = WAVE_H * 0.5f - 2.f;
 

@@ -155,7 +155,7 @@ void TrackerView::render(float x, float y, float w, float h, float boxTopExt) {
         ImDrawList* bg = ImGui::GetBackgroundDrawList();
         ImVec2       p0 = {x + 4.f, y - boxTopExt};
         ImVec2       p1 = {x + w - 2.f, y + h};
-        bg->AddRectFilled(p0, p1, IM_COL32(14, 14, 26, 255));
+        bg->AddRectFilled(p0, p1, kClrTabBodyBg);
     }
 
     // Order list

@@ -60,6 +60,7 @@ static constexpr ImU32 kClrOrangeHint = IM_COL32(255, 153,  76, 255);  // "move 
 // ── Tab bar ───────────────────────────────────────────────────────────────────
 static constexpr ImU32   kClrTabBg        = IM_COL32( 10,  10,  22, 255);
 static constexpr ImU32   kClrTabHover     = IM_COL32( 35,  35,  60, 255);
+static constexpr ImU32   kClrTabBodyBg    = IM_COL32( 15,  15,  20, 255);
 static constexpr ImVec2  kTabFramePad     = {8.5f, 4.f};
 static constexpr ImVec2  kTabInnerSpacing = {1.f, 0.f};
 

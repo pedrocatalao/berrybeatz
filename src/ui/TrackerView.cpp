@@ -863,7 +863,7 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
                 float gapTop = p.y + m_chanH;
                 float gapBot = gapTop + padY + 1.f;
                 dl->AddRectFilled({p.x, gapTop}, {p.x + cw - 1, gapBot}, hdrCol);
-                dl->AddLine({p.x,          gapTop}, {p.x,          gapBot}, hiCol);
+                dl->AddLine({p.x,          gapTop - 1.f}, {p.x,          gapBot}, hiCol);
                 dl->AddLine({p.x + cw - 1, gapTop}, {p.x + cw - 1, gapBot}, loCol);
             }
             ImGui::PopID();

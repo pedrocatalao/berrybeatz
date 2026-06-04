@@ -18,6 +18,7 @@ struct PaCallbackData {
     std::atomic<bool>*    paused;
     std::atomic<double>*  seek;
     std::atomic<int32_t>* seek_order;
+    std::atomic<int32_t>* seek_row;
     std::atomic<int32_t>* subsong;
     std::vector<float>    left;
     std::vector<float>    right;
@@ -51,7 +52,7 @@ struct PaCallbackData {
 
     PaCallbackData()
         : mod(nullptr), state(nullptr), stop(nullptr), paused(nullptr),
-          seek(nullptr), seek_order(nullptr), subsong(nullptr) {
+          seek(nullptr), seek_order(nullptr), seek_row(nullptr), subsong(nullptr) {
         left.resize(FRAMES_BLOCK);
         right.resize(FRAMES_BLOCK);
         previewLeft.resize(FRAMES_BLOCK);
@@ -174,7 +175,7 @@ void AudioEngine::copyPreviewInstrument(int instrIdx) {
 }
 
 void AudioEngine::seekSeconds(double s)     { m_seek.store(s); }
-void AudioEngine::seekToOrder(int32_t o)    { m_seek_order.store(o); }
+void AudioEngine::seekToOrder(int32_t o, int32_t row) { m_seek_row.store(row); m_seek_order.store(o); }
 void AudioEngine::selectSubsong(int32_t i)  { m_subsong.store(i); }
 int32_t AudioEngine::subsongCount() const   { return m_mod ? m_mod->getNumSubsongs() : 0; }
 
@@ -321,7 +322,7 @@ int AudioEngine::paCallback(const void*, void* output,
     if (seekSec >= 0.0) { d->mod->setPositionSeconds(seekSec); d->inPatternPlay = false; }
 
     int32_t seekOrd = d->seek_order->exchange(-1);
-    if (seekOrd >= 0) { d->mod->setPositionOrderRow(seekOrd, 0); d->inPatternPlay = false; }
+    if (seekOrd >= 0) { d->mod->setPositionOrderRow(seekOrd, d->seek_row->exchange(0)); d->inPatternPlay = false; }
 
     // Pattern play trigger
     int32_t ppTrigger = d->pat_play_order->exchange(-1);
@@ -475,6 +476,7 @@ void AudioEngine::run() {
     cbData.paused            = &m_paused;
     cbData.seek              = &m_seek;
     cbData.seek_order        = &m_seek_order;
+    cbData.seek_row          = &m_seek_row;
     cbData.subsong           = &m_subsong;
     cbData.pat_play_order    = &m_patPlayOrder;
     cbData.pat_play_startrow = &m_patPlayStartRow;

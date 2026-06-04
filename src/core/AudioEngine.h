@@ -54,7 +54,7 @@ public:
     void    copyPreviewInstrument(int instrIdx);
 
     void    seekSeconds(double seconds);
-    void    seekToOrder(int32_t order);
+    void    seekToOrder(int32_t order, int32_t row = 0);
     void    selectSubsong(int32_t index);
     int32_t subsongCount() const;
 
@@ -111,6 +111,7 @@ private:
     bool                     m_ft2VolumeRamping {false};
     std::atomic<double>      m_seek       {-1.0};
     std::atomic<int32_t>     m_seek_order {-1};
+    std::atomic<int32_t>     m_seek_row   {0};
     std::atomic<int32_t>     m_subsong    {-2};   // -2 = no change
     int32_t                  m_samplerate  {48000};
     int                      m_deviceIndex {-1};

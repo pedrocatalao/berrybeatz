@@ -83,7 +83,8 @@ private:
     int   m_activeSongIdx {-1};
     bool  m_hasModule     {false};
 
-    Transport m_transport {Transport::Stopped};
+    Transport m_transport     {Transport::Stopped};
+    bool      m_inPatternPlay {false};
 
     PianoKeyboardState m_kbState;
     float              m_kbdAnimT {0.f};   // 0=hidden, 1=fully shown

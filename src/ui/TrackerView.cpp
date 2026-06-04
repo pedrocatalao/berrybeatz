@@ -247,35 +247,23 @@ void TrackerView::drawPatternToolbar1(float /*x*/, float /*y*/, float /*w*/) {
     pushToolbarStyle();
     ImGui::SetCursorPosY((ImGui::GetWindowHeight() - ImGui::GetFrameHeight()) * 0.5f);
 
-    auto actBtn = [&](const char* lbl, bool enabled = true) -> bool {
-        if (!enabled) ImGui::BeginDisabled();
-        bool r = ImGui::Button(lbl);
-        if (!enabled) ImGui::EndDisabled();
-        return r;
-    };
-
-    if (actBtn("Insert##ins", has)) {
-        if (onInsertPatternRequested) onInsertPatternRequested();
-    }
+    if (!has) ImGui::BeginDisabled();
+    if (SwitchButton("Insert##ins",       "Insert"))     { if (onInsertPatternRequested) onInsertPatternRequested(); }
     tip("Insert pattern");
     ImGui::SameLine();
-    if (actBtn("Play Cursor##playcur", has)) {
+    if (SwitchButton("Play Cursor##playcur", "Play Cursor")) {
         int32_t row = m_editMode ? m_cur.row : m_state.current_row.load();
         if (onPatternPlayFromCursor) onPatternPlayFromCursor(m_state.current_order.load(), row, m_loopPattern);
     }
     tip("Play from cursor (stops at pattern end, loops if Loop is on)");
     ImGui::SameLine();
-    if (actBtn("Play Start##playstart", has)) {
-        if (onPatternPlayFromStart) onPatternPlayFromStart(m_state.current_order.load(), m_loopPattern);
-    }
+    if (SwitchButton("Play Start##playstart", "Play Start")) { if (onPatternPlayFromStart) onPatternPlayFromStart(m_state.current_order.load(), m_loopPattern); }
     tip("Play pattern from start");
     ImGui::SameLine();
-    if (actBtn("Stop##stop2", has)) {
-        if (onStopRequested) onStopRequested();
-    }
+    if (SwitchButton("Stop##stop2",  "Stop"))  { if (onStopRequested) onStopRequested(); }
     tip("Stop playback");
     ImGui::SameLine();
-    if (actBtn("Play Row##playrow", has)) {
+    if (SwitchButton("Play Row##playrow", "Play Row")) {
         int32_t ord = m_state.current_order.load();
         int32_t row = m_cur.row;
         advanceCursor();
@@ -283,8 +271,6 @@ void TrackerView::drawPatternToolbar1(float /*x*/, float /*y*/, float /*w*/) {
     }
     tip("Play current row and advance cursor");
     ImGui::SameLine();
-
-    if (!has) ImGui::BeginDisabled();
     if (SwitchButton("Record##rec", "Record", m_editMode, 1, {0.f, 0.f}, IM_COL32(255, 60, 60, 255)))
         setEditMode(!m_editMode);
     if (!has) ImGui::EndDisabled();
@@ -312,20 +298,18 @@ void TrackerView::drawPatternToolbar3(float /*x*/, float /*y*/, float /*w*/) {
     pushToolbarStyle();
     ImGui::SetCursorPosY((ImGui::GetWindowHeight() - ImGui::GetFrameHeight()) * 0.5f);
 
-    auto actBtn = [&](const char* lbl, bool enabled = true) -> bool {
-        if (!enabled) ImGui::BeginDisabled();
-        bool r = ImGui::Button(lbl);
-        if (!enabled) ImGui::EndDisabled();
-        return r;
-    };
-
-    if (actBtn("Undo##undo", has && m_undo.canUndo())) { m_undo.undo(*m_ctrl); } tip("Undo");
+    if (!(has && m_undo.canUndo())) ImGui::BeginDisabled();
+    if (SwitchButton("Undo##undo", "Undo")) { m_undo.undo(*m_ctrl); }
+    if (!(has && m_undo.canUndo())) ImGui::EndDisabled();
+    tip("Undo");
     ImGui::SameLine();
-    if (actBtn("Props##props",  has)) {} tip("Pattern properties");
+    if (!has) ImGui::BeginDisabled();
+    if (SwitchButton("Props##props",  "Props"))  {} tip("Pattern properties");
     ImGui::SameLine();
-    if (actBtn("Expand##exp",   has)) {} tip("Expand pattern");
+    if (SwitchButton("Expand##exp",   "Expand")) {} tip("Expand pattern");
     ImGui::SameLine();
-    if (actBtn("Shrink##shr",   has)) {} tip("Shrink pattern");
+    if (SwitchButton("Shrink##shr",   "Shrink")) {} tip("Shrink pattern");
+    if (!has) ImGui::EndDisabled();
 
     tbSep();
     { bool prev = m_loopPattern;
@@ -429,7 +413,7 @@ void TrackerView::drawPatternToolbar2(float /*x*/, float /*y*/, float /*w*/) {
 
     ImGui::SameLine(0, 6);
     ImGui::BeginDisabled();
-    ImGui::Button("Plugin##plugin2");
+    SwitchButton("Plugin##plugin2", "Plugin");
     ImGui::EndDisabled();
     tip("Plugin selector (not yet available)");
 

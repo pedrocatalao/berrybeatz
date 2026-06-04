@@ -176,16 +176,16 @@ float DrawToolbar(ToolbarState& state,
 
         ImGui::SameLine(0.f, 8.f);
         ImGui::SetCursorPosY(by);
-        if (ImGui::Button("New"))  { if (state.onNew)  state.onNew();  }
+        if (SwitchButton("New##new",    "New"))    { if (state.onNew)   state.onNew();   }
         ImGui::SameLine(0.f, 3.f);
         ImGui::SetCursorPosY(by);
-        if (ImGui::Button("Open")) { if (state.onOpen) state.onOpen(); }
+        if (SwitchButton("Open##open",  "Open"))   { if (state.onOpen)  state.onOpen();  }
         ImGui::SameLine(0.f, 3.f);
         ImGui::SetCursorPosY(by);
-        if (ImGui::Button("Save")) { if (state.onSave) state.onSave(); }
+        if (SwitchButton("Save##save",  "Save"))   { if (state.onSave)  state.onSave();  }
         ImGui::SameLine(0.f, 3.f);
         ImGui::SetCursorPosY(by);
-        if (ImGui::Button("Config"))  { if (state.onSetup) state.onSetup(); }
+        if (SwitchButton("Config##cfg", "Config")) { if (state.onSetup) state.onSetup(); }
         ImGui::SameLine(0.f, 3.f);
         ImGui::SetCursorPosY(by);
         // Window drag is handled in the GLFW mouse button callback (main.cpp),
@@ -198,38 +198,23 @@ float DrawToolbar(ToolbarState& state,
     // ─── Transport ────────────────────────────────────────────────────────────
     if (!state.hasModule) ImGui::BeginDisabled();
 
-    // Stop button — red when stopped
+    // Stop button — red LED when stopped
     btnY();
     const bool isStopped = state.transport == Transport::Stopped;
-    if (isStopped) {
-        ImGui::PushStyleColor(ImGuiCol_Button,        kClrRed);
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, kClrRedHover);
-        ImGui::PushStyleColor(ImGuiCol_ButtonActive,  IM_COL32(200, 60, 60, 255));
-        ImGui::PushStyleColor(ImGuiCol_Text,          IM_COL32(255, 200, 200, 255));
-    }
-    if (ImGui::Button("Stop")) { if (state.onStop) state.onStop(); }
-    if (isStopped) ImGui::PopStyleColor(4);
+    if (SwitchButton("Stop##stop", "Stop", (int)isStopped, 1, {0.f, 0.f}, IM_COL32(220, 60, 60, 255)))
+        { if (state.onStop) state.onStop(); }
 
-    // Play/Pause button — green when playing, blue when paused, normal when stopped
+    // Play/Pause — fixed width (sized for "Pause"), green LED playing, blue LED paused
     ImGui::SameLine();
     btnY();
     const bool isPlaying = state.transport == Transport::Playing;
     const bool isPaused  = state.transport == Transport::Paused;
     const char* playLbl  = isPlaying ? "Pause" : "Play";
-    const float playBtnW = ImGui::CalcTextSize("Pause").x + ImGui::GetStyle().FramePadding.x * 2.f;
-    if (isPlaying) {
-        ImGui::PushStyleColor(ImGuiCol_Button,        IM_COL32( 60, 140,  75, 255));
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32( 80, 165,  95, 255));
-        ImGui::PushStyleColor(ImGuiCol_ButtonActive,  IM_COL32( 50, 120,  65, 255));
-        ImGui::PushStyleColor(ImGuiCol_Text,          IM_COL32(220, 255, 225, 255));
-    } else if (isPaused) {
-        ImGui::PushStyleColor(ImGuiCol_Button,        IM_COL32( 50,  80, 160, 255));
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32( 70, 105, 190, 255));
-        ImGui::PushStyleColor(ImGuiCol_ButtonActive,  IM_COL32( 40,  65, 135, 255));
-        ImGui::PushStyleColor(ImGuiCol_Text,          IM_COL32(200, 220, 255, 255));
-    }
-    if (ImGui::Button(playLbl, {playBtnW, 0.f})) { if (state.onPlayPause) state.onPlayPause(); }
-    if (isPlaying || isPaused) ImGui::PopStyleColor(4);
+    const float playBtnW = ImGui::CalcTextSize("Pause").x
+                         + ImGui::GetStyle().FramePadding.x + 16.f; // PAD_X + LED area
+    ImU32 ppLedCol = isPlaying ? IM_COL32(80, 200, 100, 255) : IM_COL32(80, 120, 255, 255);
+    if (SwitchButton("PlayPause##pp", playLbl, (int)(isPlaying || isPaused), 1, {playBtnW, 0.f}, ppLedCol))
+        { if (state.onPlayPause) state.onPlayPause(); }
 
     if (!state.hasModule) ImGui::EndDisabled();
 

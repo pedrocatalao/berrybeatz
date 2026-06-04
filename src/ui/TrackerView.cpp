@@ -961,12 +961,21 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
         m_lastEditAbsRow  = editAbs;
         m_lastEditChannel = m_cur.channel;
     } else if (needsSnap) {
-        newScrollY  = float(curAbsRow) * rowH - visH * 0.5f + rowH * 2.5f;
+        float padY  = ImGui::GetStyle().CellPadding.y;
+        newScrollY  = float(curAbsRow) * rowH - visH * 0.5f + rowH * 0.5f + padY;
+        m_visualRow = float(curAbsRow);
         forceScroll = true;
     } else if (playing && m_followSong && m_scrollSuppressTimer == 0.f) {
-        float targetY = float(curAbsRow) * rowH - visH * 0.5f + rowH * 2.5f;
-        newScrollY  = currentScrollY + (targetY - currentScrollY) * std::min(1.0f, 8.0f * dt);
-        forceScroll = true;
+        float padY      = ImGui::GetStyle().CellPadding.y;
+        float target    = float(curAbsRow) * rowH - visH * 0.5f + rowH * 0.5f + padY;
+        float maxScroll = ImGui::GetScrollMaxY();
+        if (target > 0.f) {
+            // Clamp to max: beyond last center-lockable row the scroll stays put and
+            // the cursor walks down naturally (symmetric with walk-from-top).
+            newScrollY  = std::min(target, maxScroll);
+            forceScroll = true;
+        }
+        // target <= 0: walk from top — don't touch scroll
     }
 
     if (forceScroll) {
@@ -1021,6 +1030,21 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
         if (s.orderIdx == curOrder) { curOrderSlotStart = s.startAbs; break; }
     int32_t editAbsRow = curOrderSlotStart + m_cur.row;
 
+    // In center-lock phase: rederive highlight from currentScrollY so it stays in sync
+    // with what's actually rendered (SetScrollY lags 1 frame). Skip during walk-from-top
+    // (forceScroll false) and walk-from-bottom (target > maxScroll) — both let the real
+    // curAbsRow from audio drive the highlight while scroll is pinned at 0 / maxScroll.
+    if (playing && m_followSong && m_scrollSuppressTimer == 0.f && forceScroll) {
+        float padY      = ImGui::GetStyle().CellPadding.y;
+        float target    = float(curAbsRow) * rowH - visH * 0.5f + rowH * 0.5f + padY;
+        float maxScroll = ImGui::GetScrollMaxY();
+        if (target <= maxScroll) {
+            int32_t h = (int32_t)roundf((currentScrollY + visH * 0.5f - rowH * 0.5f - padY) / rowH);
+            curAbsRow = std::clamp(h, 0, totalRows - 1);
+        }
+        // else walk-from-bottom: use real curAbsRow from audio
+    }
+
     ImGuiListClipper clipper;
     clipper.Begin(totalRows);
     int slotIdx = 0;
@@ -1040,7 +1064,7 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
         auto          dimIt    = m_slotDim.find(slot.orderIdx);
         const float   dimFactor = dimIt != m_slotDim.end() ? dimIt->second : (isActive ? 1.0f : 0.5f);
 
-        bool isCur     = isActive && localR == curRow;
+        bool isCur     = isActive && (slot.startAbs + localR) == curAbsRow;
         bool isMeasure = (localR % slot.rpm == 0);
         bool isBeat    = (localR % slot.rpb == 0) && !isMeasure;
 
@@ -1266,6 +1290,7 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
     clipper.End();
     if (m_fontMono) ImGui::PopFont();
     ImGui::EndTable();
+
     ImGui::PopStyleVar();
     ImGui::PopStyleColor(2);
 

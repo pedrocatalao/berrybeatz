@@ -79,6 +79,7 @@ public:
 
     // Callbacks wired up by App
     std::function<void(int32_t)>                onOrderSeekRequested;
+    std::function<void(int32_t, int32_t)>       onRowSeekRequested;
     std::function<void(int32_t, int32_t, bool)> onPatternPlayFromCursor;
     std::function<void(int32_t, bool)>          onPatternPlayFromStart;
     std::function<void(int32_t, int32_t)>       onPatternPlayRow;
@@ -171,14 +172,31 @@ private:
     bool    m_showPluginRow {true};
     bool    m_showKbd       {false};
     bool    m_loopPattern   {false};
+    bool    m_seekMode      {false};
     bool    m_continuousScroll   {false};
     bool    m_followSong         {true};
     bool    m_followSongSaved    {true};   // saved when entering edit mode
     float   m_scrollSuppressTimer {0.f};
     int32_t m_lastAbsRow          {0};
+    int32_t m_lastCurOrder        {-1};
+    float   m_wheelAcc            {0.f};
     std::unordered_map<int32_t, float> m_slotDim;   // orderIdx → animated dim factor
     std::atomic<int32_t> m_selectedInstrument {0};
     bool    m_overflowPaste {false};
     int     m_detailView    {0};     // 0=note+inst+vol+fx, 1=+vol, 2=+inst, 3=note
     bool    m_noteKeyAudioEnabled {true};
+
+    // Phosphor burn-in
+    struct PhosphorGhost {
+        float   x, y;
+        ImFont* font;
+        float   fsize;
+        char    text[8];
+        ImU32   baseCol;   // RGB only, alpha=0
+        float   alpha;
+    };
+    std::vector<PhosphorGhost>          m_phosphorGhosts;
+    std::unordered_map<int64_t, ImVec2> m_glowLastPos;
+    ImVec2                              m_patAreaMin{};
+    ImVec2                              m_patAreaMax{};
 };

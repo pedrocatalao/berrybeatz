@@ -7,6 +7,7 @@
 #include "PatternEditor.h"
 #include "SoundModule.h"
 #include <imgui.h>
+#include "SwitchButton.h"
 #include <algorithm>
 
 // ── OpenMPT "Blue (FT2)" colour scheme — sourced from Theme.h ─────────────────
@@ -53,17 +54,6 @@ static void tip(const char* text) {
         ImGui::SetTooltip("%s", text);
 }
 
-static void togBtn(const char* lbl, bool& state, bool enabled = true) {
-    if (!enabled) ImGui::BeginDisabled();
-    bool wasActive = state;
-    if (wasActive) {
-        ImGui::PushStyleColor(ImGuiCol_Button,        IM_COL32(64, 64, 160, 255));
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(80, 80, 190, 255));
-    }
-    if (ImGui::Button(lbl)) state = !state;
-    if (wasActive) ImGui::PopStyleColor(2);
-    if (!enabled) ImGui::EndDisabled();
-}
 
 static void tbSep() {
     ImGui::SameLine(0, 5);
@@ -179,6 +169,8 @@ void TrackerView::render(float x, float y, float w, float h, float boxTopExt) {
     // Pattern panel — channel headers are the frozen first row of the table
     float chanY = y + PTBAR1_H + PTBAR2_H + PTBAR3_H + ORDER_H;
     float patH  = h - (chanY - y);
+    m_patAreaMin = {x + 7.f, chanY};
+    m_patAreaMax = {x + w,   y + h};
     ImGui::SetNextWindowPos ({x + 7.f, chanY});
     ImGui::SetNextWindowSize({w - 7.f, patH});
     ImGui::PushStyleColor(ImGuiCol_ScrollbarBg,          IM_COL32(  0,   0,   0,   0));
@@ -202,6 +194,31 @@ void TrackerView::render(float x, float y, float w, float h, float boxTopExt) {
     drawPatternPanel(x, chanY, w, patH);
     ImGui::End();
     ImGui::PopStyleColor(4); // scrollbar colors — must outlive End()
+
+    // Phosphor ghost rendering — screen-space, on top of everything
+    if (!m_phosphorGhosts.empty() && g_glowPattern > 0.f) {
+        ImDrawList* fdl = ImGui::GetForegroundDrawList();
+        fdl->PushClipRect(m_patAreaMin, m_patAreaMax, true);
+        fdl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+        }, nullptr);
+        for (auto& g : m_phosphorGhosts) {
+            uint8_t a1 = (uint8_t)(g.alpha * 60.f * g_glowPattern);
+            uint8_t a2 = (uint8_t)(g.alpha * 28.f * g_glowPattern);
+            ImU32 c1 = (g.baseCol & 0x00FFFFFFu) | (uint32_t(a1) << 24);
+            ImU32 c2 = (g.baseCol & 0x00FFFFFFu) | (uint32_t(a2) << 24);
+            fdl->AddText(g.font, g.fsize, {g.x - 1, g.y - 1}, c1, g.text);
+            fdl->AddText(g.font, g.fsize, {g.x + 1, g.y - 1}, c1, g.text);
+            fdl->AddText(g.font, g.fsize, {g.x - 1, g.y + 1}, c1, g.text);
+            fdl->AddText(g.font, g.fsize, {g.x + 1, g.y + 1}, c1, g.text);
+            fdl->AddText(g.font, g.fsize, {g.x - 2, g.y - 2}, c2, g.text);
+            fdl->AddText(g.font, g.fsize, {g.x + 2, g.y + 2}, c2, g.text);
+        }
+        fdl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        }, nullptr);
+        fdl->PopClipRect();
+    }
 
 
     // Plugin settings popup (anchored to chanstrip window for ID stability)
@@ -230,35 +247,23 @@ void TrackerView::drawPatternToolbar1(float /*x*/, float /*y*/, float /*w*/) {
     pushToolbarStyle();
     ImGui::SetCursorPosY((ImGui::GetWindowHeight() - ImGui::GetFrameHeight()) * 0.5f);
 
-    auto actBtn = [&](const char* lbl, bool enabled = true) -> bool {
-        if (!enabled) ImGui::BeginDisabled();
-        bool r = ImGui::Button(lbl);
-        if (!enabled) ImGui::EndDisabled();
-        return r;
-    };
-
-    if (actBtn("Insert##ins", has)) {
-        if (onInsertPatternRequested) onInsertPatternRequested();
-    }
+    if (!has) ImGui::BeginDisabled();
+    if (SwitchButton("Insert##ins",       "Insert"))     { if (onInsertPatternRequested) onInsertPatternRequested(); }
     tip("Insert pattern");
     ImGui::SameLine();
-    if (actBtn("Play Cursor##playcur", has)) {
+    if (SwitchButton("Play Cursor##playcur", "Play Cursor")) {
         int32_t row = m_editMode ? m_cur.row : m_state.current_row.load();
         if (onPatternPlayFromCursor) onPatternPlayFromCursor(m_state.current_order.load(), row, m_loopPattern);
     }
     tip("Play from cursor (stops at pattern end, loops if Loop is on)");
     ImGui::SameLine();
-    if (actBtn("Play Start##playstart", has)) {
-        if (onPatternPlayFromStart) onPatternPlayFromStart(m_state.current_order.load(), m_loopPattern);
-    }
+    if (SwitchButton("Play Start##playstart", "Play Start")) { if (onPatternPlayFromStart) onPatternPlayFromStart(m_state.current_order.load(), m_loopPattern); }
     tip("Play pattern from start");
     ImGui::SameLine();
-    if (actBtn("Stop##stop2", has)) {
-        if (onStopRequested) onStopRequested();
-    }
+    if (SwitchButton("Stop##stop2",  "Stop"))  { if (onStopRequested) onStopRequested(); }
     tip("Stop playback");
     ImGui::SameLine();
-    if (actBtn("Play Row##playrow", has)) {
+    if (SwitchButton("Play Row##playrow", "Play Row")) {
         int32_t ord = m_state.current_order.load();
         int32_t row = m_cur.row;
         advanceCursor();
@@ -266,22 +271,20 @@ void TrackerView::drawPatternToolbar1(float /*x*/, float /*y*/, float /*w*/) {
     }
     tip("Play current row and advance cursor");
     ImGui::SameLine();
-
-    bool wasRec = m_editMode;
-    if (wasRec) {
-        ImGui::PushStyleColor(ImGuiCol_Button,        IM_COL32(160, 30, 30, 255));
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(190, 50, 50, 255));
-    }
-    if (actBtn("Record##rec", has)) setEditMode(!m_editMode);
-    if (wasRec) ImGui::PopStyleColor(2);
+    if (SwitchButton("Record##rec", "Record", m_editMode, 1, {0.f, 0.f}, IM_COL32(255, 60, 60, 255)))
+        setEditMode(!m_editMode);
+    if (!has) ImGui::EndDisabled();
     tip("Toggle record mode (Enter)");
 
     tbSep();
-    togBtn("VU##vu", m_showVU);   tip("Show/hide channel VU meters");
+    if (SwitchButton("VU##vu", "VU", m_showVU, 1)) m_showVU = !m_showVU;
+    tip("Show/hide channel VU meters");
     ImGui::SameLine();
-    togBtn("WF##wf", m_showWave); tip("Show/hide channel waveform");
+    if (SwitchButton("WF##wf", "WF", m_showWave, 1)) m_showWave = !m_showWave;
+    tip("Show/hide channel waveform");
     ImGui::SameLine();
-    togBtn("FX##fx", m_showPluginRow); tip("Show/hide plugin row");
+    if (SwitchButton("FX##fx", "FX", m_showPluginRow, 1)) m_showPluginRow = !m_showPluginRow;
+    tip("Show/hide plugin row");
 
     popToolbarStyle();
     if (m_fontUI) ImGui::PopFont();
@@ -295,38 +298,35 @@ void TrackerView::drawPatternToolbar3(float /*x*/, float /*y*/, float /*w*/) {
     pushToolbarStyle();
     ImGui::SetCursorPosY((ImGui::GetWindowHeight() - ImGui::GetFrameHeight()) * 0.5f);
 
-    auto actBtn = [&](const char* lbl, bool enabled = true) -> bool {
-        if (!enabled) ImGui::BeginDisabled();
-        bool r = ImGui::Button(lbl);
-        if (!enabled) ImGui::EndDisabled();
-        return r;
-    };
-
-    if (actBtn("Undo##undo", has && m_undo.canUndo())) { m_undo.undo(*m_ctrl); } tip("Undo");
+    if (!(has && m_undo.canUndo())) ImGui::BeginDisabled();
+    if (SwitchButton("Undo##undo", "Undo")) { m_undo.undo(*m_ctrl); }
+    if (!(has && m_undo.canUndo())) ImGui::EndDisabled();
+    tip("Undo");
     ImGui::SameLine();
-    if (actBtn("Props##props",  has)) {} tip("Pattern properties");
+    if (!has) ImGui::BeginDisabled();
+    if (SwitchButton("Props##props",  "Props"))  {} tip("Pattern properties");
     ImGui::SameLine();
-    if (actBtn("Expand##exp",   has)) {} tip("Expand pattern");
+    if (SwitchButton("Expand##exp",   "Expand")) {} tip("Expand pattern");
     ImGui::SameLine();
-    if (actBtn("Shrink##shr",   has)) {} tip("Shrink pattern");
+    if (SwitchButton("Shrink##shr",   "Shrink")) {} tip("Shrink pattern");
+    if (!has) ImGui::EndDisabled();
 
     tbSep();
-    { bool prev = m_loopPattern; togBtn("Loop##lp", m_loopPattern); if (m_loopPattern != prev && onLoopToggled) onLoopToggled(m_loopPattern); }    tip("Loop current pattern");
+    { bool prev = m_loopPattern;
+      if (SwitchButton("Loop##lp", "Loop", m_loopPattern, 1)) m_loopPattern = !m_loopPattern;
+      if (m_loopPattern != prev && onLoopToggled) onLoopToggled(m_loopPattern); }
+    tip("Loop current pattern");
     ImGui::SameLine();
     if (m_editMode) ImGui::BeginDisabled();
-    togBtn("Follow##fw", m_followSong);             tip("Follow playback cursor");
+    if (SwitchButton("Follow##fw", "Follow", m_followSong, 1)) m_followSong = !m_followSong;
     if (m_editMode) ImGui::EndDisabled();
+    tip("Follow playback cursor");
+    ImGui::SameLine();
+    if (SwitchButton("Seek##sk", "Seek", m_seekMode, 1)) m_seekMode = !m_seekMode;
+    tip("Scroll seeks play cursor (also: Option+Scroll)");
     tbSep();
-    {
-        bool wasActive = m_detailView > 0;
-        if (wasActive) {
-            ImGui::PushStyleColor(ImGuiCol_Button,        IM_COL32(64, 64, 160, 255));
-            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(80, 80, 190, 255));
-        }
-        if (ImGui::Button("Detail##detail"))
-            m_detailView = (m_detailView + 1) % 4;
-        if (wasActive) ImGui::PopStyleColor(2);
-    }
+    if (SwitchButton("Detail##detail", "Detail", 3 - m_detailView, 3))
+        m_detailView = (m_detailView + 1) % 4;
     static const char* detailTips[] = {
         "Note + Instrument + Volume + Effect",
         "Note + Instrument + Volume",
@@ -335,9 +335,11 @@ void TrackerView::drawPatternToolbar3(float /*x*/, float /*y*/, float /*w*/) {
     };
     tip(detailTips[m_detailView]);
     tbSep();
-    togBtn("Overflow##ovf", m_overflowPaste);  tip("Overflow paste");
+    if (SwitchButton("Overflow##ovf", "Overflow", m_overflowPaste, 1)) m_overflowPaste = !m_overflowPaste;
+    tip("Overflow paste");
     tbSep();
-    togBtn("KB##kbd", m_showKbd);  tip("Show piano keyboard");
+    if (SwitchButton("KB##kbd", "KB", m_showKbd, 1)) m_showKbd = !m_showKbd;
+    tip("Show piano keyboard");
 
     popToolbarStyle();
     if (m_fontUI) ImGui::PopFont();
@@ -414,7 +416,7 @@ void TrackerView::drawPatternToolbar2(float /*x*/, float /*y*/, float /*w*/) {
 
     ImGui::SameLine(0, 6);
     ImGui::BeginDisabled();
-    ImGui::Button("Plugin##plugin2");
+    SwitchButton("Plugin##plugin2", "Plugin");
     ImGui::EndDisabled();
     tip("Plugin selector (not yet available)");
 
@@ -579,6 +581,17 @@ void TrackerView::drawStereoVU(ImDrawList* dl, float x, float y, float w, float 
 // ── Pattern panel ─────────────────────────────────────────────────────────────
 
 void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float /*h*/) {
+    // Decay phosphor ghosts
+    {
+        const float dt    = ImGui::GetIO().DeltaTime;
+        const float decay = powf(0.04f, dt);  // decays to ~4% over 1 second
+        for (auto& g : m_phosphorGhosts) g.alpha *= decay;
+        m_phosphorGhosts.erase(
+            std::remove_if(m_phosphorGhosts.begin(), m_phosphorGhosts.end(),
+                [](const PhosphorGhost& g){ return g.alpha < 0.02f; }),
+            m_phosphorGhosts.end());
+    }
+
     if (!m_ctrl || m_state.num_channels.load() <= 0) {
         ImGui::TextColored(kDim, " No module loaded.");
         return;
@@ -950,9 +963,46 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
 
     float currentScrollY = ImGui::GetScrollY();
 
+    // Option+Scroll — seek play cursor row by row (consumes wheel before free-scroll check).
+    const float dt = ImGui::GetIO().DeltaTime;
+    if ((m_seekMode != ImGui::GetIO().KeyAlt) &&
+        ImGui::IsWindowHovered(ImGuiHoveredFlags_RootAndChildWindows))
+    {
+        const float wy = ImGui::GetIO().MouseWheel;
+        if (std::abs(wy) > 0.f && onRowSeekRequested && m_ctrl) {
+            m_wheelAcc += wy;
+            int steps = (int)m_wheelAcc;
+            m_wheelAcc -= (float)steps;
+            if (steps != 0) {
+                int32_t nOrds  = m_state.num_orders.load();
+                int32_t newOrd = m_state.current_order.load();
+                int32_t newRow = m_state.current_row.load() - steps; // up = wy>0 = earlier row
+                // navigate across pattern boundaries
+                while (newRow < 0 && newOrd > 0) {
+                    --newOrd;
+                    int prevPat  = m_ctrl->module()->getOrderPattern(newOrd);
+                    int prevRows = pe_num_rows(m_ctrl->module(), prevPat);
+                    newRow += prevRows;
+                }
+                newRow = std::max(newRow, 0);
+                int curPatRows = pe_num_rows(m_ctrl->module(), curPat);
+                while (newRow >= curPatRows && newOrd < nOrds - 1) {
+                    newRow -= curPatRows;
+                    ++newOrd;
+                    int nextPat  = m_ctrl->module()->getOrderPattern(newOrd);
+                    curPatRows   = pe_num_rows(m_ctrl->module(), nextPat);
+                }
+                newRow = std::min(newRow, curPatRows - 1);
+                onRowSeekRequested(newOrd, newRow);
+            }
+            ImGui::GetIO().MouseWheel = 0.f;
+        }
+    } else {
+        m_wheelAcc = 0.f;
+    }
+
     // Manual vertical scroll while hovered → suppress follow for 1 second.
     // Ignore when horizontal component dominates (trackpad horizontal swipe bleed).
-    const float dt = ImGui::GetIO().DeltaTime;
     {
         const float wy = ImGui::GetIO().MouseWheel;
         const float wx = ImGui::GetIO().MouseWheelH;
@@ -968,6 +1018,8 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
     bool  playing    = m_state.is_playing.load();
     bool  patChanged = (curPat != m_lastPattern);
     bool  rowRewound = (playing && curAbsRow < m_lastAbsRow - 2);
+    if (curOrder != m_lastCurOrder)
+        m_glowLastPos.clear();
     bool  navSnap    = m_navSnapPending; m_navSnapPending = false;
     // In continuous mode pattern boundaries are seamless — only snap on actual
     // backward jumps (loop restart / seek), not on natural forward progression.
@@ -1051,9 +1103,10 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
         m_hscroll = newScrollX;
     }
 
-    m_lastPattern = curPat;
-    m_lastRow     = curRow;
-    m_lastAbsRow  = curAbsRow;
+    m_lastPattern  = curPat;
+    m_lastRow      = curRow;
+    m_lastAbsRow   = curAbsRow;
+    m_lastCurOrder = curOrder;
 
     if (m_fontMono) ImGui::PushFont(m_fontMono);
 
@@ -1310,10 +1363,35 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
                 gdl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {
                     glBlendFunc(GL_SRC_ALPHA, GL_ONE);
                 }, nullptr);
-                auto addGlowText = [&](float gx, const ImVec4& c, const char* txt) {
-                    uint8_t a1 = (uint8_t)((isCur ? 25 : 12) * g_glowPattern);
-                    uint8_t a2 = (uint8_t)((isCur ? 12 :  7) * g_glowPattern);
-                    uint8_t a3 = (uint8_t)((isCur ?  9 :  0) * g_glowPattern);
+                auto addGlowText = [&](float gx, const ImVec4& c, const char* txt, int subCol) {
+                    // Phosphor: track last screen pos; spawn ghost if it moved
+                    int64_t pkey = (int64_t(absR) << 20) | (int64_t(ch) << 4) | int64_t(subCol);
+                    ImVec2  cur  = {gx, cellY};
+                    auto    pit  = m_glowLastPos.find(pkey);
+                    if (pit != m_glowLastPos.end() && fabsf(pit->second.y - cellY) > 0.5f) {
+                        ImU32 bcol = IM_COL32((uint8_t)(c.x*255.f),(uint8_t)(c.y*255.f),(uint8_t)(c.z*255.f), 0);
+                        PhosphorGhost g;
+                        g.x       = pit->second.x;
+                        g.y       = pit->second.y;
+                        g.font    = font;
+                        g.fsize   = fsz;
+                        g.baseCol = bcol;
+                        g.alpha   = 1.0f;
+                        strncpy(g.text, txt, 7); g.text[7] = '\0';
+                        m_phosphorGhosts.push_back(g);
+                        // Top-row pre-exit ghost: also stamp current position so it
+                        // fades in place after the row scrolls off the top
+                        if (absR == clipper.DisplayStart) {
+                            PhosphorGhost ge = g;
+                            ge.x = gx; ge.y = cellY;
+                            m_phosphorGhosts.push_back(ge);
+                        }
+                    }
+                    m_glowLastPos[pkey] = cur;
+
+                    uint8_t a1 = (uint8_t)((isCur ? 64 : 24) * g_glowPattern);
+                    uint8_t a2 = (uint8_t)((isCur ? 128 :  8) * g_glowPattern);
+                    uint8_t a3 = (uint8_t)((isCur ? 64 :  2) * g_glowPattern);
                     ImU32 gc1 = IM_COL32((uint8_t)(c.x*255.f),(uint8_t)(c.y*255.f),(uint8_t)(c.z*255.f), a1);
                     ImU32 gc2 = IM_COL32((uint8_t)(c.x*255.f),(uint8_t)(c.y*255.f),(uint8_t)(c.z*255.f), a2);
                     ImU32 gc3 = IM_COL32((uint8_t)(c.x*255.f),(uint8_t)(c.y*255.f),(uint8_t)(c.z*255.f), a3);
@@ -1332,12 +1410,12 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
                         gdl->AddText(font, fsz, {gx+3, cellY+3}, gc3, txt);
                     }
                 };
-                if (hasNote)              addGlowText(subX[0], kColNote,   note.c_str());
-                if (hasInst)              addGlowText(subX[1], kColInstr,  inst.c_str());
-                if (hasVol)               addGlowText(subX[2], kColVolume, vol.c_str());
+                if (hasNote)              addGlowText(subX[0], kColNote,   note.c_str(), 0);
+                if (hasInst)              addGlowText(subX[1], kColInstr,  inst.c_str(), 1);
+                if (hasVol)               addGlowText(subX[2], kColVolume, vol.c_str(),  2);
                 if (hasFx) {
-                    addGlowText(subX[3], kColGlobal, fx.c_str());
-                    addGlowText(subX[4], kColGlobal, fxp.c_str());
+                    addGlowText(subX[3], kColGlobal, fx.c_str(),  3);
+                    addGlowText(subX[4], kColGlobal, fxp.c_str(), 4);
                 }
                 gdl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {
                     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);

@@ -120,10 +120,29 @@ App::App() : m_controller(m_state), m_audio(m_state), m_tracker(m_state), m_gene
             m_tracker.requestNavSnap();
         }
     };
+    m_tracker.onRowSeekRequested = [this](int32_t order, int32_t row) {
+        if (m_transport == Transport::Playing) {
+            if (m_inPatternPlay)
+                m_audio.playPatternFrom(order, row, m_tracker.getLoopPattern());
+            else
+                m_audio.seekToOrder(order, row);
+        } else if (m_hasModule) {
+            auto* mod = m_audio.getModule();
+            if (!mod) return;
+            mod->setPositionOrderRow(order, row);
+            m_state.current_order.store(order);
+            m_state.current_row.store(row);
+            int pat = mod->getOrderPattern(order);
+            if (pat >= 0) m_state.current_pattern.store(pat);
+            m_tracker.requestNavSnap();
+        }
+    };
     m_tracker.onPatternPlayFromCursor = [this](int32_t order, int32_t row, bool loop) {
+        m_inPatternPlay = true;
         m_audio.playPatternFrom(order, row, loop);
     };
     m_tracker.onPatternPlayFromStart = [this](int32_t order, bool loop) {
+        m_inPatternPlay = true;
         m_audio.playPatternFrom(order, 0, loop);
     };
     m_tracker.onPatternPlayRow  = [this](int32_t order, int32_t row) { m_audio.playRow(order, row); };
@@ -169,8 +188,10 @@ App::App() : m_controller(m_state), m_audio(m_state), m_tracker(m_state), m_gene
                 for (int o = 0; o < numOrd; ++o)
                     if (mod->getOrderPattern(o) == idx) { order = o; break; }
                 if (order >= 0) {
-                    if (m_transport == Transport::Playing)
+                    if (m_transport == Transport::Playing) {
+                        m_inPatternPlay = true;
                         m_audio.playPatternFrom(order, 0, m_tracker.getLoopPattern());
+                    }
                     else {
                         mod->setPositionOrderRow(order, 0);
                         m_state.current_order.store(order);
@@ -187,7 +208,7 @@ App::App() : m_controller(m_state), m_audio(m_state), m_tracker(m_state), m_gene
     m_settings.load(Settings::defaultPath());
     g_glowLogo    = m_settings.glowLogo    / 5.f;
     g_glowVU      = m_settings.glowVU      / 5.f;
-    g_glowPattern = m_settings.glowPattern / 5.f;
+    g_glowPattern = (m_settings.glowPattern * m_settings.glowPattern) / 250.f;
     g_glowKnobs   = m_settings.glowKnobs   / 5.f;
     m_tracker.setContinuousScroll(m_settings.continuousScroll);
     m_audio.setFT2VolumeRamping(m_settings.ft2VolumeRamping);
@@ -204,7 +225,7 @@ App::App() : m_controller(m_state), m_audio(m_state), m_tracker(m_state), m_gene
         m_settings.save(Settings::defaultPath());
         g_glowLogo    = s.glowLogo    / 5.f;
         g_glowVU      = s.glowVU      / 5.f;
-        g_glowPattern = s.glowPattern / 5.f;
+        g_glowPattern = (s.glowPattern * s.glowPattern) / 250.f;
         g_glowKnobs   = s.glowKnobs   / 5.f;
         m_tracker.setContinuousScroll(s.continuousScroll);
         m_audio.setFT2VolumeRamping(s.ft2VolumeRamping);
@@ -804,6 +825,7 @@ void App::startPlayback()
 {
     if (!m_hasModule) return;
     if (m_transport == Transport::Playing) return;
+    m_inPatternPlay = false;
     m_audio.setPaused(false);
     if (!m_audio.isRunning()) m_audio.start();
     m_transport = Transport::Playing;
@@ -816,6 +838,7 @@ void App::stopPlayback()
     if (auto* mod = m_audio.getModule())
         mod->setPositionSeconds(0.0);
     m_transport = Transport::Stopped;
+    m_inPatternPlay = false;
 }
 
 void App::togglePlayPause()

@@ -38,9 +38,11 @@ static constexpr ImU32 kClrBgTitle   = IM_COL32(  8,   8,  30, 255);  // setting
 
 
 // ── Text ──────────────────────────────────────────────────────────────────────
-static constexpr ImU32 kClrTextBright  = IM_COL32(208, 208, 224, 255);  // primary / active tab
-static constexpr ImU32 kClrTextDim     = IM_COL32(110, 110, 130, 255);  // inactive tab
-static constexpr ImU32 kClrTextLabel   = IM_COL32(160, 160, 180, 255);  // knob labels, close btn icon
+static constexpr ImU32  kClrTextBright  = IM_COL32(208, 208, 224, 255);  // primary / active tab
+static constexpr ImU32  kClrTextDim     = IM_COL32(110, 110, 130, 255);  // inactive tab
+static constexpr ImU32  kClrTextLabel   = IM_COL32(160, 160, 180, 255);  // knob labels, close btn icon
+static constexpr ImU32  kClrTextHint    = IM_COL32(128, 128, 166, 255);  // subtle navigation/hint labels
+static constexpr ImVec4 kClrTextHintV4  = { 0.5f, 0.5f, 0.65f, 1.f };
 static constexpr ImU32 kClrTextValue   = IM_COL32(208, 208,  80, 255);  // knob/edit values (yellow)
 static constexpr ImU32 kClrTextChannel = IM_COL32(200, 200, 120, 255);  // active channel name
 static constexpr ImU32 kClrTextMuted   = IM_COL32( 60,  60,  60, 255);  // muted channel name

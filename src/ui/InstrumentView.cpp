@@ -129,7 +129,7 @@ void InstrumentView::drawEditor(float x, float y, float w, float h) {
         return;
     }
 
-    const ImVec4 kDim = {0.5f, 0.5f, 0.65f, 1.f};
+    const ImVec4& kDim = kClrTextHintV4;
     const float  kPad = 6.f;
     float        cw   = w - kPad * 2.f;
     ImGui::SetCursorPosX(kPad);

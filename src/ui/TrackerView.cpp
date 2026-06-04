@@ -158,6 +158,15 @@ void TrackerView::render(float x, float y, float w, float h, float boxTopExt) {
         bg->AddRectFilled(p0, p1, kClrTabBodyBg);
     }
 
+    // "Pat" label — vertically centred in the order row strip, left of the order list
+    if (m_fontUI) {
+        float fh    = m_fontUI->LegacySize;
+        float lblY  = y + PTBAR1_H + PTBAR2_H + PTBAR3_H + (ORDER_H - fh) * 0.5f;
+        ImGui::GetBackgroundDrawList()->AddText(
+            m_fontUI, fh, {x + 8.f, lblY},
+            kClrTextHint, "Pat");
+    }
+
     // Order list
     ImGui::SetNextWindowPos ({x + 26.f + 7.f, y + PTBAR1_H + PTBAR2_H + PTBAR3_H});
     ImGui::SetNextWindowSize({w - 26.f - 7.f - 4.f, ORDER_H});
@@ -342,7 +351,7 @@ void TrackerView::drawPatternToolbar2(float /*x*/, float /*y*/, float /*w*/) {
     ImGui::SetCursorPosY((ImGui::GetWindowHeight() - ImGui::GetFrameHeight()) * 0.5f);
 
     ImGui::AlignTextToFramePadding();
-    ImGui::TextColored(kDim, "Instr");
+    ImGui::TextColored(kClrTextHintV4, "Instr");
     ImGui::SameLine(0, 4);
     {
         std::vector<std::string> names;
@@ -410,7 +419,7 @@ void TrackerView::drawPatternToolbar2(float /*x*/, float /*y*/, float /*w*/) {
 
     tbSep();
 
-    ImGui::TextColored(kDim, "Step");
+    ImGui::TextColored(kClrTextHintV4, "Step");
     ImGui::SameLine(0, 6);
     ImGui::TextColored(ImVec4(0.82f, 0.82f, 0.88f, 1.f), "%d", m_editStep);
     ImGui::SameLine(0, 4);
@@ -424,7 +433,7 @@ void TrackerView::drawPatternToolbar2(float /*x*/, float /*y*/, float /*w*/) {
 
     tbSep();
 
-    ImGui::TextColored(kDim, "Pattern");
+    ImGui::TextColored(kClrTextHintV4, "Pattern");
     ImGui::SameLine(0, 4);
     int32_t curPat = m_ctrl ? m_state.current_pattern.load() : -1;
     std::string patName;

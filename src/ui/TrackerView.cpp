@@ -203,6 +203,7 @@ void TrackerView::render(float x, float y, float w, float h, float boxTopExt) {
     ImGui::End();
     ImGui::PopStyleColor(4); // scrollbar colors — must outlive End()
 
+
     // Plugin settings popup (anchored to chanstrip window for ID stability)
     ImGui::SetNextWindowPos({x, chanY});
     ImGui::SetNextWindowSize({1, 1}, ImGuiCond_Always);
@@ -706,7 +707,37 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
         ImGui::TableSetBgColor(ImGuiTableBgTarget_CellBg, IM_COL32(0, 0, 0, 0), 0);
 
         ImGui::TableSetColumnIndex(0);
-        ImGui::Dummy({m_rowNumW, m_chanH});
+        {
+            ImVec2      cp  = ImGui::GetCursorScreenPos();
+            ImDrawList* cdl = ImGui::GetWindowDrawList();
+            ImGui::Dummy({m_rowNumW, m_chanH});
+
+            if (m_rowH > 0.f && g_fontRowNum) {
+                float scrollY = ImGui::GetScrollY();
+                int   topAbs  = (int)(scrollY / m_rowH);
+                float frac    = fmodf(scrollY, m_rowH);
+                int   nFit    = std::min(4, (int)(m_chanH / m_rowH));
+                // Convert absolute row → local row (same display as the row number column)
+                auto localRow = [&](int32_t abs) -> int32_t {
+                    for (auto& s : slots)
+                        if (abs >= s.startAbs && abs < s.startAbs + s.nrows)
+                            return abs - s.startAbs;
+                    return abs;
+                };
+                cdl->PushClipRect({cp.x, cp.y}, {cp.x + m_rowNumW, cp.y + m_chanH}, true);
+                for (int i = 0; i < nFit; i++) {
+                    int32_t absRow = topAbs - 1 - i;
+                    if (absRow < 0) break;
+                    float   yPos = floorf(cp.y + m_chanH - m_rowH * (i + 1) + frac);
+                    uint8_t a    = (uint8_t)(70.f * float(nFit - i) / float(nFit));
+                    char buf[8]; snprintf(buf, sizeof(buf), "%3d", localRow(absRow));
+                    cdl->AddText(g_fontRowNum, g_fontRowNum->LegacySize,
+                                 {cp.x + m_rowNumW - 22.f - 7.f, yPos - 10.f},
+                                 IM_COL32(180, 180, 210, a), buf);
+                }
+                cdl->PopClipRect();
+            }
+        }
 
         for (int ch = 0; ch < nch; ch++) {
             ImGui::TableSetColumnIndex(ch + 1);

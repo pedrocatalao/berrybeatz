@@ -179,6 +179,8 @@ void TrackerView::render(float x, float y, float w, float h, float boxTopExt) {
     // Pattern panel — channel headers are the frozen first row of the table
     float chanY = y + PTBAR1_H + PTBAR2_H + PTBAR3_H + ORDER_H;
     float patH  = h - (chanY - y);
+    m_patAreaMin = {x + 7.f, chanY};
+    m_patAreaMax = {x + w,   y + h};
     ImGui::SetNextWindowPos ({x + 7.f, chanY});
     ImGui::SetNextWindowSize({w - 7.f, patH});
     ImGui::PushStyleColor(ImGuiCol_ScrollbarBg,          IM_COL32(  0,   0,   0,   0));
@@ -202,6 +204,31 @@ void TrackerView::render(float x, float y, float w, float h, float boxTopExt) {
     drawPatternPanel(x, chanY, w, patH);
     ImGui::End();
     ImGui::PopStyleColor(4); // scrollbar colors — must outlive End()
+
+    // Phosphor ghost rendering — screen-space, on top of everything
+    if (!m_phosphorGhosts.empty() && g_glowPattern > 0.f) {
+        ImDrawList* fdl = ImGui::GetForegroundDrawList();
+        fdl->PushClipRect(m_patAreaMin, m_patAreaMax, true);
+        fdl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+        }, nullptr);
+        for (auto& g : m_phosphorGhosts) {
+            uint8_t a1 = (uint8_t)(g.alpha * 60.f * g_glowPattern);
+            uint8_t a2 = (uint8_t)(g.alpha * 28.f * g_glowPattern);
+            ImU32 c1 = (g.baseCol & 0x00FFFFFFu) | (uint32_t(a1) << 24);
+            ImU32 c2 = (g.baseCol & 0x00FFFFFFu) | (uint32_t(a2) << 24);
+            fdl->AddText(g.font, g.fsize, {g.x - 1, g.y - 1}, c1, g.text);
+            fdl->AddText(g.font, g.fsize, {g.x + 1, g.y - 1}, c1, g.text);
+            fdl->AddText(g.font, g.fsize, {g.x - 1, g.y + 1}, c1, g.text);
+            fdl->AddText(g.font, g.fsize, {g.x + 1, g.y + 1}, c1, g.text);
+            fdl->AddText(g.font, g.fsize, {g.x - 2, g.y - 2}, c2, g.text);
+            fdl->AddText(g.font, g.fsize, {g.x + 2, g.y + 2}, c2, g.text);
+        }
+        fdl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        }, nullptr);
+        fdl->PopClipRect();
+    }
 
 
     // Plugin settings popup (anchored to chanstrip window for ID stability)
@@ -579,6 +606,17 @@ void TrackerView::drawStereoVU(ImDrawList* dl, float x, float y, float w, float 
 // ── Pattern panel ─────────────────────────────────────────────────────────────
 
 void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float /*h*/) {
+    // Decay phosphor ghosts
+    {
+        const float dt    = ImGui::GetIO().DeltaTime;
+        const float decay = powf(0.04f, dt);  // decays to ~4% over 1 second
+        for (auto& g : m_phosphorGhosts) g.alpha *= decay;
+        m_phosphorGhosts.erase(
+            std::remove_if(m_phosphorGhosts.begin(), m_phosphorGhosts.end(),
+                [](const PhosphorGhost& g){ return g.alpha < 0.02f; }),
+            m_phosphorGhosts.end());
+    }
+
     if (!m_ctrl || m_state.num_channels.load() <= 0) {
         ImGui::TextColored(kDim, " No module loaded.");
         return;
@@ -1310,7 +1348,24 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
                 gdl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {
                     glBlendFunc(GL_SRC_ALPHA, GL_ONE);
                 }, nullptr);
-                auto addGlowText = [&](float gx, const ImVec4& c, const char* txt) {
+                auto addGlowText = [&](float gx, const ImVec4& c, const char* txt, int subCol) {
+                    // Phosphor: track last screen pos; spawn ghost if it moved
+                    int64_t pkey = (int64_t(absR) << 20) | (int64_t(ch) << 4) | int64_t(subCol);
+                    ImVec2  cur  = {gx, cellY};
+                    auto    pit  = m_glowLastPos.find(pkey);
+                    if (pit != m_glowLastPos.end() && fabsf(pit->second.y - cellY) > 0.5f) {
+                        PhosphorGhost g;
+                        g.x       = pit->second.x;
+                        g.y       = pit->second.y;
+                        g.font    = font;
+                        g.fsize   = fsz;
+                        g.baseCol = IM_COL32((uint8_t)(c.x*255.f),(uint8_t)(c.y*255.f),(uint8_t)(c.z*255.f), 0);
+                        g.alpha   = 1.0f;
+                        strncpy(g.text, txt, 7); g.text[7] = '\0';
+                        m_phosphorGhosts.push_back(g);
+                    }
+                    m_glowLastPos[pkey] = cur;
+
                     uint8_t a1 = (uint8_t)((isCur ? 25 : 12) * g_glowPattern);
                     uint8_t a2 = (uint8_t)((isCur ? 12 :  7) * g_glowPattern);
                     uint8_t a3 = (uint8_t)((isCur ?  9 :  0) * g_glowPattern);
@@ -1332,12 +1387,12 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
                         gdl->AddText(font, fsz, {gx+3, cellY+3}, gc3, txt);
                     }
                 };
-                if (hasNote)              addGlowText(subX[0], kColNote,   note.c_str());
-                if (hasInst)              addGlowText(subX[1], kColInstr,  inst.c_str());
-                if (hasVol)               addGlowText(subX[2], kColVolume, vol.c_str());
+                if (hasNote)              addGlowText(subX[0], kColNote,   note.c_str(), 0);
+                if (hasInst)              addGlowText(subX[1], kColInstr,  inst.c_str(), 1);
+                if (hasVol)               addGlowText(subX[2], kColVolume, vol.c_str(),  2);
                 if (hasFx) {
-                    addGlowText(subX[3], kColGlobal, fx.c_str());
-                    addGlowText(subX[4], kColGlobal, fxp.c_str());
+                    addGlowText(subX[3], kColGlobal, fx.c_str(),  3);
+                    addGlowText(subX[4], kColGlobal, fxp.c_str(), 4);
                 }
                 gdl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {
                     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);

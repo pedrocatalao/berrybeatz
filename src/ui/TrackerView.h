@@ -181,4 +181,18 @@ private:
     bool    m_overflowPaste {false};
     int     m_detailView    {0};     // 0=note+inst+vol+fx, 1=+vol, 2=+inst, 3=note
     bool    m_noteKeyAudioEnabled {true};
+
+    // Phosphor burn-in
+    struct PhosphorGhost {
+        float   x, y;
+        ImFont* font;
+        float   fsize;
+        char    text[8];
+        ImU32   baseCol;   // RGB only, alpha=0
+        float   alpha;
+    };
+    std::vector<PhosphorGhost>          m_phosphorGhosts;
+    std::unordered_map<int64_t, ImVec2> m_glowLastPos;
+    ImVec2                              m_patAreaMin{};
+    ImVec2                              m_patAreaMax{};
 };

@@ -176,6 +176,7 @@ private:
     bool    m_followSongSaved    {true};   // saved when entering edit mode
     float   m_scrollSuppressTimer {0.f};
     int32_t m_lastAbsRow          {0};
+    int32_t m_lastCurOrder        {-1};
     std::unordered_map<int32_t, float> m_slotDim;   // orderIdx → animated dim factor
     std::atomic<int32_t> m_selectedInstrument {0};
     bool    m_overflowPaste {false};

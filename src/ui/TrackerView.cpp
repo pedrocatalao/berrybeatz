@@ -1006,6 +1006,8 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
     bool  playing    = m_state.is_playing.load();
     bool  patChanged = (curPat != m_lastPattern);
     bool  rowRewound = (playing && curAbsRow < m_lastAbsRow - 2);
+    if (curOrder != m_lastCurOrder)
+        m_glowLastPos.clear();
     bool  navSnap    = m_navSnapPending; m_navSnapPending = false;
     // In continuous mode pattern boundaries are seamless — only snap on actual
     // backward jumps (loop restart / seek), not on natural forward progression.
@@ -1089,9 +1091,10 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
         m_hscroll = newScrollX;
     }
 
-    m_lastPattern = curPat;
-    m_lastRow     = curRow;
-    m_lastAbsRow  = curAbsRow;
+    m_lastPattern  = curPat;
+    m_lastRow      = curRow;
+    m_lastAbsRow   = curAbsRow;
+    m_lastCurOrder = curOrder;
 
     if (m_fontMono) ImGui::PushFont(m_fontMono);
 

@@ -717,23 +717,32 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
                 int   topAbs  = (int)(scrollY / m_rowH);
                 float frac    = fmodf(scrollY, m_rowH);
                 int   nFit    = std::min(4, (int)(m_chanH / m_rowH));
-                // Convert absolute row → local row (same display as the row number column)
-                auto localRow = [&](int32_t abs) -> int32_t {
+                // Resolve absolute row → local row + slot rpb/rpm
+                struct GhostInfo { int32_t local; int rpb, rpm; };
+                auto ghostInfo = [&](int32_t abs) -> GhostInfo {
                     for (auto& s : slots)
                         if (abs >= s.startAbs && abs < s.startAbs + s.nrows)
-                            return abs - s.startAbs;
-                    return abs;
+                            return {abs - s.startAbs, s.rpb, s.rpm};
+                    return {abs, rpb, rpm};
                 };
                 cdl->PushClipRect({cp.x, cp.y}, {cp.x + m_rowNumW, cp.y + m_chanH}, true);
                 for (int i = 0; i < nFit; i++) {
-                    int32_t absRow = topAbs - 1 - i;
+                    int32_t absRow   = topAbs - 1 - i;
                     if (absRow < 0) break;
-                    float   yPos = floorf(cp.y + m_chanH - m_rowH * (i + 1) + frac);
-                    uint8_t a    = (uint8_t)(70.f * float(nFit - i) / float(nFit));
-                    char buf[8]; snprintf(buf, sizeof(buf), "%3d", localRow(absRow));
+                    auto    gi       = ghostInfo(absRow);
+                    bool    isMeasure = (gi.local % gi.rpm == 0);
+                    bool    isBeat    = (gi.local % gi.rpb == 0) && !isMeasure;
+                    float   yPos     = floorf(cp.y + m_chanH - m_rowH * (i + 1) + frac);
+                    float   maxA     = (isMeasure || isBeat) ? 160.f : 70.f;
+                    uint8_t a        = (uint8_t)(maxA * float(nFit - i) / float(nFit));
+                    ImVec4  base     = (isMeasure || isBeat) ? kTextNormal
+                                                              : ImVec4{180/255.f, 180/255.f, 210/255.f, 1.f};
+                    ImU32   col      = IM_COL32((uint8_t)(base.x*255.f), (uint8_t)(base.y*255.f),
+                                               (uint8_t)(base.z*255.f), a);
+                    char buf[8]; snprintf(buf, sizeof(buf), "%3d", gi.local);
                     cdl->AddText(g_fontRowNum, g_fontRowNum->LegacySize,
                                  {cp.x + m_rowNumW - 22.f - 7.f, yPos - 10.f},
-                                 IM_COL32(180, 180, 210, a), buf);
+                                 col, buf);
                 }
                 cdl->PopClipRect();
             }

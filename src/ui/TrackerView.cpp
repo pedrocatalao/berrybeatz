@@ -718,12 +718,12 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
                 float frac    = fmodf(scrollY, m_rowH);
                 int   nFit    = std::min(4, (int)(m_chanH / m_rowH));
                 // Resolve absolute row → local row + slot rpb/rpm
-                struct GhostInfo { int32_t local; int rpb, rpm; };
+                struct GhostInfo { int32_t local; int rpb, rpm; int orderIdx; };
                 auto ghostInfo = [&](int32_t abs) -> GhostInfo {
                     for (auto& s : slots)
                         if (abs >= s.startAbs && abs < s.startAbs + s.nrows)
-                            return {abs - s.startAbs, s.rpb, s.rpm};
-                    return {abs, rpb, rpm};
+                            return {abs - s.startAbs, s.rpb, s.rpm, s.orderIdx};
+                    return {abs, rpb, rpm, curOrder};
                 };
                 cdl->PushClipRect({cp.x, cp.y}, {cp.x + m_rowNumW, cp.y + m_chanH}, true);
                 for (int i = 0; i < nFit; i++) {
@@ -733,7 +733,9 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
                     bool    isMeasure = (gi.local % gi.rpm == 0);
                     bool    isBeat    = (gi.local % gi.rpb == 0) && !isMeasure;
                     float   yPos     = floorf(cp.y + m_chanH - m_rowH * (i + 1) + frac);
+                    bool    isActive = (gi.orderIdx == curOrder);
                     float   maxA     = (isMeasure || isBeat) ? 160.f : 70.f;
+                    if (!isActive) maxA *= 0.35f;
                     uint8_t a        = (uint8_t)(maxA * float(nFit - i) / float(nFit));
                     ImVec4  base     = (isMeasure || isBeat) ? kTextNormal
                                                               : ImVec4{180/255.f, 180/255.f, 210/255.f, 1.f};

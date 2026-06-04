@@ -1366,9 +1366,9 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
                     }
                     m_glowLastPos[pkey] = cur;
 
-                    uint8_t a1 = (uint8_t)((isCur ? 25 : 12) * g_glowPattern);
-                    uint8_t a2 = (uint8_t)((isCur ? 12 :  7) * g_glowPattern);
-                    uint8_t a3 = (uint8_t)((isCur ?  9 :  0) * g_glowPattern);
+                    uint8_t a1 = (uint8_t)((isCur ? 64 : 24) * g_glowPattern);
+                    uint8_t a2 = (uint8_t)((isCur ? 128 :  8) * g_glowPattern);
+                    uint8_t a3 = (uint8_t)((isCur ? 64 :  2) * g_glowPattern);
                     ImU32 gc1 = IM_COL32((uint8_t)(c.x*255.f),(uint8_t)(c.y*255.f),(uint8_t)(c.z*255.f), a1);
                     ImU32 gc2 = IM_COL32((uint8_t)(c.x*255.f),(uint8_t)(c.y*255.f),(uint8_t)(c.z*255.f), a2);
                     ImU32 gc3 = IM_COL32((uint8_t)(c.x*255.f),(uint8_t)(c.y*255.f),(uint8_t)(c.z*255.f), a3);

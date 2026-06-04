@@ -1031,8 +1031,15 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
         newScrollY = std::max(0.f, std::min(newScrollY, float(totalRows) * rowH));
         ImGui::SetScrollY(newScrollY);
         m_scrollY = newScrollY;
-    } else {
-        m_scrollY = currentScrollY;
+    } else if (m_rowH > 0.f) {
+        float snapped = roundf(currentScrollY / m_rowH) * m_rowH;
+        snapped = std::max(0.f, std::min(snapped, float(totalRows) * rowH));
+        if (fabsf(snapped - currentScrollY) > 0.5f) {
+            ImGui::SetScrollY(snapped);
+            m_scrollY = snapped;
+        } else {
+            m_scrollY = currentScrollY;
+        }
     }
     if (forceScrollX) {
         float maxScrollX = std::max(0.f, float(nch) * (m_colStep > 0.f ? m_colStep : m_cellW) - (avail.x - m_rowNumW - kSbSize));

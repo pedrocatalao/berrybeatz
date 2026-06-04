@@ -741,7 +741,7 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
                                                (uint8_t)(base.z*255.f), a);
                     char buf[8]; snprintf(buf, sizeof(buf), "%3d", gi.local);
                     cdl->AddText(g_fontRowNum, g_fontRowNum->LegacySize,
-                                 {cp.x + m_rowNumW - 22.f - 7.f, yPos - 10.f},
+                                 {cp.x + m_rowNumW - 22.f - 7.f, yPos + 3.f},
                                  col, buf);
                 }
                 cdl->PopClipRect();
@@ -1028,6 +1028,7 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
     }
 
     if (forceScroll) {
+        newScrollY = roundf(newScrollY / rowH) * rowH;
         newScrollY = std::max(0.f, std::min(newScrollY, float(totalRows) * rowH));
         ImGui::SetScrollY(newScrollY);
         m_scrollY = newScrollY;

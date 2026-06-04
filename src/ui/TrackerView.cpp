@@ -7,6 +7,7 @@
 #include "PatternEditor.h"
 #include "SoundModule.h"
 #include <imgui.h>
+#include "SwitchButton.h"
 #include <algorithm>
 
 // ── OpenMPT "Blue (FT2)" colour scheme — sourced from Theme.h ─────────────────
@@ -53,17 +54,6 @@ static void tip(const char* text) {
         ImGui::SetTooltip("%s", text);
 }
 
-static void togBtn(const char* lbl, bool& state, bool enabled = true) {
-    if (!enabled) ImGui::BeginDisabled();
-    bool wasActive = state;
-    if (wasActive) {
-        ImGui::PushStyleColor(ImGuiCol_Button,        IM_COL32(64, 64, 160, 255));
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(80, 80, 190, 255));
-    }
-    if (ImGui::Button(lbl)) state = !state;
-    if (wasActive) ImGui::PopStyleColor(2);
-    if (!enabled) ImGui::EndDisabled();
-}
 
 static void tbSep() {
     ImGui::SameLine(0, 5);
@@ -294,21 +284,21 @@ void TrackerView::drawPatternToolbar1(float /*x*/, float /*y*/, float /*w*/) {
     tip("Play current row and advance cursor");
     ImGui::SameLine();
 
-    bool wasRec = m_editMode;
-    if (wasRec) {
-        ImGui::PushStyleColor(ImGuiCol_Button,        IM_COL32(160, 30, 30, 255));
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(190, 50, 50, 255));
-    }
-    if (actBtn("Record##rec", has)) setEditMode(!m_editMode);
-    if (wasRec) ImGui::PopStyleColor(2);
+    if (!has) ImGui::BeginDisabled();
+    if (SwitchButton("Record##rec", "Record", m_editMode, 1, {0.f, 0.f}, IM_COL32(255, 60, 60, 255)))
+        setEditMode(!m_editMode);
+    if (!has) ImGui::EndDisabled();
     tip("Toggle record mode (Enter)");
 
     tbSep();
-    togBtn("VU##vu", m_showVU);   tip("Show/hide channel VU meters");
+    if (SwitchButton("VU##vu", "VU", m_showVU, 1)) m_showVU = !m_showVU;
+    tip("Show/hide channel VU meters");
     ImGui::SameLine();
-    togBtn("WF##wf", m_showWave); tip("Show/hide channel waveform");
+    if (SwitchButton("WF##wf", "WF", m_showWave, 1)) m_showWave = !m_showWave;
+    tip("Show/hide channel waveform");
     ImGui::SameLine();
-    togBtn("FX##fx", m_showPluginRow); tip("Show/hide plugin row");
+    if (SwitchButton("FX##fx", "FX", m_showPluginRow, 1)) m_showPluginRow = !m_showPluginRow;
+    tip("Show/hide plugin row");
 
     popToolbarStyle();
     if (m_fontUI) ImGui::PopFont();
@@ -338,22 +328,18 @@ void TrackerView::drawPatternToolbar3(float /*x*/, float /*y*/, float /*w*/) {
     if (actBtn("Shrink##shr",   has)) {} tip("Shrink pattern");
 
     tbSep();
-    { bool prev = m_loopPattern; togBtn("Loop##lp", m_loopPattern); if (m_loopPattern != prev && onLoopToggled) onLoopToggled(m_loopPattern); }    tip("Loop current pattern");
+    { bool prev = m_loopPattern;
+      if (SwitchButton("Loop##lp", "Loop", m_loopPattern, 1)) m_loopPattern = !m_loopPattern;
+      if (m_loopPattern != prev && onLoopToggled) onLoopToggled(m_loopPattern); }
+    tip("Loop current pattern");
     ImGui::SameLine();
     if (m_editMode) ImGui::BeginDisabled();
-    togBtn("Follow##fw", m_followSong);             tip("Follow playback cursor");
+    if (SwitchButton("Follow##fw", "Follow", m_followSong, 1)) m_followSong = !m_followSong;
     if (m_editMode) ImGui::EndDisabled();
+    tip("Follow playback cursor");
     tbSep();
-    {
-        bool wasActive = m_detailView > 0;
-        if (wasActive) {
-            ImGui::PushStyleColor(ImGuiCol_Button,        IM_COL32(64, 64, 160, 255));
-            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(80, 80, 190, 255));
-        }
-        if (ImGui::Button("Detail##detail"))
-            m_detailView = (m_detailView + 1) % 4;
-        if (wasActive) ImGui::PopStyleColor(2);
-    }
+    if (SwitchButton("Detail##detail", "Detail", 3 - m_detailView, 3))
+        m_detailView = (m_detailView + 1) % 4;
     static const char* detailTips[] = {
         "Note + Instrument + Volume + Effect",
         "Note + Instrument + Volume",
@@ -362,9 +348,11 @@ void TrackerView::drawPatternToolbar3(float /*x*/, float /*y*/, float /*w*/) {
     };
     tip(detailTips[m_detailView]);
     tbSep();
-    togBtn("Overflow##ovf", m_overflowPaste);  tip("Overflow paste");
+    if (SwitchButton("Overflow##ovf", "Overflow", m_overflowPaste, 1)) m_overflowPaste = !m_overflowPaste;
+    tip("Overflow paste");
     tbSep();
-    togBtn("KB##kbd", m_showKbd);  tip("Show piano keyboard");
+    if (SwitchButton("KB##kbd", "KB", m_showKbd, 1)) m_showKbd = !m_showKbd;
+    tip("Show piano keyboard");
 
     popToolbarStyle();
     if (m_fontUI) ImGui::PopFont();

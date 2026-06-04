@@ -4,6 +4,7 @@
 #include "Toolbar.h"
 #include "LogoView.h"
 #include "Knob.h"
+#include "SwitchButton.h"
 #include "RenderSettings.h"
 #include "imgui.h"
 #include <algorithm>

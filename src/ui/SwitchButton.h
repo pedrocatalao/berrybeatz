@@ -25,7 +25,7 @@ inline bool SwitchButton(const char* id, const char* label,
 {
     ImGui::PushID(id);
 
-    constexpr float ROUNDING  = 2.0f;
+    constexpr float ROUNDING  = 1.5f;
     const     float PAD_X     = ImGui::GetStyle().FramePadding.x;
     const     float PAD_Y     = ImGui::GetStyle().FramePadding.y;
     constexpr float LED_W     = 4.0f;
@@ -83,7 +83,7 @@ inline bool SwitchButton(const char* id, const char* label,
 
     // Border
     dl->AddRect({p.x, p.y}, {p.x + btnW, p.y + btnH},
-                IM_COL32(55, 55, 78, 255), ROUNDING, 0, 1.0f);
+                IM_COL32(30, 30, 45, 255), ROUNDING, 0, 1.0f);
 
     // Label — nudge 1px when pressed
     float nudge = held ? 1.f : 0.f;

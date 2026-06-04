@@ -20,6 +20,19 @@ static void noteToStr(int note, char* buf, int bufsz) {
     snprintf(buf, bufsz, "%s%d", kNoteNames[semi], octave);
 }
 
+// Parse a note name like "C-4", "D#3", "B-9" → 1-based index; 0 on failure.
+static int parseNoteStr(const char* s) {
+    if (!s || s[0] == '\0' || s[1] == '\0' || s[2] == '\0') return 0;
+    int semi = -1;
+    for (int i = 0; i < 12; i++) {
+        if (s[0] == kNoteNames[i][0] && s[1] == kNoteNames[i][1]) { semi = i; break; }
+    }
+    if (semi < 0) return 0;
+    if (s[2] < '0' || s[2] > '9') return 0;
+    int n = (s[2] - '0') * 12 + semi + 1;  // 1-based
+    return (n >= 1 && n <= 128) ? n : 0;
+}
+
 // ─── Module / font setup ─────────────────────────────────────────────────────
 
 void InstrumentView::setController(ModuleController* ctrl, int instrCount) {
@@ -340,7 +353,14 @@ void InstrumentView::drawEditor(float x, float y, float w, float h) {
             m_data.resampling = rsvals[rsCombo];
             m_dirty = true;
         }
+
+        ImGui::SameLine(0, 16);
+        if (ImGui::Button("Note Map..."))
+            m_noteMapPopup.open();
     }
+
+    int sampleCount = m_ctrl ? bb_sample_count(m_ctrl->module()) : 0;
+    drawNoteMapPopup(sampleCount);
 
     ImGui::Spacing();
     ImGui::Separator();
@@ -435,6 +455,89 @@ void InstrumentView::drawEditor(float x, float y, float w, float h) {
 
     ImGui::EndChild();
     ImGui::PopStyleColor();
+}
+
+// ─── Note map popup ──────────────────────────────────────────────────────────
+
+void InstrumentView::drawNoteMapPopup(int sampleCount) {
+    static constexpr float kPopW = 310.f;
+    static constexpr float kPopH = 530.f;
+    static constexpr float kPad  = 8.f;
+
+    if (!m_noteMapPopup.begin("Note / Sample Map", kPopW, kPopH))
+        return;
+
+    ImGui::PushStyleColor(ImGuiCol_ScrollbarBg,          kClrScrollBg);
+    ImGui::PushStyleColor(ImGuiCol_ScrollbarGrab,        kClrScrollGrab);
+    ImGui::PushStyleColor(ImGuiCol_ScrollbarGrabHovered, kClrScrollHover);
+    ImGui::PushStyleColor(ImGuiCol_ScrollbarGrabActive,  kClrScrollActive);
+    ImGui::PushStyleColor(ImGuiCol_TableHeaderBg,        kClrBgTitle);
+    ImGui::PushStyleColor(ImGuiCol_TableRowBg,           kClrBgDeep);
+    ImGui::PushStyleColor(ImGuiCol_TableRowBgAlt,        IM_COL32( 8,  8, 28, 255));
+    ImGui::PushStyleColor(ImGuiCol_TableBorderLight,     kClrPatSeparator);
+    ImGui::PushStyleColor(ImGuiCol_TableBorderStrong,    kClrPatSeparator);
+    ImGui::PushStyleColor(ImGuiCol_FrameBg,              kClrBgWidget);
+    ImGui::PushStyleColor(ImGuiCol_FrameBgHovered,       IM_COL32(26, 26, 46, 255));
+    ImGui::PushStyleColor(ImGuiCol_FrameBgActive,        IM_COL32(46, 46, 90, 255));
+    ImGui::PushStyleVar(ImGuiStyleVar_CellPadding,  {4.f, 3.f});
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,  {4.f, 2.f});
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, {4.f, 2.f});
+
+    ImGui::SetCursorPos({kPad, PopupModal::kTitleH + kPad});
+    const float tableW = kPopW - kPad * 2.f;
+    const float tableH = kPopH - PopupModal::kTitleH - kPad * 2.f;
+
+    if (ImGui::BeginTable("##nmtbl", 3,
+            ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV |
+            ImGuiTableFlags_ScrollY | ImGuiTableFlags_SizingFixedFit,
+            {tableW, tableH}))
+    {
+        ImGui::TableSetupScrollFreeze(0, 1);
+        ImGui::TableSetupColumn("Note",   ImGuiTableColumnFlags_WidthFixed,  46.f);
+        ImGui::TableSetupColumn("Smp",    ImGuiTableColumnFlags_WidthFixed,  52.f);
+        ImGui::TableSetupColumn("→ Note", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableHeadersRow();
+
+        ImGuiListClipper clipper;
+        clipper.Begin(128);
+        while (clipper.Step()) {
+            for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; ++i) {
+                ImGui::TableNextRow();
+                ImGui::PushID(i);
+
+                ImGui::TableSetColumnIndex(0);
+                char inBuf[8]; noteToStr(i + 1, inBuf, sizeof(inBuf));
+                ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(kClrCyan), "%s", inBuf);
+
+                ImGui::TableSetColumnIndex(1);
+                int smp = (int)m_data.keyboard[i];
+                ImGui::SetNextItemWidth(-1.f);
+                if (ImGui::DragInt("##smp", &smp, 1.f, 0, sampleCount, "%d")) {
+                    m_data.keyboard[i] = (uint16_t)std::clamp(smp, 0, sampleCount);
+                    m_dirty = true;
+                }
+
+                ImGui::TableSetColumnIndex(2);
+                char noteBuf[8]; noteToStr((int)m_data.noteMap[i], noteBuf, sizeof(noteBuf));
+                ImGui::SetNextItemWidth(-1.f);
+                if (ImGui::InputText("##mn", noteBuf, sizeof(noteBuf),
+                        ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AutoSelectAll))
+                {
+                    int parsed = parseNoteStr(noteBuf);
+                    if (parsed > 0) { m_data.noteMap[i] = (uint8_t)parsed; m_dirty = true; }
+                }
+
+                ImGui::PopID();
+            }
+        }
+        clipper.End();
+        ImGui::EndTable();
+    }
+
+    ImGui::PopStyleVar(3);
+    ImGui::PopStyleColor(12);
+
+    m_noteMapPopup.end();
 }
 
 // ─── Envelope graph ──────────────────────────────────────────────────────────

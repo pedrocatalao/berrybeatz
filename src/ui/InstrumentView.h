@@ -1,6 +1,7 @@
 #pragma once
 #include "SoundFileOps.h"
 #include "ModuleController.h"
+#include "PopupModal.h"
 #include <atomic>
 #include <functional>
 
@@ -30,6 +31,7 @@ private:
     void saveInstrument();
     void drawEditor(float x, float y, float w, float h);
     void drawEnvelopeGraph(InstrumentEnvData& env, const char* typeLabel, float w, float h);
+    void drawNoteMapPopup(int sampleCount);
 
     ModuleController* m_ctrl{nullptr};
     ImFont* m_fontMono{nullptr};
@@ -41,4 +43,5 @@ private:
     int m_activeEnv{0};       // 0=vol 1=pan 2=pitch
     int m_dragNode{-1};
     int  m_pitchBend{8192};
+    PopupModal m_noteMapPopup;
 };

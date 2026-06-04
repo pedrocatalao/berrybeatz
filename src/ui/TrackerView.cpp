@@ -8,6 +8,7 @@
 #include "SoundModule.h"
 #include <imgui.h>
 #include "SwitchButton.h"
+#include "LcdSpinner.h"
 #include <algorithm>
 
 // ── OpenMPT "Blue (FT2)" colour scheme — sourced from Theme.h ─────────────────
@@ -422,16 +423,8 @@ void TrackerView::drawPatternToolbar2(float /*x*/, float /*y*/, float /*w*/) {
 
     tbSep();
 
-    ImGui::TextColored(kClrTextHintV4, "Step");
-    ImGui::SameLine(0, 6);
-    ImGui::TextColored(ImVec4(0.82f, 0.82f, 0.88f, 1.f), "%d", m_editStep);
-    ImGui::SameLine(0, 4);
-    ImGui::SetNextItemWidth(44.0f);
-    {
-        int sv = m_editStep;
-        if (ImGui::InputInt("##step2", &sv, 1, 1))
-            m_editStep = std::clamp(sv, 0, 16);
-    }
+    if (int d = LcdSpinner("Step##step", "Step", m_editStep, 0, 16))
+        m_editStep = std::clamp(m_editStep + d, 0, 16);
     tip("Edit step (- / + keys)");
 
     tbSep();

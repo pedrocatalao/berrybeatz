@@ -305,6 +305,11 @@ void TrackerView::drawPatternToolbar3(float /*x*/, float /*y*/, float /*w*/) {
     if (!(has && m_undo.canUndo())) ImGui::EndDisabled();
     tip("Undo");
     ImGui::SameLine();
+    if (!(has && m_undo.canRedo())) ImGui::BeginDisabled();
+    if (SwitchButton("Redo##redo", "Redo")) { m_undo.redo(*m_ctrl); }
+    if (!(has && m_undo.canRedo())) ImGui::EndDisabled();
+    tip("Redo");
+    ImGui::SameLine();
     if (!has) ImGui::BeginDisabled();
     if (SwitchButton("Props##props",  "Props"))  {} tip("Pattern properties");
     ImGui::SameLine();

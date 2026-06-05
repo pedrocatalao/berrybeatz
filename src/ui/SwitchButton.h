@@ -88,7 +88,7 @@ inline bool SwitchButton(const char* id, const char* label,
     // Label — nudge 1px when pressed
     float nudge = held ? 1.f : 0.f;
     float textY = p.y + (btnH - textSz.y) * 0.5f + nudge;
-    dl->AddText({p.x + PAD_X + nudge, textY}, kClrTextLabel, label);
+    dl->AddText({p.x + PAD_X + nudge, textY}, ImGui::GetColorU32(kClrTextLabel), label);
 
     // LED
     if (hasLed) {

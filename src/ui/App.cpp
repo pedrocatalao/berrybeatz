@@ -1,5 +1,6 @@
 #include "App.h"
 #include "Theme.h"
+#include "CustomTabBar.h"
 #include "RenderSettings.h"
 #include "CocoaHelpers.h"
 #include "LogoView.h"
@@ -484,52 +485,14 @@ void App::render(int winW, int winH)
     ImGui::PopStyleColor();
 
     {
-        const char* tabs[] = {"Tracker", "Properties", "Samples", "Instruments", "Comments"};
-        ImDrawList* tdl   = ImGui::GetWindowDrawList();
-        const float R     = ImGui::GetStyle().TabRounding;
-        const float padX  = kTabFramePad.x;
-        const float tabH  = kTabBarH - 4.f;
-        const ImU32 selCol = ImGui::ColorConvertFloat4ToU32(ImGui::GetStyle().Colors[ImGuiCol_TabSelected]);
-
-        if (m_pendingTab >= 0 && m_pendingTab < 5) m_activeTab = m_pendingTab;
-        m_pendingTab = -1;
-        m_tabsInited = true;
-        int curActive = m_activeTab.load();
-
-        for (int i = 0; i < 5; ++i) {
-            if (i > 0) ImGui::SameLine(0, 2.f);
-            ImVec2 ts   = ImGui::CalcTextSize(tabs[i]);
-            float  tw   = padX * 2.f + ts.x;
-            ImVec2 tMin = ImGui::GetCursorScreenPos();
-            ImVec2 tMax = {tMin.x + tw, tMin.y + tabH};
-
-            ImGui::InvisibleButton(tabs[i], {tw, tabH});
-            bool selected = (curActive == i);
-            bool hov      = ImGui::IsItemHovered();
-            bool held     = ImGui::IsItemActive();
-            if (ImGui::IsItemClicked()) { m_activeTab = i; curActive = i; }
-
-            ImU32 bodyCol = selected    ? selCol
-                          : hov || held ? kClrTabHover
-                                        : kClrTabBg;
-            tdl->AddRectFilled(tMin, tMax, bodyCol, R, ImDrawFlags_RoundCornersTop);
-
-            float bvR = tMax.x - 1.f;
-            float bvB = tMax.y - 1.f;
-            if (!held) {
-                tdl->AddLine({tMin.x + R,    tMin.y + 0.5f}, {bvR - R, tMin.y + 0.5f}, IM_COL32(255,255,255,55));
-                tdl->AddLine({tMin.x + 0.5f, tMin.y + R   }, {tMin.x + 0.5f, bvB    }, IM_COL32(255,255,255,40));
-                tdl->AddLine({tMin.x,        bvB           }, {bvR,     bvB           }, IM_COL32(0,0,0,120), 2.f);
-                tdl->AddLine({bvR,           tMin.y        }, {bvR,     bvB           }, IM_COL32(0,0,0,100));
-            } else {
-                tdl->AddLine({tMin.x + R,    tMin.y + 0.5f}, {bvR - R, tMin.y + 0.5f}, IM_COL32(0,0,0,100));
-                tdl->AddLine({tMin.x + 0.5f, tMin.y + R   }, {tMin.x + 0.5f, bvB    }, IM_COL32(0,0,0,80));
-                tdl->AddLine({tMin.x,        bvB           }, {bvR,     bvB           }, IM_COL32(255,255,255,35), 2.f);
-                tdl->AddLine({bvR,           tMin.y        }, {bvR,     bvB           }, IM_COL32(255,255,255,25));
-            }
-
-            tdl->AddText({tMin.x + padX, tMin.y + (tabH - ts.y) * 0.5f},
-                         selected ? kClrTextBright : kClrTextDim, tabs[i]);
+        int forceActive = (m_pendingTab >= 0 && m_pendingTab < 5) ? m_pendingTab : -1;
+        if (BeginCustomTabBar("##tabs", forceActive)) {
+            const char* tabs[] = {"Tracker", "Properties", "Samples", "Instruments", "Comments"};
+            for (int i = 0; i < 5; ++i)
+                if (CustomTabItem(tabs[i])) m_activeTab = i;
+            m_tabsInited = true;
+            m_pendingTab = -1;
+            EndCustomTabBar();
         }
     }
     ImGui::End();

@@ -1,6 +1,6 @@
 #include "SettingsView.h"
 #include "Knob.h"
-#include "TabBar.h"
+#include "CustomTabBar.h"
 #include "imgui.h"
 #include "Theme.h"
 
@@ -29,18 +29,14 @@ void SettingsView::draw()
     if (!m_popup.begin("Settings", 500.f, 340.f)) return;
 
     ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 1.f);
-    if (BeginStyledTabBar("##settabs")) {
+    if (BeginCustomTabBar("##settabs")) {
         const char* tabs[] = {"General", "Audio", "MIDI", "Editor"};
         using DrawFn = void (SettingsView::*)();
         DrawFn fns[] = { &SettingsView::drawGeneralTab, &SettingsView::drawAudioTab,
                          &SettingsView::drawMidiTab,    &SettingsView::drawEditorTab };
-        for (int i = 0; i < 4; ++i) {
-            if (StyledTabItem(tabs[i])) {
-                (this->*fns[i])();
-                ImGui::EndTabItem();
-            }
-        }
-        EndStyledTabBar();
+        for (int i = 0; i < 4; ++i) CustomTabItem(tabs[i]);
+        int active = EndCustomTabBar();
+        (this->*fns[active])();
     }
 
     m_popup.end();

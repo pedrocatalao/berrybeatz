@@ -112,6 +112,8 @@ public:
     int  playNote(int instrument, int note, double volume, double panning);
     void stopNote(int channel);
     void setNotePitch(int channel, double semitones);
+    // Returns true and reclaims the slot if the channel has left the mix naturally.
+    bool releaseFinishedChannel(int channel);
 
     // ── Pattern data ──────────────────────────────────────────────────────────
     void getPatternCell(int pat, int row, int ch, PatternCell& out) const;

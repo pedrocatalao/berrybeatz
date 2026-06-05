@@ -9,6 +9,7 @@
 #include <imgui.h>
 #include "SwitchButton.h"
 #include "LcdSpinner.h"
+#include "LcdDropdown.h"
 #include <algorithm>
 
 // ── OpenMPT "Blue (FT2)" colour scheme — sourced from Theme.h ─────────────────
@@ -354,9 +355,6 @@ void TrackerView::drawPatternToolbar2(float /*x*/, float /*y*/, float /*w*/) {
     pushToolbarStyle();
     ImGui::SetCursorPosY((ImGui::GetWindowHeight() - ImGui::GetFrameHeight()) * 0.5f);
 
-    ImGui::AlignTextToFramePadding();
-    ImGui::TextColored(kClrTextHintV4, "Instr");
-    ImGui::SameLine(0, 4);
     {
         std::vector<std::string> names;
         int total = 0;
@@ -370,47 +368,27 @@ void TrackerView::drawPatternToolbar2(float /*x*/, float /*y*/, float /*w*/) {
                 total = m_state.num_samples;
             }
         }
-        char preview[80];
-        if (m_selectedInstrument <= 0)
-            snprintf(preview, sizeof(preview), "No instrument");
-        else {
-            int idx = m_selectedInstrument - 1;
+        std::vector<std::string> fmtItems;
+        fmtItems.reserve(total);
+        for (int i = 1; i <= total; i++) {
+            char lbl[80];
+            int idx = i - 1;
             if (idx < (int)names.size() && !names[idx].empty())
-                snprintf(preview, sizeof(preview), "%02d: %s", m_selectedInstrument.load(), names[idx].c_str());
+                snprintf(lbl, sizeof(lbl), "%02d: %s", i, names[idx].c_str());
             else
-                snprintf(preview, sizeof(preview), "%02d", m_selectedInstrument.load());
+                snprintf(lbl, sizeof(lbl), "%02d", i);
+            fmtItems.push_back(lbl);
         }
-        ImGui::SetNextItemWidth(160.0f);
-        bool comboOpen = ImGui::BeginCombo("##instr", preview,
-            ImGuiComboFlags_HeightLarge | ImGuiComboFlags_NoArrowButton);
-        // Small custom down-arrow
-        {
-            ImVec2 rMin = ImGui::GetItemRectMin(), rMax = ImGui::GetItemRectMax();
-            float cx = rMax.x - 10.f, cy = (rMin.y + rMax.y) * 0.5f;
-            constexpr float s = 4.f;
-            ImGui::GetWindowDrawList()->AddTriangleFilled(
-                {cx - s, cy - s * 0.55f}, {cx + s, cy - s * 0.55f}, {cx, cy + s * 0.65f},
-                IM_COL32(180, 180, 200, 200));
-        }
-        if (comboOpen) {
-            if (ImGui::Selectable("No instrument", m_selectedInstrument <= 0))
-                m_selectedInstrument = 0;
-            if (m_selectedInstrument <= 0) ImGui::SetItemDefaultFocus();
-            for (int i = 1; i <= total; i++) {
-                char lbl[80];
-                int idx = i - 1;
-                if (idx < (int)names.size() && !names[idx].empty())
-                    snprintf(lbl, sizeof(lbl), "%02d: %s", i, names[idx].c_str());
-                else
-                    snprintf(lbl, sizeof(lbl), "%02d", i);
-                bool sel = (m_selectedInstrument == i);
-                if (ImGui::Selectable(lbl, sel)) {
-                    m_selectedInstrument = i;
-                    if (onInstrumentChanged) onInstrumentChanged(i);
-                }
-                if (sel) ImGui::SetItemDefaultFocus();
-            }
-            ImGui::EndCombo();
+        std::vector<const char*> ptrs;
+        ptrs.reserve(fmtItems.size());
+        for (auto& s : fmtItems) ptrs.push_back(s.c_str());
+
+        int sel = m_selectedInstrument - 1;   // -1 = no instrument
+        if (LcdDropdown("##instr", "Instr", &sel,
+                        ptrs.data(), (int)ptrs.size(),
+                        "No instrument", 130.f)) {
+            m_selectedInstrument = sel + 1;   // 0 when sel==-1
+            if (onInstrumentChanged) onInstrumentChanged(sel + 1);
         }
     }
     tip("Current instrument — click to pick from list");

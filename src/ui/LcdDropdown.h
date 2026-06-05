@@ -2,6 +2,7 @@
 #include "imgui.h"
 #include "Theme.h"
 #include <cfloat>
+#include <cmath>
 
 // LcdDropdown — styled dropdown matching LcdSpinner/SwitchButton aesthetics.
 //   Layout: [ Label  [LCD text         ▼] ]
@@ -100,9 +101,23 @@ inline bool LcdDropdown(const char* id, const char* label,
     const char* preview = (noneLabel && *selected < 0) ? noneLabel
                         : (*selected >= 0 && *selected < count) ? items[*selected]
                         : "";
-    ImVec2 previewSz = ImGui::CalcTextSize(preview);
+    ImVec2 previewSz  = ImGui::CalcTextSize(preview);
+    float  availW     = lcdWidth - LCD_PAD * 2.f;
+    float  scrollOff  = 0.f;
+    if (previewSz.x > availW) {
+        constexpr float SPEED = 30.f;   // px/s
+        constexpr float PAUSE = 1.5f;   // s pause at each end
+        float overflow   = previewSz.x - availW;
+        float tScroll    = overflow / SPEED;
+        float period     = 2.f * (tScroll + PAUSE);
+        float t          = std::fmod((float)ImGui::GetTime(), period);
+        if      (t < PAUSE)                    scrollOff = 0.f;
+        else if (t < PAUSE + tScroll)          scrollOff = (t - PAUSE) * SPEED;
+        else if (t < 2.f * PAUSE + tScroll)    scrollOff = overflow;
+        else                                   scrollOff = overflow - (t - 2.f * PAUSE - tScroll) * SPEED;
+    }
     dl->PushClipRect({lcdAbsX, lcdAbsY}, {lcdAbsX + lcdWidth, lcdAbsY + LCD_H}, true);
-    dl->AddText({lcdAbsX + LCD_PAD, lcdAbsY + (LCD_H - previewSz.y) * 0.5f},
+    dl->AddText({lcdAbsX + LCD_PAD - scrollOff, lcdAbsY + (LCD_H - previewSz.y) * 0.5f},
                 IM_COL32(100, 220, 160, 255), preview);
     dl->PopClipRect();
 

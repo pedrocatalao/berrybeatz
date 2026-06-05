@@ -10,6 +10,7 @@
 #include "SwitchButton.h"
 #include "LcdSpinner.h"
 #include "LcdDropdown.h"
+#include "LcdInput.h"
 #include <algorithm>
 
 // ── OpenMPT "Blue (FT2)" colour scheme — sourced from Theme.h ─────────────────
@@ -412,8 +413,6 @@ void TrackerView::drawPatternToolbar2(float /*x*/, float /*y*/, float /*w*/) {
 
     tbSep();
 
-    ImGui::TextColored(kClrTextHintV4, "Pattern");
-    ImGui::SameLine(0, 4);
     int32_t curPat = m_ctrl ? m_state.current_pattern.load() : -1;
     std::string patName;
     if (curPat >= 0) {
@@ -423,10 +422,9 @@ void TrackerView::drawPatternToolbar2(float /*x*/, float /*y*/, float /*w*/) {
     }
     char patBuf[64] = {};
     strncpy(patBuf, patName.c_str(), 63);
-    ImGui::SetNextItemWidth(120.0f);
-    ImGui::BeginDisabled(!has);
-    ImGui::InputText("##patname", patBuf, 64);
-    ImGui::EndDisabled();
+    if (!has) ImGui::BeginDisabled();
+    LcdInput("##patname", "Pattern", patBuf, 64, 120.f);
+    if (!has) ImGui::EndDisabled();
 
     popToolbarStyle();
     if (m_fontUI) ImGui::PopFont();

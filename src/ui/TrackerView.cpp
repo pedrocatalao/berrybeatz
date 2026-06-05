@@ -762,49 +762,93 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
             float  cw = m_cellW;
             bool muted = (m_muteState >> ch) & 1;
 
-            // Background + divider
-            ImU32 hdrCol = muted ? IM_COL32(20,20,30,255) : IM_COL32(30,30,60,255);
+            // Structural colours — used for full-height column separators below
             ImU32 hiCol  = muted ? IM_COL32(45,45,60,255) : IM_COL32(68,68,115,255);
             ImU32 loCol  = muted ? IM_COL32(8, 8,14, 255) : IM_COL32(10,10, 20, 255);
             float padX   = ImGui::GetStyle().CellPadding.x;
             float hdrTop = p.y;
             float hdrBot = hdrTop + m_chanH + 4.f;
-            // Register button first so we can query press state for drawing
+
             ImGui::SetCursorScreenPos(p);
             ImGui::PushID(0x10000 + ch);
             ImGui::InvisibleButton("##mute", {cw, CHANNAME_H});
             bool namePressed = ImGui::IsItemActive();
+            bool nameHov     = ImGui::IsItemHovered();
 
-            dl->AddRectFilled(p, {p.x + cw - 1, p.y + CHANNAME_H}, hdrCol);
-            // 3D raised bevel on header button — swap colors when pressed
-            {
-                float bvR  = p.x + cw - 2.f;
-                float bvB  = p.y + float(CHANNAME_H) - 1.f;
-                ImU32 tlCol = namePressed ? loCol : hiCol;
-                ImU32 brCol = namePressed ? hiCol : loCol;
-                dl->AddLine({p.x, p.y }, {bvR,  p.y }, tlCol);       // top
-                dl->AddLine({p.x, p.y }, {p.x,  bvB }, tlCol);       // left
-                dl->AddLine({p.x, bvB }, {bvR,  bvB }, brCol, 2.f);  // bottom
-                dl->AddLine({bvR, p.y }, {bvR,  bvB }, brCol);       // right
-            }
-            // Fill left and right padding gutters with the same dark blue as pattern rows
-            dl->AddRectFilled({p.x - padX, hdrTop}, {p.x,          hdrBot}, IM_COL32(46, 46, 92, 200));
-            dl->AddRectFilled({p.x + cw,   hdrTop}, {p.x + cw + padX, hdrBot}, IM_COL32(46, 46, 92, 200));
-            dl->AddLine({p.x,          hdrTop}, {p.x,          hdrBot}, hiCol);
-            dl->AddLine({p.x + cw - 1, hdrTop}, {p.x + cw - 1, hdrBot}, loCol);
-            // Redraw channel name bottom shadow — full column hiCol line overwrites its left pixel
-            {
-                ImU32 brCol = namePressed ? hiCol : loCol;
-                dl->AddLine({p.x, p.y + CHANNAME_H - 1.f}, {p.x + cw - 2.f, p.y + CHANNAME_H - 1.f}, brCol, 2.f);
+            // ── SwitchButton-style body ───────────────────────────────────
+            constexpr float R = 1.5f;
+            ImU32 bodyCol = namePressed ? IM_COL32(50,50,70,255)
+                          : nameHov     ? IM_COL32(38,38,55,255)
+                                        : IM_COL32(25,25,38,255);
+            dl->AddRectFilled(p, {p.x + cw - 1, p.y + CHANNAME_H}, bodyCol,
+                              R, ImDrawFlags_RoundCornersTop);
+
+            if (!namePressed)
+                dl->AddRectFilled(p, {p.x + cw - 1, p.y + CHANNAME_H * 0.5f},
+                                  IM_COL32(255,255,255,14), R, ImDrawFlags_RoundCornersTop);
+
+            float bvR = p.x + cw - 2.f;
+            float bvB = p.y + CHANNAME_H - 1.f;
+            if (!namePressed) {
+                dl->AddLine({p.x + R,    p.y + 0.5f}, {bvR - R, p.y + 0.5f}, IM_COL32(255,255,255,55));
+                dl->AddLine({p.x + 0.5f, p.y + R   }, {p.x + 0.5f,   bvB  }, IM_COL32(255,255,255,40));
+                dl->AddLine({p.x,        bvB        }, {bvR,     bvB        }, IM_COL32(0,0,0,120), 2.f);
+                dl->AddLine({bvR,        p.y        }, {bvR,     bvB        }, IM_COL32(0,0,0,100));
+            } else {
+                dl->AddLine({p.x + R,    p.y + 0.5f}, {bvR - R, p.y + 0.5f}, IM_COL32(0,0,0,100));
+                dl->AddLine({p.x + 0.5f, p.y + R   }, {p.x + 0.5f,   bvB  }, IM_COL32(0,0,0,80));
+                dl->AddLine({p.x,        bvB        }, {bvR,     bvB        }, IM_COL32(255,255,255,35), 2.f);
+                dl->AddLine({bvR,        p.y        }, {bvR,     bvB        }, IM_COL32(255,255,255,25));
             }
 
-            // Channel name, centred
-            float textH = ImGui::GetTextLineHeight();
-            ImU32 textCol = muted ? IM_COL32(60,60,60,255) : IM_COL32(200,200,120,255);
-            ImVec2 ts  = ImGui::CalcTextSize(chNames[ch].c_str());
-            float  off = namePressed ? 1.f : 0.f;
-            dl->AddText({p.x + (cw - ts.x) * 0.5f + off, p.y + (CHANNAME_H - textH) * 0.5f - 1.f + off},
-                        textCol, chNames[ch].c_str());
+            dl->AddRect(p, {p.x + cw - 1, p.y + CHANNAME_H},
+                        IM_COL32(30,30,45,255), R, ImDrawFlags_RoundCornersTop, 1.f);
+
+            // Gutter fills + full-height column separators (structural)
+            dl->AddRectFilled({p.x - padX, hdrTop}, {p.x,             hdrBot}, IM_COL32(46,46,92,200));
+            dl->AddRectFilled({p.x + cw,   hdrTop}, {p.x + cw + padX, hdrBot}, IM_COL32(46,46,92,200));
+
+            // ── Channel name + LED ────────────────────────────────────────
+            constexpr float LED_W     = 4.f;
+            constexpr float LED_H     = 10.f;
+            constexpr float LED_PAD_R = 6.f;
+            float off  = namePressed ? 1.f : 0.f;
+            float ledX = p.x + cw - 1 - LED_PAD_R - LED_W + off;
+            float ledY = p.y + (CHANNAME_H - LED_H) * 0.5f + off;
+
+            float  textH  = ImGui::GetTextLineHeight();
+            ImVec2 ts     = ImGui::CalcTextSize(chNames[ch].c_str());
+            float  availW = ledX - off - p.x;
+            dl->AddText({p.x + (availW - ts.x) * 0.5f + off,
+                         p.y + (CHANNAME_H - textH) * 0.5f + off},
+                        kClrTextLabel, chNames[ch].c_str());
+
+            // LED housing
+            dl->AddRectFilled({ledX - 1.f, ledY - 1.f},
+                              {ledX + LED_W + 1.f, ledY + LED_H + 1.f},
+                              IM_COL32(0,0,0,150), 2.f);
+            if (!muted) {
+                if (g_glowKnobs > 0.f) {
+                    auto ga = [](int a) { return (uint8_t)(a * g_glowKnobs); };
+                    dl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {
+                        glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+                    }, nullptr);
+                    constexpr float E1 = 5.f, E2 = 2.5f;
+                    dl->AddRectFilled({ledX - E1, ledY - E1},
+                                      {ledX + LED_W + E1, ledY + LED_H + E1},
+                                      IM_COL32(0,200,255, ga(10)), R + E1);
+                    dl->AddRectFilled({ledX - E2, ledY - E2},
+                                      {ledX + LED_W + E2, ledY + LED_H + E2},
+                                      IM_COL32(0,200,255, ga(28)), 2.f + E2);
+                    dl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {
+                        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+                    }, nullptr);
+                }
+                dl->AddRectFilled({ledX, ledY}, {ledX + LED_W, ledY + LED_H}, kClrCyan, 1.5f);
+            } else {
+                dl->AddRectFilled({ledX, ledY}, {ledX + LED_W, ledY + LED_H},
+                                  IM_COL32(10,30,40,255), 1.5f);
+            }
 
             // Mute / solo click target
             {
@@ -832,8 +876,10 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
 
             // VU
             float vuTop = p.y + CHANNAME_H;
-            if (m_showVU)
-                drawStereoVU(dl, p.x + 1, vuTop, cw - 2, VU_H, vu[ch].left, vu[ch].right);
+            if (m_showVU) {
+                drawStereoVU(dl, p.x + 2, vuTop, cw - 3, VU_H, vu[ch].left, vu[ch].right);
+                dl->AddLine({p.x + 0.5f, vuTop}, {p.x + 0.5f, vuTop + VU_H}, IM_COL32(255,255,255,40));
+            }
 
             // Oscilloscope waveform
             float vuBot = vuTop + (m_showVU ? VU_H : 0.f);
@@ -845,6 +891,7 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
                 dl->AddRectFilled({wx0, wy0}, {wx1, wy1}, kClrWaveGradBase);
                 dl->AddRectFilledMultiColor({wx0, wy0}, {wx1, wy1},
                     kClrWaveGradTL, kClrWaveGradTR, kClrWaveGradBR, kClrWaveGradBL);
+                dl->AddLine({p.x + 0.5f, wy0}, {p.x + 0.5f, wy1}, IM_COL32(255,255,255,40));
 
                 // Black 1px grid — masks gradient down to phosphor dot array (3px dots, 1px gap)
                 {
@@ -899,30 +946,48 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
             // Plugin row
             float plugTop = vuBot + (m_showWave ? WAVE_H : 0.f);
             if (m_showPluginRow) {
-                // Register button first so we can query press state for drawing
                 ImGui::SetCursorScreenPos({p.x, plugTop});
                 if (ImGui::InvisibleButton("##plug", {cw, PLUGIN_H}))
                     plugClickCh = ch;
                 bool fxPressed = ImGui::IsItemActive();
+                bool fxHov     = ImGui::IsItemHovered();
 
-                float bvR = p.x + cw - 2.f;
-                float bvT = plugTop;
-                float bvB = plugTop + PLUGIN_H;
-                dl->AddRectFilled({p.x, bvT}, {p.x + cw - 1, bvT + PLUGIN_H + 1.f}, hdrCol);
-                // Swap bevel when pressed: top-left becomes shadow, bottom-right becomes highlight
-                ImU32 tlCol = fxPressed ? loCol : hiCol;
-                ImU32 brCol = fxPressed ? hiCol : loCol;
-                dl->AddLine({p.x, bvT}, {bvR, bvT}, tlCol);
-                dl->AddLine({p.x, bvT}, {p.x, bvB + 3.f}, tlCol);
-                dl->AddLine({p.x, bvB}, {bvR, bvB}, brCol);
-                dl->AddLine({bvR, bvT}, {bvR, bvB}, brCol);
-                {
-                    const char* lbl = "NO FX";
-                    ImVec2 ts  = ImGui::CalcTextSize(lbl);
-                    float  off = fxPressed ? 1.f : 0.f;
-                    ImU32 fxCol = muted ? IM_COL32(45, 45, 55, 255) : IM_COL32(80, 80, 115, 255);
-                    dl->AddText({p.x + (cw - ts.x) * 0.5f + off, bvT + (PLUGIN_H - ts.y) * 0.5f + off}, fxCol, lbl);
+                constexpr float fxR = 1.5f;
+                ImVec2 fxTL = {p.x,          plugTop};
+                ImVec2 fxBR = {p.x + cw - 1, plugTop + PLUGIN_H};
+
+                ImU32 fxBody = fxPressed ? IM_COL32(50,50,70,255)
+                             : fxHov     ? IM_COL32(38,38,55,255)
+                                         : IM_COL32(25,25,38,255);
+                dl->AddRectFilled(fxTL, fxBR, fxBody, fxR, ImDrawFlags_RoundCornersBottom);
+
+                if (!fxPressed)
+                    dl->AddRectFilled(fxTL, {fxBR.x, plugTop + PLUGIN_H * 0.5f},
+                                      IM_COL32(255,255,255,14), 0.f);
+
+                float fbvR = fxBR.x - 1.f;
+                float fbvB = plugTop + PLUGIN_H - 1.f;
+                if (!fxPressed) {
+                    dl->AddLine({fxTL.x,        plugTop + 0.5f}, {fbvR,        plugTop + 0.5f}, IM_COL32(255,255,255,55));
+                    dl->AddLine({fxTL.x + 0.5f, plugTop       }, {fxTL.x+0.5f, fbvB - fxR    }, IM_COL32(255,255,255,40));
+                    dl->AddLine({fxTL.x + fxR,  fbvB          }, {fbvR - fxR,  fbvB           }, IM_COL32(0,0,0,120), 2.f);
+                    dl->AddLine({fbvR,           plugTop       }, {fbvR,        fbvB - fxR     }, IM_COL32(0,0,0,100));
+                } else {
+                    dl->AddLine({fxTL.x,        plugTop + 0.5f}, {fbvR,        plugTop + 0.5f}, IM_COL32(0,0,0,100));
+                    dl->AddLine({fxTL.x + 0.5f, plugTop       }, {fxTL.x+0.5f, fbvB - fxR    }, IM_COL32(0,0,0,80));
+                    dl->AddLine({fxTL.x + fxR,  fbvB          }, {fbvR - fxR,  fbvB           }, IM_COL32(255,255,255,35), 2.f);
+                    dl->AddLine({fbvR,           plugTop       }, {fbvR,        fbvB - fxR     }, IM_COL32(255,255,255,25));
                 }
+
+                dl->AddRect(fxTL, fxBR, IM_COL32(30,30,45,255), fxR, ImDrawFlags_RoundCornersBottom, 1.f);
+
+                const char* lbl = "no fx";
+                ImVec2 ts  = ImGui::CalcTextSize(lbl);
+                float  off = fxPressed ? 1.f : 0.f;
+                ImU32  fxTextCol = muted ? IM_COL32(80,80,90,255) : kClrTextLabel;
+                dl->AddText({p.x + (cw - ts.x) * 0.5f + off,
+                             plugTop + (PLUGIN_H - ts.y) * 0.5f + off},
+                            fxTextCol, lbl);
             }
 
             // Fill the CellPadding.y gap between channel header bottom and first pattern row
@@ -931,13 +996,6 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
                 float gapTop = p.y + m_chanH;
                 float gapBot = gapTop + padY + 1.f;
                 dl->AddRectFilled({p.x, gapTop}, {p.x + cw - 1, gapBot}, IM_COL32(20, 20, 33, 255));
-                dl->AddLine({p.x,          gapTop - 1.f}, {p.x,          gapBot}, hiCol);
-                dl->AddLine({p.x + cw - 1, gapTop}, {p.x + cw - 1, gapBot}, loCol);
-                // Redraw FX button bottom shadow — fill rect covers it
-                if (m_showPluginRow) {
-                    ImU32 shadowCol = ImGui::IsItemActive() ? hiCol : loCol;
-                    dl->AddLine({p.x, gapTop}, {p.x + cw - 2.f, gapTop}, shadowCol);
-                }
             }
             ImGui::PopID();
 
@@ -1247,7 +1305,7 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
                 ImDrawList* sdl = ImGui::GetWindowDrawList();
                 sdl->AddRectFilled({cp.x - padX, top}, {cp.x,               top + rowH}, IM_COL32(46, 46, 92, 200));
                 sdl->AddRectFilled({cp.x + m_cellW, top}, {cp.x + m_cellW + padX, top + rowH}, IM_COL32(46, 46, 92, 200));
-                sdl->AddLine({cp.x,               top - 1.f}, {cp.x,               top + rowH}, hiCol);
+                sdl->AddLine({cp.x + 0.5f,               top - 0.5f}, {cp.x + 0.5f,               top + rowH}, IM_COL32(255,255,255,40));
                 sdl->AddLine({cp.x + m_cellW - 1, top - 1.f}, {cp.x + m_cellW - 1, top + rowH}, loCol);
             }
 

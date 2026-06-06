@@ -10,9 +10,10 @@
 // ── Layout constants ──────────────────────────────────────────────────────────
 static constexpr float kCG_GapH     = 10.f;  // horizontal space between groups
 static constexpr float kCG_GapV     =  6.f;  // vertical space between group rows
-static constexpr float kCG_PadX     =  6.f;  // border → content (horizontal)
+static constexpr float kCG_PadX     =  6.f;  // border → content (left)
+static constexpr float kCG_PadRight = 13.f;  // border → content (right)
 static constexpr float kCG_PadTop   = 12.f;  // border → content (top)
-static constexpr float kCG_PadBot   =  8.f;  // border → content (bottom)
+static constexpr float kCG_PadBot   =  6.f;  // border → content (bottom)
 static constexpr float kCG_ItemGapH =  6.f;  // gap between widgets on same row
 static constexpr float kCG_ItemGapV =  4.f;  // gap between widget rows
 static constexpr float kCG_CornerR  =  3.f;
@@ -70,8 +71,8 @@ inline void DrawControlGroups(float localX, float localY, float availW,
         }
         float labelMid = std::ceil(labelH * 0.5f);
 
-        // Claimed group width for flow decisions (border width = max_width + 2*padX)
-        float groupW = g.max_width + 2.f * kCG_PadX;
+        // Claimed group width for flow decisions (border width = max_width + padX + padRight)
+        float groupW = g.max_width + kCG_PadX + kCG_PadRight;
 
         // Wrap groups to next row if needed
         if (curX + groupW > localX + availW && curX > localX) {
@@ -90,15 +91,17 @@ inline void DrawControlGroups(float localX, float localY, float availW,
         ImGui::SetCursorPos({contentLocalX, contentLocalY});
         ImGui::BeginGroup();
 
-        float rowEndX    = lsX(contentLocalX);  // screen right edge of last widget on row
-        float rowLocalY  = contentLocalY;
-        float rowH       = ImGui::GetFrameHeight();
-        bool  firstOnRow = true;
+        float rowEndX      = lsX(contentLocalX);  // screen right edge of last widget on row
+        float maxRowEndX   = lsX(contentLocalX);  // widest row seen so far
+        float rowLocalY    = contentLocalY;
+        float rowH         = ImGui::GetFrameHeight();
+        bool  firstOnRow   = true;
 
         for (const auto& w : g.widgets) {
             if (!w.render) {
                 // Explicit row break
                 if (!firstOnRow) {
+                    maxRowEndX  = std::max(maxRowEndX, rowEndX);
                     rowLocalY  += rowH + kCG_ItemGapV;
                     rowH        = ImGui::GetFrameHeight();
                     rowEndX     = lsX(contentLocalX);
@@ -110,6 +113,7 @@ inline void DrawControlGroups(float localX, float localY, float availW,
             // Implicit wrap when widget doesn't fit
             float gap = firstOnRow ? 0.f : kCG_ItemGapH;
             if (!firstOnRow && rowEndX + gap + w.width > contentMaxX) {
+                maxRowEndX  = std::max(maxRowEndX, rowEndX);
                 rowLocalY  += rowH + kCG_ItemGapV;
                 rowH        = ImGui::GetFrameHeight();
                 rowEndX     = lsX(contentLocalX);
@@ -131,15 +135,19 @@ inline void DrawControlGroups(float localX, float localY, float availW,
             rowEndX    = ImGui::GetItemRectMax().x;
             firstOnRow = false;
         }
+        maxRowEndX = std::max(maxRowEndX, rowEndX);
 
         ImGui::EndGroup();
 
-        // ── Fieldset border — fixed width, variable height ────────────────────
+        // ── Fieldset border — content-fitted width, variable height ───────────
         ImVec2 iMin = ImGui::GetItemRectMin();
         ImVec2 iMax = ImGui::GetItemRectMax();
 
-        ImVec2 bMin = {iMin.x - kCG_PadX,  lsY(curY + labelMid)};
-        ImVec2 bMax = {bMin.x + groupW,     iMax.y + kCG_PadBot};
+        float actualContentW = maxRowEndX - lsX(contentLocalX);
+        float actualGroupW   = actualContentW + kCG_PadX + kCG_PadRight;
+
+        ImVec2 bMin = {iMin.x - kCG_PadX,       lsY(curY + labelMid)};
+        ImVec2 bMax = {bMin.x + actualGroupW,    iMax.y + kCG_PadBot};
         float  R    = kCG_CornerR;
 
         float gapS = bMin.x + 6.f;
@@ -163,7 +171,7 @@ inline void DrawControlGroups(float localX, float localY, float availW,
                         {gapS + 2.f, ly}, kCG_LabelCol, g.label);
         }
 
-        curX   += groupW + kCG_GapH;
+        curX   += actualGroupW + kCG_GapH;
         rowMaxH = std::max(rowMaxH, bMax.y - lsY(curY));
     }
 }

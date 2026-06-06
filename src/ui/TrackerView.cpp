@@ -265,14 +265,6 @@ void TrackerView::drawPatternToolbar1(float /*x*/, float /*y*/, float /*w*/) {
         return led ? (px + tx + 6.f + 4.f + 6.f) : (px * 2.f + tx);
     };
 
-    float playW = std::max(
-        sw("Play Cursor") + kCG_ItemGapH + sw("Play Start") + kCG_ItemGapH + sw("Stop"),
-        sw("Play Row")    + kCG_ItemGapH + sw("Record",true) + kCG_ItemGapH + sw("Loop",true));
-    float patW  = ImGui::GetStyle().FramePadding.x + ImGui::CalcTextSize("Pattern").x + 6.f + 120.f + 6.f;
-    float viewW = std::max(
-        sw("VU",true) + kCG_ItemGapH + sw("WF",true) + kCG_ItemGapH +
-        sw("FX",true) + kCG_ItemGapH + sw("Detail",true) + kCG_ItemGapH + sw("KB",true),
-        patW);
     auto spinW = [](const char* lbl, int vmax) -> float {
         float px  = ImGui::GetStyle().FramePadding.x;
         float lw  = ImGui::CalcTextSize(lbl).x;
@@ -282,16 +274,10 @@ void TrackerView::drawPatternToolbar1(float /*x*/, float /*y*/, float /*w*/) {
     };
     float stepW  = spinW("Step", 16);
     float instrW = ImGui::GetStyle().FramePadding.x + ImGui::CalcTextSize("Instr").x + 6.f + 130.f + 22.f + 2.f;
-    float editW  = std::max({
-        sw("Undo") + kCG_ItemGapH + sw("Redo") + kCG_ItemGapH + stepW,
-        sw("Insert") + kCG_ItemGapH + sw("Record",true) + kCG_ItemGapH + sw("Expand") + kCG_ItemGapH + sw("Shrink"),
-        instrW + kCG_ItemGapH + sw("Plugin")});
-    float navW = std::max(
-        sw("Follow",true) + kCG_ItemGapH + sw("Seek",true),
-        sw("Overflow",true));
+    float patW   = ImGui::GetStyle().FramePadding.x + ImGui::CalcTextSize("Pattern").x + 6.f + 120.f + 6.f;
 
     std::vector<ControlGroupDef> groups = {
-        {"Playback", playW, 200.f, m_fontUI, {
+        {"Playback", 180.f, 200.f, m_fontUI, {
             {sw("Play Cursor"), [&] {
                 bool dis = !has;
                 if (dis) ImGui::BeginDisabled();
@@ -337,7 +323,7 @@ void TrackerView::drawPatternToolbar1(float /*x*/, float /*y*/, float /*w*/) {
                 tip("Loop current pattern");
             }},
         }},
-        {"Edit", editW, 200.f, m_fontUI, {
+        {"Edit", 270.f, 200.f, m_fontUI, {
             {sw("Undo"), [&] {
                 bool dis = !(has && m_undo.canUndo());
                 if (dis) ImGui::BeginDisabled();
@@ -387,7 +373,6 @@ void TrackerView::drawPatternToolbar1(float /*x*/, float /*y*/, float /*w*/) {
                     m_editStep = std::clamp(m_editStep + d, 0, 16);
                 tip("Edit step (- / + keys)");
             }},
-            cgNewRow(),
             {instrW, [&] {
                 std::vector<std::string> names;
                 int total = 0;
@@ -425,7 +410,7 @@ void TrackerView::drawPatternToolbar1(float /*x*/, float /*y*/, float /*w*/) {
                 tip("Plugin selector (not yet available)");
             }},
         }},
-        {"View", viewW, 100.f, m_fontUI, {
+        {"View", 280.f, 200.f, m_fontUI, {
             {sw("VU", true), [&] {
                 if (SwitchButton("VU##vu", "VU", m_showVU, 1)) m_showVU = !m_showVU;
                 tip("Show/hide channel VU meters");
@@ -438,23 +423,10 @@ void TrackerView::drawPatternToolbar1(float /*x*/, float /*y*/, float /*w*/) {
                 if (SwitchButton("FX##fx", "FX", m_showPluginRow, 1)) m_showPluginRow = !m_showPluginRow;
                 tip("Show/hide plugin row");
             }},
-            cgNewRow(),
-            {sw("Detail", true), [&] {
-                if (SwitchButton("Detail##detail", "Detail", 3 - m_detailView, 3))
-                    m_detailView = (m_detailView + 1) % 4;
-                static const char* detailTips[] = {
-                    "Note + Instrument + Volume + Effect",
-                    "Note + Instrument + Volume",
-                    "Note + Instrument",
-                    "Note only",
-                };
-                tip(detailTips[m_detailView]);
-            }},
             {sw("Keyjazz", true), [&] {
                 if (SwitchButton("Keyjazz##kj", "Keyjazz", m_showKbd, 1)) m_showKbd = !m_showKbd;
                 tip("Show piano keyboard");
             }},
-            cgNewRow(),
             {patW, [&] {
                 int32_t curPat = m_ctrl ? m_state.current_pattern.load() : -1;
                 std::string patName;
@@ -470,8 +442,19 @@ void TrackerView::drawPatternToolbar1(float /*x*/, float /*y*/, float /*w*/) {
                 if (!has) ImGui::EndDisabled();
                 tip("Pattern name");
             }},
+            {sw("Detail", true), [&] {
+                if (SwitchButton("Detail##detail", "Detail", 3 - m_detailView, 3))
+                    m_detailView = (m_detailView + 1) % 4;
+                static const char* detailTips[] = {
+                    "Note + Instrument + Volume + Effect",
+                    "Note + Instrument + Volume",
+                    "Note + Instrument",
+                    "Note only",
+                };
+                tip(detailTips[m_detailView]);
+            }},
         }},
-        {"Navigate", navW, 200.f, m_fontUI, {
+        {"Navigate", 120.f, 200.f, m_fontUI, {
             {sw("Follow", true), [&] {
                 bool dis = m_editMode;
                 if (dis) ImGui::BeginDisabled();

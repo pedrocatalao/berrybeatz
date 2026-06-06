@@ -72,6 +72,11 @@ inline bool LcdInput(const char* id, const char* label,
     ImGui::PopStyleVar(2);
     ImGui::PopStyleColor(6);
 
+    // Extend group bounding box to cover PAD_R visual right margin,
+    // so callers get the correct item rect width for layout/gap decisions.
+    ImGui::SameLine(0, 0);
+    ImGui::Dummy({PAD_R, LCD_H});
+
     ImGui::EndGroup();
 
     // ── Post-draw: label and outer bevel drawn on top of InputText ────────────

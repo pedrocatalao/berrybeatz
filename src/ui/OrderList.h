@@ -105,6 +105,13 @@ inline void OrderList(const char*   id,
         return;
     }
 
+    // Suppress auto-scroll for 3s after user scrolls manually
+    static double s_lastScrollTime = -1e9;
+    if (ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem) &&
+        ImGui::GetIO().MouseWheelH != 0.f)
+        s_lastScrollTime = ImGui::GetTime();
+    bool autoScroll = (ImGui::GetTime() - s_lastScrollTime) >= 3.0;
+
     if (slotFont) ImGui::PushFont(slotFont);
 
     float boxH = LCD_H;
@@ -130,7 +137,7 @@ inline void OrderList(const char*   id,
         bool pressed = ImGui::IsItemActive();
         if (ImGui::IsItemClicked() && onSeek) onSeek(i);
 
-        if (isCur) ImGui::SetScrollHereX(0.5f);
+        if (isCur && autoScroll) ImGui::SetScrollHereX(0.5f);
 
         if (isCur)
             dl->AddRectFilled({p.x + 1.f, p.y + 1.f}, {pBR.x - 1.f, pBR.y},

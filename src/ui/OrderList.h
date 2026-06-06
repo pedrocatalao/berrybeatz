@@ -23,6 +23,7 @@
 // Width is content-driven: grows to fit all slots, capped at maxWidth.
 // Current slot is reversed (green bg, dark text); others show dim green text.
 inline void OrderList(const char*   id,
+                      const char*   label,
                       ImFont*       labelFont,
                       ImFont*       slotFont,
                       int32_t       nOrders,
@@ -34,10 +35,14 @@ inline void OrderList(const char*   id,
                       ImGuiWindowFlags hostFlags)
 {
     constexpr float R          = 1.5f;
-    constexpr float LABEL_W    = 33.f;
     constexpr float PAD_R      = 6.f;
     constexpr float LCD_MARGIN = 4.f;
     constexpr float ITEM_GAP   = 2.f;
+
+    // ── Measure label width ───────────────────────────────────────────────────
+    if (labelFont) ImGui::PushFont(labelFont);
+    float LABEL_W = label ? (ImGui::CalcTextSize(label).x + 16.f) : 0.f;
+    if (labelFont) ImGui::PopFont();
 
     // ── Measure natural content width using the slot font ─────────────────────
     if (slotFont) ImGui::PushFont(slotFont);
@@ -76,7 +81,7 @@ inline void OrderList(const char*   id,
     if (labelFont) {
         float fh = labelFont->LegacySize;
         fgDL->AddText(labelFont, fh, {x + 8.f, y + (h - fh) * 0.5f},
-                      kClrTextHint, "Pat");
+                      kClrTextLabel, label);
     }
     fgDL->AddLine({outerTL.x + R,    outerTL.y + 0.5f},
                   {bvR - R,          outerTL.y + 0.5f}, IM_COL32(255,255,255, 55));

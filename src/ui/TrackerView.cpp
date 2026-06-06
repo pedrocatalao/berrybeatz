@@ -174,7 +174,7 @@ void TrackerView::render(float x, float y, float w, float h, float boxTopExt) {
 
         int32_t norders  = m_state.num_orders.load();
         int32_t curOrder = m_state.current_order.load();
-        OrderList("##orders", m_fontUI, g_fontSidebar,
+        OrderList("##orders", "Order", m_fontUI, g_fontSidebar,
                   norders, curOrder,
                   [this](int32_t i) {
                       return m_ctrl ? m_ctrl->module()->getOrderPattern(i) : i;

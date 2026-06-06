@@ -133,7 +133,7 @@ inline void OrderList(const char*   id,
         if (isCur) ImGui::SetScrollHereX(0.5f);
 
         if (isCur)
-            dl->AddRectFilled({p.x + 1.f, p.y + 1.f}, {pBR.x - 1.f, pBR.y - 1.f},
+            dl->AddRectFilled({p.x + 1.f, p.y + 1.f}, {pBR.x - 1.f, pBR.y},
                               LcdTextA(220), 2.f);
         else if (hov)
             dl->AddRectFilled(p, pBR, LcdTextA(28), 2.f);

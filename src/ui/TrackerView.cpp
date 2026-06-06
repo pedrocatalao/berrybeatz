@@ -108,8 +108,9 @@ void TrackerView::render(float x, float y, float w, float h, float boxTopExt) {
              + (m_showVU        ? VU_H     : 0.f)
              + (m_showWave      ? WAVE_H   : 0.f)
              + (m_showPluginRow ? PLUGIN_H : 0.f);
-    float wpy    = ImGui::GetStyle().WindowPadding.y;
-    m_patTop = y + PTBAR1_H + PTBAR2_H + PTBAR3_H + wpy + ORDER_H + m_chanH;
+    float wpy     = ImGui::GetStyle().WindowPadding.y;
+    constexpr float ORDER_GAP = 6.f;
+    m_patTop = y + PTBAR1_H + PTBAR2_H + PTBAR3_H + wpy + ORDER_H + ORDER_GAP + m_chanH;
 
     ImGuiWindowFlags noDecoFlags =
         ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
@@ -161,7 +162,8 @@ void TrackerView::render(float x, float y, float w, float h, float boxTopExt) {
         ImGui::PushStyleColor(ImGuiCol_WindowBg, kBarBg);
         ImGui::Begin("##ptbar4", nullptr,
                      noDecoFlags | ImGuiWindowFlags_NoScrollbar
-                                 | ImGuiWindowFlags_NoScrollWithMouse);
+                                 | ImGuiWindowFlags_NoScrollWithMouse
+                                 | ImGuiWindowFlags_NoMouseInputs);
         ImGui::PopStyleColor();
 
         constexpr float RIGHT_MARGIN = 16.f;
@@ -186,7 +188,7 @@ void TrackerView::render(float x, float y, float w, float h, float boxTopExt) {
     }
 
     // Pattern panel — channel headers are the frozen first row of the table
-    float chanY = y + PTBAR1_H + PTBAR2_H + PTBAR3_H + wpy + ORDER_H;
+    float chanY = y + PTBAR1_H + PTBAR2_H + PTBAR3_H + wpy + ORDER_H + ORDER_GAP;
     float patH  = h - (chanY - y);
     m_patAreaMin = {x + 7.f, chanY};
     m_patAreaMax = {x + w,   y + h};

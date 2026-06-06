@@ -162,5 +162,39 @@ inline void OrderList(const char*   id,
 
     ImGui::PopStyleVar();
     if (slotFont) ImGui::PopFont();
+
+    float scrollX    = ImGui::GetScrollX();
+    float scrollMaxX = ImGui::GetScrollMaxX();
     ImGui::End();
+
+    // ── Overflow arrows drawn on top via foreground draw list ────────────────
+    if (scrollMaxX > 0.f) {
+        constexpr float S    = 3.5f;   // triangle half-size
+        constexpr float PAD  = 6.f;    // inset from LCD edge
+        constexpr float FADE = 18.f;   // width of dark fade behind arrow
+        float cy = lcdY + LCD_H * 0.5f;
+
+        ImDrawList* fgDL2 = ImGui::GetForegroundDrawList();
+
+        if (scrollX > 0.5f) {
+            // Fade
+            fgDL2->AddRectFilled({lcdX, lcdY},
+                                 {lcdX + FADE, lcdY + LCD_H},
+                                 IM_COL32(10, 30, 40, 200));
+            // Left-pointing triangle
+            float cx = lcdX + PAD;
+            fgDL2->AddTriangleFilled({cx + S, cy - S}, {cx + S, cy + S}, {cx - S, cy},
+                                     LcdTextA(200));
+        }
+        if (scrollX < scrollMaxX - 0.5f) {
+            // Fade
+            fgDL2->AddRectFilled({lcdX + lcdW - FADE, lcdY},
+                                 {lcdX + lcdW,         lcdY + LCD_H},
+                                 IM_COL32(10, 30, 40, 200));
+            // Right-pointing triangle
+            float cx = lcdX + lcdW - PAD;
+            fgDL2->AddTriangleFilled({cx - S, cy - S}, {cx - S, cy + S}, {cx + S, cy},
+                                     LcdTextA(200));
+        }
+    }
 }

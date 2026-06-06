@@ -107,8 +107,10 @@ void TrackerView::render(float x, float y, float w, float h, float boxTopExt) {
              + (m_showVU        ? VU_H     : 0.f)
              + (m_showWave      ? WAVE_H   : 0.f)
              + (m_showPluginRow ? PLUGIN_H : 0.f);
-    constexpr float ORDER_GAP = 6.f;
-    m_patTop = y + m_toolbar1H + ORDER_H + ORDER_GAP + m_chanH;
+    constexpr float ORDER_GAP  = 6.f;
+    const bool      hasModule  = m_ctrl != nullptr;
+    const float     orderSlotH = hasModule ? (ORDER_H + ORDER_GAP) : 0.f;
+    m_patTop = y + m_toolbar1H + orderSlotH + m_chanH;
 
     ImGuiWindowFlags noDecoFlags =
         ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
@@ -136,8 +138,8 @@ void TrackerView::render(float x, float y, float w, float h, float boxTopExt) {
         bg->AddRectFilled(p0, p1, kClrTabBodyBg);
     }
 
-    // Pattern toolbar row 4 — order list
-    {
+    // Pattern toolbar row 4 — order list (only when a module is loaded)
+    if (hasModule) {
         float rowY = y + m_toolbar1H;
         ImGui::SetNextWindowPos ({x, rowY});
         ImGui::SetNextWindowSize({w, ORDER_H});
@@ -159,19 +161,15 @@ void TrackerView::render(float x, float y, float w, float h, float boxTopExt) {
         int32_t curOrder = m_state.current_order.load();
         OrderList("##orders", "Order", m_fontUI, g_fontSidebar,
                   norders, curOrder,
-                  [this](int32_t i) {
-                      return m_ctrl ? m_ctrl->module()->getOrderPattern(i) : i;
-                  },
-                  [this](int32_t i) {
-                      if (onOrderSeekRequested) onOrderSeekRequested(i);
-                  },
+                  [this](int32_t i) { return m_ctrl->module()->getOrderPattern(i); },
+                  [this](int32_t i) { if (onOrderSeekRequested) onOrderSeekRequested(i); },
                   cursorX, cursorY, ORDER_H, maxW, noDecoFlags);
 
         ImGui::End();
     }
 
     // Pattern panel — channel headers are the frozen first row of the table
-    float chanY = y + m_toolbar1H + ORDER_H + ORDER_GAP;
+    float chanY = y + m_toolbar1H + orderSlotH;
     float patH  = h - (chanY - y);
     m_patAreaMin = {x + 7.f, chanY};
     m_patAreaMax = {x + w,   y + h};

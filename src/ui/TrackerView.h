@@ -97,8 +97,6 @@ public:
 private:
     void processInput();
     void drawPatternToolbar1(float x, float y, float w);
-    void drawPatternToolbar2(float x, float y, float w);
-    void drawPatternToolbar3(float x, float y, float w);
     void drawPatternPanel(float x, float y, float w, float h);
     void drawStereoVU(ImDrawList* dl, float x, float y, float w, float h, float lvlL, float lvlR);
 
@@ -164,6 +162,9 @@ private:
     // Dynamic layout
     float   m_chanH  {45.0f};
     float   m_patTop {0.0f};
+
+    // Adaptive toolbar height — updated each frame from DrawControlGroups result
+    float   m_toolbar1H     {100.f};
 
     // Pattern toolbar state
     bool    m_showVU        {true};

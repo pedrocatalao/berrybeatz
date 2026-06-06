@@ -45,8 +45,9 @@ struct ControlGroupDef {
 // ── DrawControlGroups ─────────────────────────────────────────────────────────
 // localX, localY : top-left in current ImGui window's local coordinates.
 // availW         : horizontal space before groups wrap to next row.
-inline void DrawControlGroups(float localX, float localY, float availW,
-                               const std::vector<ControlGroupDef>& groups)
+// Returns the total height (px) used by all group rows — for adaptive window sizing.
+inline float DrawControlGroups(float localX, float localY, float availW,
+                                const std::vector<ControlGroupDef>& groups)
 {
     ImDrawList* dl     = ImGui::GetWindowDrawList();
     ImVec2      winPos = ImGui::GetWindowPos();
@@ -174,4 +175,5 @@ inline void DrawControlGroups(float localX, float localY, float availW,
         curX   += actualGroupW + kCG_GapH;
         rowMaxH = std::max(rowMaxH, bMax.y - lsY(curY));
     }
+    return (curY - localY) + rowMaxH;
 }

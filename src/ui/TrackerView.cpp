@@ -39,8 +39,6 @@ static constexpr ImU32 kVuHiUnlit  = kVuVioletUnlit;
 
 // ── Layout constants ──────────────────────────────────────────────────────────
 static constexpr float PTBAR1_H   = 120.0f;
-static constexpr float PTBAR2_H   =  24.0f;
-static constexpr float PTBAR3_H   =   0.0f;
 static constexpr float ORDER_H    = 20.0f;
 static constexpr float CHANNAME_H = 18.0f;
 static constexpr float VU_H       = 13.0f;
@@ -109,9 +107,8 @@ void TrackerView::render(float x, float y, float w, float h, float boxTopExt) {
              + (m_showVU        ? VU_H     : 0.f)
              + (m_showWave      ? WAVE_H   : 0.f)
              + (m_showPluginRow ? PLUGIN_H : 0.f);
-    float wpy     = ImGui::GetStyle().WindowPadding.y;
     constexpr float ORDER_GAP = 6.f;
-    m_patTop = y + PTBAR1_H + PTBAR2_H + PTBAR3_H + wpy + ORDER_H + ORDER_GAP + m_chanH;
+    m_patTop = y + m_toolbar1H + ORDER_H + ORDER_GAP + m_chanH;
 
     ImGuiWindowFlags noDecoFlags =
         ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
@@ -120,22 +117,15 @@ void TrackerView::render(float x, float y, float w, float h, float boxTopExt) {
 
     const ImVec4 kBarBg{0.f, 0.f, 0.f, 0.f};
 
-    // Pattern toolbar — all groups in one window
+    // Pattern toolbar — height adapts to group content (one-frame lag via m_toolbar1H)
     ImGui::SetNextWindowPos ({x, y});
-    ImGui::SetNextWindowSize({w, PTBAR1_H});
+    ImGui::SetNextWindowSize({w, m_toolbar1H});
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.f, 0.f));
     ImGui::PushStyleColor(ImGuiCol_WindowBg, kBarBg);
     ImGui::Begin("##ptbar1", nullptr, noDecoFlags | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
     ImGui::PopStyleColor();
+    ImGui::PopStyleVar();
     drawPatternToolbar1(x, y, w);
-    ImGui::End();
-
-    // Pattern toolbar row 2 (instrument/step)
-    ImGui::SetNextWindowPos ({x, y + PTBAR1_H});
-    ImGui::SetNextWindowSize({w, PTBAR2_H});
-    ImGui::PushStyleColor(ImGuiCol_WindowBg, kBarBg);
-    ImGui::Begin("##ptbar3", nullptr, noDecoFlags | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
-    ImGui::PopStyleColor();
-    drawPatternToolbar2(x, y + PTBAR1_H + PTBAR3_H, w);
     ImGui::End();
 
     // Box behind order list + pattern panel (extends up behind tab bar)
@@ -148,20 +138,21 @@ void TrackerView::render(float x, float y, float w, float h, float boxTopExt) {
 
     // Pattern toolbar row 4 — order list
     {
-        float rowY = y + PTBAR1_H + PTBAR2_H + PTBAR3_H;
+        float rowY = y + m_toolbar1H;
         ImGui::SetNextWindowPos ({x, rowY});
         ImGui::SetNextWindowSize({w, ORDER_H});
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.f, 0.f));
         ImGui::PushStyleColor(ImGuiCol_WindowBg, kBarBg);
         ImGui::Begin("##ptbar4", nullptr,
                      noDecoFlags | ImGuiWindowFlags_NoScrollbar
                                  | ImGuiWindowFlags_NoScrollWithMouse
                                  | ImGuiWindowFlags_NoMouseInputs);
         ImGui::PopStyleColor();
+        ImGui::PopStyleVar();
 
         constexpr float RIGHT_MARGIN = 16.f;
-        ImVec2 cursor = ImGui::GetCursorScreenPos();
-        float cursorX = cursor.x;
-        float cursorY = cursor.y;
+        float cursorX = x + 7.f + m_rowNumW;
+        float cursorY = ImGui::GetCursorScreenPos().y;
         float maxW    = (x + w) - cursorX - RIGHT_MARGIN;
 
         int32_t norders  = m_state.num_orders.load();
@@ -180,7 +171,7 @@ void TrackerView::render(float x, float y, float w, float h, float boxTopExt) {
     }
 
     // Pattern panel — channel headers are the frozen first row of the table
-    float chanY = y + PTBAR1_H + PTBAR2_H + PTBAR3_H + wpy + ORDER_H + ORDER_GAP;
+    float chanY = y + m_toolbar1H + ORDER_H + ORDER_GAP;
     float patH  = h - (chanY - y);
     m_patAreaMin = {x + 7.f, chanY};
     m_patAreaMax = {x + w,   y + h};
@@ -249,7 +240,6 @@ void TrackerView::render(float x, float y, float w, float h, float boxTopExt) {
         m_pluginPopup.end();
     }
     ImGui::End();
-
 }
 
 // ── Pattern toolbar row 1 ─────────────────────────────────────────────────────
@@ -277,52 +267,6 @@ void TrackerView::drawPatternToolbar1(float /*x*/, float /*y*/, float /*w*/) {
     float patW   = ImGui::GetStyle().FramePadding.x + ImGui::CalcTextSize("Pattern").x + 6.f + 120.f + 6.f;
 
     std::vector<ControlGroupDef> groups = {
-        {"Playback", 180.f, 200.f, m_fontUI, {
-            {sw("Play Cursor"), [&] {
-                bool dis = !has;
-                if (dis) ImGui::BeginDisabled();
-                if (SwitchButton("Play Cursor##playcur", "Play Cursor")) {
-                    int32_t row = m_editMode ? m_cur.row : m_state.current_row.load();
-                    if (onPatternPlayFromCursor)
-                        onPatternPlayFromCursor(m_state.current_order.load(), row, m_loopPattern);
-                }
-                tip("Play from cursor");
-                if (dis) ImGui::EndDisabled();
-            }},
-            {sw("Play Start"), [&] {
-                bool dis = !has;
-                if (dis) ImGui::BeginDisabled();
-                if (SwitchButton("Play Start##playstart", "Play Start"))
-                    if (onPatternPlayFromStart) onPatternPlayFromStart(m_state.current_order.load(), m_loopPattern);
-                tip("Play pattern from start");
-                if (dis) ImGui::EndDisabled();
-            }},
-            {sw("Stop"), [&] {
-                bool dis = !has;
-                if (dis) ImGui::BeginDisabled();
-                if (SwitchButton("Stop##stop2", "Stop")) if (onStopRequested) onStopRequested();
-                tip("Stop playback");
-                if (dis) ImGui::EndDisabled();
-            }},
-            {sw("Play Row"), [&] {
-                bool dis = !has;
-                if (dis) ImGui::BeginDisabled();
-                if (SwitchButton("Play Row##playrow", "Play Row")) {
-                    int32_t ord = m_state.current_order.load();
-                    int32_t row = m_cur.row;
-                    advanceCursor();
-                    if (onPatternPlayRow) onPatternPlayRow(ord, row);
-                }
-                tip("Play current row and advance cursor");
-                if (dis) ImGui::EndDisabled();
-            }},
-            {sw("Loop", true), [&] {
-                bool prev = m_loopPattern;
-                if (SwitchButton("Loop##lp", "Loop", m_loopPattern, 1)) m_loopPattern = !m_loopPattern;
-                if (m_loopPattern != prev && onLoopToggled) onLoopToggled(m_loopPattern);
-                tip("Loop current pattern");
-            }},
-        }},
         {"Edit", 270.f, 200.f, m_fontUI, {
             {sw("Undo"), [&] {
                 bool dis = !(has && m_undo.canUndo());
@@ -410,6 +354,52 @@ void TrackerView::drawPatternToolbar1(float /*x*/, float /*y*/, float /*w*/) {
                 tip("Plugin selector (not yet available)");
             }},
         }},
+        {"Playback", 180.f, 200.f, m_fontUI, {
+            {sw("Play Cursor"), [&] {
+                bool dis = !has;
+                if (dis) ImGui::BeginDisabled();
+                if (SwitchButton("Play Cursor##playcur", "Play Cursor")) {
+                    int32_t row = m_editMode ? m_cur.row : m_state.current_row.load();
+                    if (onPatternPlayFromCursor)
+                        onPatternPlayFromCursor(m_state.current_order.load(), row, m_loopPattern);
+                }
+                tip("Play from cursor");
+                if (dis) ImGui::EndDisabled();
+            }},
+            {sw("Play Start"), [&] {
+                bool dis = !has;
+                if (dis) ImGui::BeginDisabled();
+                if (SwitchButton("Play Start##playstart", "Play Start"))
+                    if (onPatternPlayFromStart) onPatternPlayFromStart(m_state.current_order.load(), m_loopPattern);
+                tip("Play pattern from start");
+                if (dis) ImGui::EndDisabled();
+            }},
+            {sw("Stop"), [&] {
+                bool dis = !has;
+                if (dis) ImGui::BeginDisabled();
+                if (SwitchButton("Stop##stop2", "Stop")) if (onStopRequested) onStopRequested();
+                tip("Stop playback");
+                if (dis) ImGui::EndDisabled();
+            }},
+            {sw("Play Row"), [&] {
+                bool dis = !has;
+                if (dis) ImGui::BeginDisabled();
+                if (SwitchButton("Play Row##playrow", "Play Row")) {
+                    int32_t ord = m_state.current_order.load();
+                    int32_t row = m_cur.row;
+                    advanceCursor();
+                    if (onPatternPlayRow) onPatternPlayRow(ord, row);
+                }
+                tip("Play current row and advance cursor");
+                if (dis) ImGui::EndDisabled();
+            }},
+            {sw("Loop", true), [&] {
+                bool prev = m_loopPattern;
+                if (SwitchButton("Loop##lp", "Loop", m_loopPattern, 1)) m_loopPattern = !m_loopPattern;
+                if (m_loopPattern != prev && onLoopToggled) onLoopToggled(m_loopPattern);
+                tip("Loop current pattern");
+            }},
+        }},
         {"View", 280.f, 200.f, m_fontUI, {
             {sw("VU", true), [&] {
                 if (SwitchButton("VU##vu", "VU", m_showVU, 1)) m_showVU = !m_showVU;
@@ -473,28 +463,13 @@ void TrackerView::drawPatternToolbar1(float /*x*/, float /*y*/, float /*w*/) {
         }},
     };
 
-    DrawControlGroups(15.f, 6.f, ImGui::GetContentRegionMax().x - 15.f, groups);
+    float groupsH = DrawControlGroups(15.f, 6.f, ImGui::GetContentRegionMax().x - 15.f, groups);
+    m_toolbar1H = 6.f + groupsH + 15.f;
 
     popToolbarStyle();
     if (m_fontUI) ImGui::PopFont();
 }
 
-// ── Pattern toolbar row 3 — stub (merged into toolbar1) ──────────────────────
-
-void TrackerView::drawPatternToolbar3(float, float, float) {}
-
-// ── Pattern toolbar row 2 ─────────────────────────────────────────────────────
-
-void TrackerView::drawPatternToolbar2(float /*x*/, float /*y*/, float /*w*/) {
-    bool has = m_ctrl != nullptr;
-    if (m_fontUI) ImGui::PushFont(m_fontUI);
-    pushToolbarStyle();
-    ImGui::SetCursorPosY((ImGui::GetWindowHeight() - ImGui::GetFrameHeight()) * 0.5f);
-
-
-    popToolbarStyle();
-    if (m_fontUI) ImGui::PopFont();
-}
 
 
 // ── Stereo VU ─────────────────────────────────────────────────────────────────

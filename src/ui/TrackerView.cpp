@@ -171,10 +171,10 @@ void TrackerView::render(float x, float y, float w, float h, float boxTopExt) {
     // Pattern panel — channel headers are the frozen first row of the table
     float chanY = y + m_toolbar1H + orderSlotH;
     float patH  = h - (chanY - y);
-    m_patAreaMin = {x + 7.f, chanY};
+    m_patAreaMin = {x + 2.f, chanY};
     m_patAreaMax = {x + w,   y + h};
-    ImGui::SetNextWindowPos ({x + 7.f, chanY});
-    ImGui::SetNextWindowSize({w - 7.f, patH});
+    ImGui::SetNextWindowPos ({x + 2.f, chanY});
+    ImGui::SetNextWindowSize({w - 2.f, patH});
     ImGui::PushStyleColor(ImGuiCol_ScrollbarBg,          IM_COL32(  0,   0,   0,   0));
     ImGui::PushStyleColor(ImGuiCol_ScrollbarGrab,        IM_COL32( 40,  85, 145, 200));
     ImGui::PushStyleColor(ImGuiCol_ScrollbarGrabHovered, IM_COL32( 55, 112, 175, 230));

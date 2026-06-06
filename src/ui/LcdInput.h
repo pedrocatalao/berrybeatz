@@ -58,10 +58,10 @@ inline bool LcdInput(const char* id, const char* label,
 
     // ── Styled InputText inset to LCD_H, centered vertically ─────────────────
     float fpY = (LCD_H - labelSz.y) * 0.5f;
-    ImGui::PushStyleColor(ImGuiCol_FrameBg,        IM_COL32(10, 30, 40, 255));
+    ImGui::PushStyleColor(ImGuiCol_FrameBg,        kClrLcdBg);
     ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, IM_COL32(12, 36, 50, 255));
     ImGui::PushStyleColor(ImGuiCol_FrameBgActive,  IM_COL32(12, 36, 50, 255));
-    ImGui::PushStyleColor(ImGuiCol_Text,           IM_COL32(100, 220, 160, 255));
+    ImGui::PushStyleColor(ImGuiCol_Text,           kClrLcdText);
     ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, IM_COL32(50, 140, 100, 120));
     ImGui::PushStyleColor(ImGuiCol_Border,         IM_COL32(0, 0, 0, 0));
     ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, ROUNDING);

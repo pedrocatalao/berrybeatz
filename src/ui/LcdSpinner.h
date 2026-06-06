@@ -112,7 +112,7 @@ inline int LcdSpinner(const char* id, const char* label,
                       {lcdX + LCD_W + 1.f, lcdY + LCD_H + 1.f},
                       IM_COL32(0, 0, 0, 180), 2.f);
     dl->AddRectFilled({lcdX, lcdY}, {lcdX + LCD_W, lcdY + LCD_H},
-                      IM_COL32(10, 30, 40, 255), 1.5f);
+                      kClrLcdBg, 1.5f);
 
     char   valBuf[12];
     snprintf(valBuf, sizeof(valBuf), "%d", value);
@@ -120,7 +120,7 @@ inline int LcdSpinner(const char* id, const char* label,
     dl->PushClipRect({lcdX, lcdY}, {lcdX + LCD_W, lcdY + LCD_H}, true);
     dl->AddText({lcdX + (LCD_W - valSz.x) * 0.5f,
                  lcdY + (LCD_H - valSz.y) * 0.5f},
-                IM_COL32(100, 220, 160, 255), valBuf);
+                kClrLcdText, valBuf);
     dl->PopClipRect();
 
     // ── Dec (−) mini button ──────────────────────────────────────────────

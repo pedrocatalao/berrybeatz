@@ -96,7 +96,7 @@ inline bool LcdDropdown(const char* id, const char* label,
                       IM_COL32(0, 0, 0, 180), 2.f);
     dl->AddRectFilled({lcdAbsX, lcdAbsY},
                       {lcdAbsX + lcdWidth, lcdAbsY + LCD_H},
-                      IM_COL32(10, 30, 40, 255), 1.5f);
+                      kClrLcdBg, 1.5f);
 
     const char* preview = (noneLabel && *selected < 0) ? noneLabel
                         : (*selected >= 0 && *selected < count) ? items[*selected]
@@ -118,7 +118,7 @@ inline bool LcdDropdown(const char* id, const char* label,
     }
     dl->PushClipRect({lcdAbsX, lcdAbsY}, {lcdAbsX + lcdWidth, lcdAbsY + LCD_H}, true);
     dl->AddText({lcdAbsX + LCD_PAD - scrollOff, lcdAbsY + (LCD_H - previewSz.y) * 0.5f},
-                IM_COL32(100, 220, 160, 255), preview);
+                kClrLcdText, preview);
     dl->PopClipRect();
 
     // ── Arrow button ─────────────────────────────────────────────────────────

@@ -59,6 +59,13 @@ static constexpr ImU32 kClrRedHover   = IM_COL32(190,  50,  50, 255);  // record
 static constexpr ImU32 kClrOrangeHint = IM_COL32(255, 153,  76, 255);  // "move a knob" MIDI hint (ImVec4 1,0.6,0.3)
 
 
+// ── LCD widgets ───────────────────────────────────────────────────────────────
+static constexpr ImU32 kClrLcdBg   = IM_COL32( 10,  30,  40, 255);  // LCD display background
+static constexpr ImU32 kClrLcdText = IM_COL32(100, 220, 160, 255);  // LCD green text
+// Returns kClrLcdText with a custom alpha (0–255).
+inline ImU32 LcdTextA(uint8_t a) { return IM_COL32(100, 220, 160, a); }
+
+
 // ── Tab bar ───────────────────────────────────────────────────────────────────
 static constexpr ImU32   kClrTabBg        = IM_COL32( 10,  10,  22, 255);
 static constexpr ImU32   kClrTabHover     = IM_COL32( 35,  35,  60, 255);

@@ -130,7 +130,7 @@ inline bool SwitchButton(const char* id, const char* label,
         for (int i = 0; i < levels; i++) {
             float sy     = ledY + LED_H - (i + 1) * segH - i * gapH;
             bool  lit    = i < clampedVal;
-            ImU32 segCol = lit ? ledCol : IM_COL32(10, 30, 40, 255);
+            ImU32 segCol = lit ? ledCol : kClrLcdBg;
             dl->AddRectFilled({ledX, sy}, {ledX + LED_W, sy + segH}, segCol, 1.0f);
         }
     }

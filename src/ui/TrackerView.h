@@ -99,7 +99,6 @@ private:
     void drawPatternToolbar1(float x, float y, float w);
     void drawPatternToolbar2(float x, float y, float w);
     void drawPatternToolbar3(float x, float y, float w);
-    void drawOrderList(float x, float y, float w);
     void drawPatternPanel(float x, float y, float w, float h);
     void drawStereoVU(ImDrawList* dl, float x, float y, float w, float h, float lvlL, float lvlR);
 

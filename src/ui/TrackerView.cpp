@@ -11,6 +11,7 @@
 #include "LcdSpinner.h"
 #include "LcdDropdown.h"
 #include "LcdInput.h"
+#include "OrderList.h"
 #include <algorithm>
 
 // ── OpenMPT "Blue (FT2)" colour scheme — sourced from Theme.h ─────────────────
@@ -36,10 +37,10 @@ static constexpr ImU32 kVuHiLit    = kVuVioletLit;
 static constexpr ImU32 kVuHiUnlit  = kVuVioletUnlit;
 
 // ── Layout constants ──────────────────────────────────────────────────────────
-static constexpr float PTBAR1_H   = 28.0f;
-static constexpr float PTBAR2_H   = 28.0f;
-static constexpr float PTBAR3_H   = 28.0f;
-static constexpr float ORDER_H    = 26.0f;
+static constexpr float PTBAR1_H   = 24.0f;
+static constexpr float PTBAR2_H   = 24.0f;
+static constexpr float PTBAR3_H   = 24.0f;
+static constexpr float ORDER_H    = 20.0f;
 static constexpr float CHANNAME_H = 18.0f;
 static constexpr float VU_H       = 13.0f;
 static constexpr float WAVE_H     = 28.0f;
@@ -151,23 +152,37 @@ void TrackerView::render(float x, float y, float w, float h, float boxTopExt) {
         bg->AddRectFilled(p0, p1, kClrTabBodyBg);
     }
 
-    // "Pat" label — vertically centred in the order row strip, left of the order list
-    if (m_fontUI) {
-        float fh    = m_fontUI->LegacySize;
-        float lblY  = y + PTBAR1_H + PTBAR2_H + PTBAR3_H + (ORDER_H - fh) * 0.5f;
-        ImGui::GetBackgroundDrawList()->AddText(
-            m_fontUI, fh, {x + 8.f, lblY},
-            kClrTextHint, "Pat");
-    }
+    // Pattern toolbar row 4 — order list
+    {
+        float rowY = y + PTBAR1_H + PTBAR2_H + PTBAR3_H;
+        ImGui::SetNextWindowPos ({x, rowY});
+        ImGui::SetNextWindowSize({w, ORDER_H});
+        ImGui::PushStyleColor(ImGuiCol_WindowBg, kBarBg);
+        ImGui::Begin("##ptbar4", nullptr,
+                     noDecoFlags | ImGuiWindowFlags_NoScrollbar
+                                 | ImGuiWindowFlags_NoScrollWithMouse);
+        ImGui::PopStyleColor();
 
-    // Order list
-    ImGui::SetNextWindowPos ({x + 26.f + 7.f, y + PTBAR1_H + PTBAR2_H + PTBAR3_H});
-    ImGui::SetNextWindowSize({w - 26.f - 7.f - 4.f, ORDER_H});
-    ImGui::PushStyleColor(ImGuiCol_WindowBg, kOrderBg);
-    ImGui::Begin("##orders", nullptr, noDecoFlags | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_HorizontalScrollbar);
-    ImGui::PopStyleColor();
-    drawOrderList(x, y + PTBAR1_H + PTBAR2_H + PTBAR3_H, w);
-    ImGui::End();
+        // Use rowY (not cursor.y) so the outer body spans exactly rowY..rowY+ORDER_H.
+        // cursor.y includes WindowPadding.y which would push the bottom past chanY.
+        constexpr float RIGHT_MARGIN = 16.f;
+        float cursorX = ImGui::GetCursorScreenPos().x;
+        float maxW    = (x + w) - cursorX - RIGHT_MARGIN;
+
+        int32_t norders  = m_state.num_orders.load();
+        int32_t curOrder = m_state.current_order.load();
+        OrderList("##orders", m_fontUI, g_fontSidebar,
+                  norders, curOrder,
+                  [this](int32_t i) {
+                      return m_ctrl ? m_ctrl->module()->getOrderPattern(i) : i;
+                  },
+                  [this](int32_t i) {
+                      if (onOrderSeekRequested) onOrderSeekRequested(i);
+                  },
+                  cursorX, rowY, ORDER_H, maxW, noDecoFlags);
+
+        ImGui::End();
+    }
 
     // Pattern panel — channel headers are the frozen first row of the table
     float chanY = y + PTBAR1_H + PTBAR2_H + PTBAR3_H + ORDER_H;
@@ -430,64 +445,6 @@ void TrackerView::drawPatternToolbar2(float /*x*/, float /*y*/, float /*w*/) {
     if (m_fontUI) ImGui::PopFont();
 }
 
-// ── Order list ────────────────────────────────────────────────────────────────
-
-void TrackerView::drawOrderList(float /*x*/, float /*y*/, float /*w*/) {
-    int32_t norders  = m_state.num_orders.load();
-    int32_t curOrder = m_state.current_order.load();
-
-    if (g_fontOrderRow) ImGui::PushFont(g_fontOrderRow);
-
-    if (norders <= 0) {
-        ImGui::SetCursorPosY(4);
-        ImGui::TextColored(kDim, "  Open a module file  (File > Open or drag & drop)");
-        if (g_fontOrderRow) ImGui::PopFont();
-        return;
-    }
-
-    float boxW = m_charW * 4.2f;
-    float boxH = ORDER_H - 4.0f;
-
-    ImGui::SetCursorPosY(2);
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, {2.0f, 0.0f});
-
-    ImDrawList* dl = ImGui::GetWindowDrawList();
-
-    for (int32_t i = 0; i < norders; i++) {
-        bool    isCur = (i == curOrder);
-        int32_t pat   = m_ctrl ? m_ctrl->module()->getOrderPattern(i) : i;
-
-        char id[12], txt[8];
-        snprintf(id,  sizeof(id),  "##o%d", i);
-        snprintf(txt, sizeof(txt), "%02d",  pat);
-
-        ImVec2 p = ImGui::GetCursorScreenPos();
-        ImGui::InvisibleButton(id, {boxW, boxH});
-        bool hov     = ImGui::IsItemHovered();
-        bool pressed = ImGui::IsItemActive();
-        if (ImGui::IsItemClicked() && onOrderSeekRequested)
-            onOrderSeekRequested(i);
-
-        // Background
-        ImVec4 bg = isCur ? kOrderCur : kOrderBg;
-        if (pressed)   bg = {bg.x+.2f, bg.y+.2f, bg.z+.3f, 1.f};
-        else if (hov)  bg = {bg.x+.1f, bg.y+.1f, bg.z+.2f, 1.f};
-        if (isCur || hov || pressed)
-            dl->AddRectFilled(p, {p.x + boxW, p.y + boxH},
-                              ImGui::ColorConvertFloat4ToU32(bg));
-
-        // Text — explicitly centred, no FramePadding interference
-        ImVec2 ts  = ImGui::CalcTextSize(txt);
-        float  tx  = p.x + (boxW - ts.x) * 0.5f + 1.f;
-        float  ty  = p.y + (boxH - ts.y) * 0.5f;
-        dl->AddText({tx, ty}, ImGui::ColorConvertFloat4ToU32(isCur ? kTextCurRow : kTextNormal), txt);
-
-        ImGui::SameLine(0, 2);
-    }
-
-    ImGui::PopStyleVar();
-    if (g_fontOrderRow) ImGui::PopFont();
-}
 
 // ── Stereo VU ─────────────────────────────────────────────────────────────────
 

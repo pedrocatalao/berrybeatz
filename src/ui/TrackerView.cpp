@@ -153,7 +153,7 @@ void TrackerView::render(float x, float y, float w, float h, float boxTopExt) {
         ImGui::PopStyleVar();
 
         constexpr float RIGHT_MARGIN = 16.f;
-        float cursorX = x + 7.f + m_rowNumW;
+        float cursorX = x + 15.f;
         float cursorY = ImGui::GetCursorScreenPos().y;
         float maxW    = (x + w) - cursorX - RIGHT_MARGIN;
 

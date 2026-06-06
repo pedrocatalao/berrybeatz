@@ -180,7 +180,7 @@ inline void OrderList(const char*   id,
             // Fade
             fgDL2->AddRectFilled({lcdX, lcdY},
                                  {lcdX + FADE, lcdY + LCD_H},
-                                 IM_COL32(10, 30, 40, 200));
+                                 IM_COL32(10, 30, 40, 160));
             // Left-pointing triangle
             float cx = lcdX + PAD;
             fgDL2->AddTriangleFilled({cx + S, cy - S}, {cx + S, cy + S}, {cx - S, cy},
@@ -190,7 +190,7 @@ inline void OrderList(const char*   id,
             // Fade
             fgDL2->AddRectFilled({lcdX + lcdW - FADE, lcdY},
                                  {lcdX + lcdW,         lcdY + LCD_H},
-                                 IM_COL32(10, 30, 40, 200));
+                                 IM_COL32(10, 30, 40, 160));
             // Right-pointing triangle
             float cx = lcdX + lcdW - PAD;
             fgDL2->AddTriangleFilled({cx - S, cy - S}, {cx - S, cy + S}, {cx + S, cy},

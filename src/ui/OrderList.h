@@ -174,27 +174,34 @@ inline void OrderList(const char*   id,
         constexpr float FADE = 18.f;   // width of dark fade behind arrow
         float cy = lcdY + LCD_H * 0.5f;
 
-        ImDrawList* fgDL2 = ImGui::GetForegroundDrawList();
-
+        ImDrawList*          fgDL2      = ImGui::GetForegroundDrawList();
+        constexpr ImU32      kFadeOpaque = IM_COL32(10, 30, 40, 100);
+        constexpr ImU32      kFadeClear  = IM_COL32(10, 30, 40,   0);
+        const     ImU32      arrowCol    = LcdTextA(200);
+        ImDrawListFlags      savedFlags  = fgDL2->Flags;
+        fgDL2->Flags &= ~ImDrawListFlags_AntiAliasedFill;
         if (scrollX > 0.5f) {
             // Fade
             fgDL2->AddRectFilled({lcdX, lcdY},
                                  {lcdX + FADE, lcdY + LCD_H},
                                  IM_COL32(10, 30, 40, 160));
-            // Left-pointing triangle
-            float cx = lcdX + PAD;
-            fgDL2->AddTriangleFilled({cx + S, cy - S}, {cx + S, cy + S}, {cx - S, cy},
-                                     LcdTextA(200));
+            float cx = std::floor(lcdX + PAD);
+            fgDL2->PathLineTo({cx + S, cy - S});
+            fgDL2->PathLineTo({cx - S, cy    });
+            fgDL2->PathLineTo({cx + S, cy + S});
+            fgDL2->PathFillConvex(arrowCol);
         }
         if (scrollX < scrollMaxX - 0.5f) {
             // Fade
             fgDL2->AddRectFilled({lcdX + lcdW - FADE, lcdY},
                                  {lcdX + lcdW,         lcdY + LCD_H},
                                  IM_COL32(10, 30, 40, 160));
-            // Right-pointing triangle
-            float cx = lcdX + lcdW - PAD;
-            fgDL2->AddTriangleFilled({cx - S, cy - S}, {cx - S, cy + S}, {cx + S, cy},
-                                     LcdTextA(200));
+            float cx = std::floor(lcdX + lcdW - PAD);
+            fgDL2->PathLineTo({cx - S, cy - S});
+            fgDL2->PathLineTo({cx + S, cy    });
+            fgDL2->PathLineTo({cx - S, cy + S});
+            fgDL2->PathFillConvex(arrowCol);
         }
+        fgDL2->Flags = savedFlags;
     }
 }

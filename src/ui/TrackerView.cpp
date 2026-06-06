@@ -108,7 +108,8 @@ void TrackerView::render(float x, float y, float w, float h, float boxTopExt) {
              + (m_showVU        ? VU_H     : 0.f)
              + (m_showWave      ? WAVE_H   : 0.f)
              + (m_showPluginRow ? PLUGIN_H : 0.f);
-    m_patTop = y + PTBAR1_H + PTBAR2_H + PTBAR3_H + ORDER_H + m_chanH;
+    float wpy    = ImGui::GetStyle().WindowPadding.y;
+    m_patTop = y + PTBAR1_H + PTBAR2_H + PTBAR3_H + wpy + ORDER_H + m_chanH;
 
     ImGuiWindowFlags noDecoFlags =
         ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
@@ -163,10 +164,10 @@ void TrackerView::render(float x, float y, float w, float h, float boxTopExt) {
                                  | ImGuiWindowFlags_NoScrollWithMouse);
         ImGui::PopStyleColor();
 
-        // Use rowY (not cursor.y) so the outer body spans exactly rowY..rowY+ORDER_H.
-        // cursor.y includes WindowPadding.y which would push the bottom past chanY.
         constexpr float RIGHT_MARGIN = 16.f;
-        float cursorX = ImGui::GetCursorScreenPos().x;
+        ImVec2 cursor = ImGui::GetCursorScreenPos();
+        float cursorX = cursor.x;
+        float cursorY = cursor.y;
         float maxW    = (x + w) - cursorX - RIGHT_MARGIN;
 
         int32_t norders  = m_state.num_orders.load();
@@ -179,13 +180,13 @@ void TrackerView::render(float x, float y, float w, float h, float boxTopExt) {
                   [this](int32_t i) {
                       if (onOrderSeekRequested) onOrderSeekRequested(i);
                   },
-                  cursorX, rowY, ORDER_H, maxW, noDecoFlags);
+                  cursorX, cursorY, ORDER_H, maxW, noDecoFlags);
 
         ImGui::End();
     }
 
     // Pattern panel — channel headers are the frozen first row of the table
-    float chanY = y + PTBAR1_H + PTBAR2_H + PTBAR3_H + ORDER_H;
+    float chanY = y + PTBAR1_H + PTBAR2_H + PTBAR3_H + wpy + ORDER_H;
     float patH  = h - (chanY - y);
     m_patAreaMin = {x + 7.f, chanY};
     m_patAreaMax = {x + w,   y + h};

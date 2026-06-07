@@ -130,9 +130,9 @@ void setupTransparentTitleBar(GLFWwindow* glfwWin, float& titleBarH, float& traf
         win.styleMask                 |= NSWindowStyleMaskFullSizeContentView;
 
         // Match window bg to toolbar colour so resize/expose don't flash
-        win.backgroundColor = [NSColor colorWithRed:30.f/255.f
-                                              green:30.f/255.f
-                                               blue:46.f/255.f
+        win.backgroundColor = [NSColor colorWithRed:17.f/255.f
+                                              green:17.f/255.f
+                                               blue:22.f/255.f
                                               alpha:1.f];
 
         // Safe left inset: right edge of zoom (fullscreen) button + small margin

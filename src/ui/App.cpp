@@ -389,6 +389,40 @@ void App::render(int winW, int winH)
         ImGui::GetIO().MouseClicked[0] = false;
     }
 
+    // ── App background — base fill + edge vignette ───────────────────────────
+    {
+        // Base fill behind everything
+        ImGui::GetBackgroundDrawList()->AddRectFilled(
+            {0.f, 0.f}, {w, h}, IM_COL32(17, 17, 22, 255));
+
+        // Edge gradients drawn in front so they vignette all content uniformly
+        auto* fg = ImGui::GetForegroundDrawList();
+
+        // Top edge — cool highlight matching button palette
+        fg->AddRectFilledMultiColor(
+            {0.f, 0.f}, {w, 28.f},
+            IM_COL32(45, 45, 56, 160), IM_COL32(45, 45, 56, 160),
+            IM_COL32( 0,  0,  0,   0), IM_COL32( 0,  0,  0,   0));
+
+        // Bottom shadow
+        fg->AddRectFilledMultiColor(
+            {0.f, h - 40.f}, {w, h},
+            IM_COL32(0, 0, 0,   0), IM_COL32(0, 0, 0,   0),
+            IM_COL32(0, 0, 0, 170), IM_COL32(0, 0, 0, 170));
+
+        // Left edge shadow  (UL, UR, LR, LL)
+        fg->AddRectFilledMultiColor(
+            {0.f, 0.f}, {22.f, h},
+            IM_COL32(0, 0, 0, 65), IM_COL32(0, 0, 0,  0),
+            IM_COL32(0, 0, 0,  0), IM_COL32(0, 0, 0, 65));
+
+        // Right edge shadow  (UL, UR, LR, LL)
+        fg->AddRectFilledMultiColor(
+            {w - 22.f, 0.f}, {w, h},
+            IM_COL32(0, 0, 0,  0), IM_COL32(0, 0, 0, 65),
+            IM_COL32(0, 0, 0, 65), IM_COL32(0, 0, 0,  0));
+    }
+
     syncToolbarState();
 
     float contentY = DrawToolbar(m_toolbarState, m_fontUI, 0.f, 0.f, w, kToolbarH);

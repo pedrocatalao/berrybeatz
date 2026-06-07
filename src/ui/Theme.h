@@ -228,9 +228,9 @@ static constexpr float  kStyleWindowRounding    = 0.f;
 static constexpr float  kStyleFrameRounding     = 0.f;
 static constexpr float  kStyleScrollbarRounding  = 2.f;
 static constexpr float  kStyleTabRounding        = 3.f;
-static constexpr ImVec4 kStyleWindowBg  = {0.08f, 0.08f, 0.13f, 1.f};
-static constexpr ImVec4 kStyleTitleBg   = {0.08f, 0.08f, 0.13f, 1.f};
-static constexpr ImVec4 kStyleTitleBgAct= {0.12f, 0.12f, 0.20f, 1.f};
+static constexpr ImVec4 kStyleWindowBg  = {0.067f, 0.067f, 0.086f, 1.f};  // cool blue-grey — switch button tone
+static constexpr ImVec4 kStyleTitleBg   = {0.067f, 0.067f, 0.086f, 1.f};
+static constexpr ImVec4 kStyleTitleBgAct= {0.10f,  0.10f,  0.13f,  1.f};
 
 // ── Widgets ───────────────────────────────────────────────────────────────────
 

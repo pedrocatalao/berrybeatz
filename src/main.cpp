@@ -134,7 +134,7 @@ int main(int argc, char* argv[])
         glfwGetWindowSize(window, &winW, &winH);
         glfwGetFramebufferSize(window, &fbW, &fbH);
         glViewport(0, 0, fbW, fbH);
-        glClearColor(0.08f, 0.08f, 0.13f, 1.f);
+        glClearColor(0.067f, 0.067f, 0.086f, 1.f);  // cool blue-grey — matches app background
         glClear(GL_COLOR_BUFFER_BIT);
 
         app->render(winW, winH);

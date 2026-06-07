@@ -153,7 +153,7 @@ void TrackerView::render(float x, float y, float w, float h, float boxTopExt) {
         ImGui::PopStyleVar();
 
         constexpr float RIGHT_MARGIN = 16.f;
-        float cursorX = x + 15.f;
+        float cursorX = x + 2.f + m_rowNumW;
         float cursorY = ImGui::GetCursorScreenPos().y;
         float maxW    = (x + w) - cursorX - RIGHT_MARGIN;
 
@@ -943,7 +943,7 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
 
                 dl->AddRect(fxTL, fxBR, IM_COL32(30,30,45,255), fxR, ImDrawFlags_RoundCornersBottom, 1.f);
 
-                const char* lbl = "no fx";
+                const char* lbl = "---";
                 ImVec2 ts  = ImGui::CalcTextSize(lbl);
                 float  off = fxPressed ? 1.f : 0.f;
                 ImU32  fxTextCol = muted ? IM_COL32(80,80,90,255) : kClrTextLabel;

@@ -49,9 +49,8 @@ void WindowChrome::toggleFullscreen()
 {
     if (!m_window) return;
     if (m_isFullscreen) {
+        scheduleFullscreenRestore(m_window, m_fsRestoreX, m_fsRestoreY, m_fsRestoreW, m_fsRestoreH);
         toggleNativeFullscreen(m_window);
-        glfwSetWindowPos (m_window, m_fsRestoreX, m_fsRestoreY);
-        glfwSetWindowSize(m_window, m_fsRestoreW, m_fsRestoreH);
         m_isFullscreen = false;
     } else {
         glfwGetWindowPos (m_window, &m_fsRestoreX, &m_fsRestoreY);

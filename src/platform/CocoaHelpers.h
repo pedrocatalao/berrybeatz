@@ -28,6 +28,10 @@ void toggleNativeFullscreen(GLFWwindow* win);
 // Call after enableNativeTitlebar().
 void setZoomButtonAction(GLFWwindow* win, void (*callback)());
 
+// Register a one-shot observer that restores pos/size after the fullscreen
+// exit animation completes (NSWindowDidExitFullScreenNotification).
+void scheduleFullscreenRestore(GLFWwindow* win, int x, int y, int w, int h);
+
 // Set the Dock icon from the app bundle's AppIcon.icns resource.
 void setDockIcon();
 

@@ -183,6 +183,25 @@ void toggleNativeFullscreen(GLFWwindow* glfwWin)
     }
 }
 
+// ─── Fullscreen restore ───────────────────────────────────────────────────────
+
+void scheduleFullscreenRestore(GLFWwindow* glfwWin, int x, int y, int w, int h)
+{
+    @autoreleasepool {
+        NSWindow* win = glfwGetCocoaWindow(glfwWin);
+        __block id obs = nil;
+        obs = [[NSNotificationCenter defaultCenter]
+            addObserverForName:NSWindowDidExitFullScreenNotification
+                        object:win
+                         queue:[NSOperationQueue mainQueue]
+                    usingBlock:^(NSNotification*) {
+            glfwSetWindowPos (glfwWin, x, y);
+            glfwSetWindowSize(glfwWin, w, h);
+            [[NSNotificationCenter defaultCenter] removeObserver:obs];
+        }];
+    }
+}
+
 // ─── Zoom button action bridge ────────────────────────────────────────────────
 
 @interface BBZoomTarget : NSObject

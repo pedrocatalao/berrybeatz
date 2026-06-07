@@ -143,3 +143,11 @@ void setupTransparentTitleBar(GLFWwindow* glfwWin, float& titleBarH, float& traf
 
 void setCursorOpenHand()   { [[NSCursor openHandCursor]   set]; }
 void setCursorClosedHand() { [[NSCursor closedHandCursor] set]; }
+
+void toggleNativeFullscreen(GLFWwindow* glfwWin)
+{
+    @autoreleasepool {
+        NSWindow* win = glfwGetCocoaWindow(glfwWin);
+        [win toggleFullScreen:nil];
+    }
+}

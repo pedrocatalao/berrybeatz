@@ -120,7 +120,7 @@ void LogoView::draw(float winX, float winY, float winW,
 
     const float lh = kHeight;
     const float lw = lh * (logoW / logoH);
-    const ImVec2 p0 = {winX + winW - lw - 15.f, winY + (78.f - lh) * 0.5f};
+    const ImVec2 p0 = {winX + winW - lw - 10.f, winY};
     const ImVec2 p1 = {p0.x + lw, p0.y + lh};
 
     ImDrawList* fdl = ImGui::GetForegroundDrawList();

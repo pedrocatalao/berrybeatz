@@ -17,6 +17,9 @@ void beginWindowDrag(GLFWwindow* win);
 // Round the window's content view corners (macOS layer mask).
 void setWindowCornerRadius(GLFWwindow* win, float radius);
 
+// Native macOS fullscreen (toggles into its own Space with system animation).
+void toggleNativeFullscreen(GLFWwindow* win);
+
 // Set the Dock icon from the app bundle's AppIcon.icns resource.
 void setDockIcon();
 

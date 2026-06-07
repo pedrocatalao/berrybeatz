@@ -11,5 +11,5 @@ public:
               GLuint logoTex, float logoW, float logoH);
 
 private:
-    static constexpr float kHeight = 84.f;
+    static constexpr float kHeight = 54.f;
 };

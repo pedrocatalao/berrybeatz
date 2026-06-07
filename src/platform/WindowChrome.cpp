@@ -1,4 +1,5 @@
 #include "WindowChrome.h"
+#include "CocoaHelpers.h"
 #include <GLFW/glfw3.h>
 #include <imgui.h>
 #include <algorithm>
@@ -48,17 +49,20 @@ void WindowChrome::toggleFullscreen()
 {
     if (!m_window) return;
     if (m_isFullscreen) {
-        glfwSetWindowMonitor(m_window, nullptr,
-                             m_fsRestoreX, m_fsRestoreY,
-                             m_fsRestoreW, m_fsRestoreH, 0);
+        toggleNativeFullscreen(m_window);
+        glfwSetWindowPos (m_window, m_fsRestoreX, m_fsRestoreY);
+        glfwSetWindowSize(m_window, m_fsRestoreW, m_fsRestoreH);
         m_isFullscreen = false;
     } else {
         glfwGetWindowPos (m_window, &m_fsRestoreX, &m_fsRestoreY);
         glfwGetWindowSize(m_window, &m_fsRestoreW, &m_fsRestoreH);
+        toggleNativeFullscreen(m_window);
         GLFWmonitor*       target = monitorForWindow(m_window);
         const GLFWvidmode* vm     = glfwGetVideoMode(target);
-        glfwSetWindowMonitor(m_window, target,
-                             0, 0, vm->width, vm->height, vm->refreshRate);
+        int mx, my;
+        glfwGetMonitorPos(target, &mx, &my);
+        glfwSetWindowPos (m_window, mx, my);
+        glfwSetWindowSize(m_window, vm->width, vm->height);
         m_isFullscreen = true;
         m_isMaximized  = false;
     }

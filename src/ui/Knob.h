@@ -261,8 +261,8 @@ inline bool KnobWidget(const char* id,
     const bool hovered = ImGui::IsItemHovered();
     const bool active  = ImGui::IsItemActive();
 
-    if (active)        setCursorClosedHand();
-    else if (hovered)  setCursorOpenHand();
+    if (active)        g_cursorReq = 2;
+    else if (hovered)  g_cursorReq = 1;
 
     // ── Drag ─────────────────────────────────────────────────────────────────
     if (ImGui::IsItemActivated()) {

@@ -421,6 +421,7 @@ void App::render(int winW, int winH)
             IM_COL32(0, 0, 0, 65), IM_COL32(0, 0, 0,  0));
     }
 
+    g_cursorReq = 0;
     syncToolbarState();
 
     float contentY = DrawToolbar(m_toolbarState, m_fontUI, 0.f, 0.f, w, kToolbarH);
@@ -671,6 +672,10 @@ void App::render(int winW, int winH)
     }
 
     ImGui::PopFont();
+
+    if      (g_cursorReq == 2) setCursorClosedHand();
+    else if (g_cursorReq == 1) setCursorOpenHand();
+    else                       setCursorArrow();
 }
 
 // ─── Song bar ─────────────────────────────────────────────────────────────────

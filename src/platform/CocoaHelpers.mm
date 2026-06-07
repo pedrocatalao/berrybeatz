@@ -141,6 +141,7 @@ void setupTransparentTitleBar(GLFWwindow* glfwWin, float& titleBarH, float& traf
     }
 }
 
+void setCursorArrow()      { [[NSCursor arrowCursor]      set]; }
 void setCursorOpenHand()   { [[NSCursor openHandCursor]   set]; }
 void setCursorClosedHand() { [[NSCursor closedHandCursor] set]; }
 
@@ -179,5 +180,31 @@ void toggleNativeFullscreen(GLFWwindow* glfwWin)
     @autoreleasepool {
         NSWindow* win = glfwGetCocoaWindow(glfwWin);
         [win toggleFullScreen:nil];
+    }
+}
+
+// ─── Zoom button action bridge ────────────────────────────────────────────────
+
+@interface BBZoomTarget : NSObject
+@property (nonatomic, assign) void (*callback)();
+- (void)handleClick:(id)sender;
+@end
+@implementation BBZoomTarget
+- (void)handleClick:(id)sender { if (_callback) _callback(); }
+@end
+
+static __strong BBZoomTarget* s_zoomTarget = nil;
+
+void setZoomButtonAction(GLFWwindow* glfwWin, void (*callback)())
+{
+    @autoreleasepool {
+        NSWindow* win = glfwGetCocoaWindow(glfwWin);
+        if (!s_zoomTarget) s_zoomTarget = [[BBZoomTarget alloc] init];
+        s_zoomTarget.callback = callback;
+        NSButton* zoom = [win standardWindowButton:NSWindowZoomButton];
+        if (zoom) {
+            zoom.target = s_zoomTarget;
+            zoom.action = @selector(handleClick:);
+        }
     }
 }

@@ -82,6 +82,7 @@ int main(int argc, char* argv[])
 
     app->setGLFWWindow(window);
     enableNativeTitlebar(window);
+    setZoomButtonAction(window, []() { if (g_app) g_app->toggleFullscreen(); });
     setWindowCornerRadius(window, 10.f);
     setupWindowEventMonitor(window);
     glfwSetWindowCloseCallback(window, [](GLFWwindow* w) {

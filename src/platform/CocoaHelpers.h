@@ -24,9 +24,14 @@ void enableNativeTitlebar(GLFWwindow* win);
 // Native macOS fullscreen (toggles into its own Space with system animation).
 void toggleNativeFullscreen(GLFWwindow* win);
 
+// Override the green zoom button's action with a plain C callback.
+// Call after enableNativeTitlebar().
+void setZoomButtonAction(GLFWwindow* win, void (*callback)());
+
 // Set the Dock icon from the app bundle's AppIcon.icns resource.
 void setDockIcon();
 
 // Native macOS cursor helpers — call each frame from within widget rendering.
+void setCursorArrow();
 void setCursorOpenHand();
 void setCursorClosedHand();

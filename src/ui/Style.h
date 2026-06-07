@@ -16,6 +16,7 @@ inline void applyImGuiStyle()
     ImGuiStyle& style          = ImGui::GetStyle();
     style.WindowRounding       = kStyleWindowRounding;
     style.FrameRounding        = kStyleFrameRounding;
+    style.ScrollbarSize        = kStyleScrollbarSize;
     style.ScrollbarRounding    = kStyleScrollbarRounding;
     style.TabRounding          = kStyleTabRounding;
     style.WindowBorderSize     = 0.f;

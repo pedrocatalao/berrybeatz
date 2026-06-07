@@ -674,9 +674,10 @@ void App::render(int winW, int winH)
 
     ImGui::PopFont();
 
-    if      (g_cursorReq == 2) setCursorClosedHand();
-    else if (g_cursorReq == 1) setCursorOpenHand();
-    else                       setCursorArrow();
+    static int s_prevCursorReq = 0;
+    if      (g_cursorReq == 2) { setCursorClosedHand(); s_prevCursorReq = 2; }
+    else if (g_cursorReq == 1) { setCursorOpenHand();   s_prevCursorReq = 1; }
+    else if (s_prevCursorReq != 0) { setCursorArrow();  s_prevCursorReq = 0; }
 }
 
 // ─── Song bar ─────────────────────────────────────────────────────────────────

@@ -102,9 +102,9 @@ static constexpr ImU32 kClrWinFullscr   = IM_COL32( 18, 110,  75, 255);
 
 // ── Scrollbar ─────────────────────────────────────────────────────────────────
 static constexpr ImU32 kClrScrollBg     = IM_COL32(  0,   0,   0,   0);
-static constexpr ImU32 kClrScrollGrab   = IM_COL32( 40,  85, 145, 200);
-static constexpr ImU32 kClrScrollHover  = IM_COL32( 55, 112, 175, 230);
-static constexpr ImU32 kClrScrollActive = IM_COL32( 66, 130, 205, 255);
+static constexpr ImU32 kClrScrollGrab   = IM_COL32( 90,  90, 100, 180);
+static constexpr ImU32 kClrScrollHover  = IM_COL32(120, 120, 130, 210);
+static constexpr ImU32 kClrScrollActive = IM_COL32(150, 150, 160, 255);
 
 
 // ── Pattern editor cell colours ───────────────────────────────────────────────
@@ -129,7 +129,7 @@ static constexpr ImU32 kClrPatSelection  = IM_COL32( 80,  80, 200,  60);
 static constexpr ImU32 kClrPatEditCell   = IM_COL32(255, 220,  80,  80);
 static constexpr ImU32 kClrPatEditBorder = IM_COL32(255, 255, 255, 220);
 static constexpr ImU32 kClrPatRowBg      = IM_COL32( 18,  18,  25, 255);
-static constexpr ImU32 kClrPatCurRowBg   = IM_COL32( 40,  95, 165, 145);
+static constexpr ImU32 kClrPatCurRowBg   = IM_COL32( 60,  60, 100, 140);
 static constexpr ImU32 kClrPatWaveform   = IM_COL32(190, 190, 200, 220);
 static constexpr ImU32 kClrPatWaveMuted  = IM_COL32( 80,  80,  80, 120);
 static constexpr ImU32 kClrWaveGradBase  = IM_COL32( 14,  15,  24, 255);  // solid base fill
@@ -228,7 +228,8 @@ static constexpr ImU32 kClrModalCloseAct= IM_COL32(200,  50,  50, 255);  // acti
 // ── Global ImGui style (applied in main.cpp) ──────────────────────────────────
 static constexpr float  kStyleWindowRounding    = 0.f;
 static constexpr float  kStyleFrameRounding     = 0.f;
-static constexpr float  kStyleScrollbarRounding  = 2.f;
+static constexpr float  kStyleScrollbarSize      = 9.f;
+static constexpr float  kStyleScrollbarRounding  = 3.f;
 static constexpr float  kStyleTabRounding        = 3.f;
 static constexpr ImVec4 kStyleWindowBg  = {0.067f, 0.067f, 0.086f, 1.f};  // cool blue-grey — switch button tone
 static constexpr ImVec4 kStyleTitleBg   = {0.067f, 0.067f, 0.086f, 1.f};

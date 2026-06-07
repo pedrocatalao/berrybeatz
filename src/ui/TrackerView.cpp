@@ -175,10 +175,10 @@ void TrackerView::render(float x, float y, float w, float h, float boxTopExt) {
     m_patAreaMax = {x + w,   y + h};
     ImGui::SetNextWindowPos ({x + 2.f, chanY});
     ImGui::SetNextWindowSize({w - 2.f, patH});
-    ImGui::PushStyleColor(ImGuiCol_ScrollbarBg,          IM_COL32(  0,   0,   0,   0));
-    ImGui::PushStyleColor(ImGuiCol_ScrollbarGrab,        IM_COL32( 40,  85, 145, 200));
-    ImGui::PushStyleColor(ImGuiCol_ScrollbarGrabHovered, IM_COL32( 55, 112, 175, 230));
-    ImGui::PushStyleColor(ImGuiCol_ScrollbarGrabActive,  IM_COL32( 66, 130, 205, 255));
+    ImGui::PushStyleColor(ImGuiCol_ScrollbarBg,          kClrScrollBg);
+    ImGui::PushStyleColor(ImGuiCol_ScrollbarGrab,        kClrScrollGrab);
+    ImGui::PushStyleColor(ImGuiCol_ScrollbarGrabHovered, kClrScrollHover);
+    ImGui::PushStyleColor(ImGuiCol_ScrollbarGrabActive,  kClrScrollActive);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.f, 0.f));
     ImGui::PushStyleColor(ImGuiCol_WindowBg, IM_COL32(0, 0, 0, 0)); // pushed last → popped first below
     ImGui::Begin("##pattern", nullptr, noDecoFlags);

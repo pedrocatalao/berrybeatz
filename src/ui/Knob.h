@@ -45,7 +45,7 @@ static void knobDrawArc(ImDrawList* dl, ImVec2 center, float trackR,
 {
     if (arcB <= arcA) return;
     dl->PathArcTo(center, trackR, arcA, arcB, 32);
-    dl->PathStroke(kClrKnobArc, false, 2.f);
+    dl->PathStroke(IM_COL32(100, 220, 160, 100), false, 2.f);
 
     if (g_glowKnobs > 0.f) {
         auto ga = [](int a) { return (uint8_t)(a * g_glowKnobs); };
@@ -53,22 +53,22 @@ static void knobDrawArc(ImDrawList* dl, ImVec2 center, float trackR,
             glBlendFunc(GL_SRC_ALPHA, GL_ONE);
         }, nullptr);
         dl->PathArcTo(center, trackR, arcA, arcB, 32);
-        dl->PathStroke(IM_COL32(0, 220, 255, ga( 3)), false, 22.0f);
+        dl->PathStroke(IM_COL32(100, 220, 160, ga( 3)), false, 22.0f);
         dl->PathArcTo(center, trackR, arcA, arcB, 32);
-        dl->PathStroke(IM_COL32(0, 220, 255, ga( 6)), false, 15.0f);
+        dl->PathStroke(IM_COL32(100, 220, 160, ga( 6)), false, 15.0f);
         dl->PathArcTo(center, trackR, arcA, arcB, 32);
-        dl->PathStroke(IM_COL32(0, 220, 255, ga(10)), false, 10.0f);
+        dl->PathStroke(IM_COL32(100, 220, 160, ga(10)), false, 10.0f);
         dl->PathArcTo(center, trackR, arcA, arcB, 32);
-        dl->PathStroke(IM_COL32(0, 220, 255, ga(18)), false,  6.0f);
+        dl->PathStroke(IM_COL32(100, 220, 160, ga(18)), false,  6.0f);
         dl->PathArcTo(center, trackR, arcA, arcB, 32);
-        dl->PathStroke(IM_COL32(0, 220, 255, ga(28)), false,  3.0f);
+        dl->PathStroke(IM_COL32(100, 220, 160, ga(28)), false,  3.0f);
         float sx = center.x + trackR * cosf(arcA), sy = center.y + trackR * sinf(arcA);
         float ex = center.x + trackR * cosf(arcB), ey = center.y + trackR * sinf(arcB);
         for (auto [cx2, cy2] : {std::pair{sx,sy}, std::pair{ex,ey}}) {
-            dl->AddCircleFilled({cx2, cy2}, 11.f, IM_COL32(0, 220, 255, ga( 3)));
-            dl->AddCircleFilled({cx2, cy2},  8.f, IM_COL32(0, 220, 255, ga( 6)));
-            dl->AddCircleFilled({cx2, cy2},  5.f, IM_COL32(0, 220, 255, ga(10)));
-            dl->AddCircleFilled({cx2, cy2},  3.f, IM_COL32(0, 220, 255, ga(18)));
+            dl->AddCircleFilled({cx2, cy2}, 11.f, IM_COL32(100, 220, 160, ga( 3)));
+            dl->AddCircleFilled({cx2, cy2},  8.f, IM_COL32(100, 220, 160, ga( 6)));
+            dl->AddCircleFilled({cx2, cy2},  5.f, IM_COL32(100, 220, 160, ga(10)));
+            dl->AddCircleFilled({cx2, cy2},  3.f, IM_COL32(100, 220, 160, ga(18)));
         }
         dl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {
             glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -91,7 +91,7 @@ static void knobDrawDial(ImDrawList* dl, ImVec2 center, float t, bool bipolar)
 
     // ── Range arc (panel ring outside the knob body) ──────────────────────────
     dl->PathArcTo(center, arcR, ANG_START, ANG_START + SWEEP, 32);
-    dl->PathStroke(kClrKnobTrack, false, 2.f);
+    dl->PathStroke(kClrLcdBg, false, 2.f);
 
     float arcA, arcB;
     if (bipolar) {
@@ -156,8 +156,8 @@ static void knobDrawDial(ImDrawList* dl, ImVec2 center, float t, bool bipolar)
         float rimY = center.y + bodyR * sinf(indAng);
         dl->AddCircleFilled({rimX, rimY},  9.f, IM_COL32(100, 220, 160, ga( 4)));
         dl->AddCircleFilled({rimX, rimY},  6.f, IM_COL32(100, 220, 160, ga(12)));
-        dl->AddCircleFilled({rimX, rimY},  3.5f, IM_COL32(140, 255, 200, ga(28)));
-        dl->AddCircleFilled({rimX, rimY},  1.5f, IM_COL32(210, 255, 235, ga(70)));
+        dl->AddCircleFilled({rimX, rimY},  3.5f, IM_COL32(100, 220, 160, ga(28)));
+        dl->AddCircleFilled({rimX, rimY},  1.5f, IM_COL32(100, 220, 160, ga(70)));
 
         dl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {
             glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -300,10 +300,11 @@ inline bool KnobWidget(const char* id,
     ImDrawList* dl = ImGui::GetWindowDrawList();
     knobDrawBox(dl, p, totalW, totalH, active, hovered);
 
-    // Label (top-left)
+    // Label centred over the LCD field
     if (hasLabel) {
         if (g_fontKnobLabel) ImGui::PushFont(g_fontKnobLabel);
-        dl->AddText({p.x + KNOB_PAD_X, p.y + KNOB_PAD_TOP}, kClrTextLabel, label);
+        float lx = p.x + lcdX + (KNOB_LCD_W - lblSz.x) * 0.5f;
+        dl->AddText({lx, p.y + KNOB_PAD_TOP}, kClrTextLabel, label);
         if (g_fontKnobLabel) ImGui::PopFont();
     }
 

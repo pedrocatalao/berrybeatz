@@ -6,17 +6,16 @@
 #include "Theme.h"
 #include <unordered_map>
 #include <cmath>
+#include <algorithm>
+#include <cstdio>
 
-// ---------------------------------------------------------------------------
-// Per-widget drag state (stored in a function-local static map to avoid ODR
-// violations in a header-only translation unit).
-// ---------------------------------------------------------------------------
+// ── Per-widget drag state ─────────────────────────────────────────────────────
 struct KnobState {
     int   startY    {0};
     int   startVal  {0};
     float totalDY   {0.f};
     bool  dragged   {false};
-    float scrollAcc {0.f};  // fractional scroll accumulator
+    float scrollAcc {0.f};
 };
 
 inline KnobState& knobState(ImGuiID id)
@@ -27,17 +26,198 @@ inline KnobState& knobState(ImGuiID id)
 
 enum class KnobLabelPos { None, Top, Bottom, Left, Right };
 
-// ---------------------------------------------------------------------------
-// KnobWidget
-//   id            — ImGui string ID (also used for PushID)
-//   value         — current value (read/write)
-//   vmin, vmax    — inclusive range
-//   editRequested — optional; set to true when user clicks without dragging
-//   label         — optional text drawn near the knob
-//   labelPos      — placement relative to knob body (default: Bottom)
+// ── Layout constants ──────────────────────────────────────────────────────────
+static constexpr float KNOB_DIAL_D     = 26.f;   // dial circle diameter
+static constexpr float KNOB_MARGIN     = 5.f;    // top/bottom inset
+static constexpr float KNOB_BTN_H     = KNOB_DIAL_D + KNOB_MARGIN * 2.f;  // 36px
+static constexpr float KNOB_PAD_TOP   = 3.f;    // label from top of box
+static constexpr float KNOB_LBL_LCD_G = 2.f;    // label bottom → LCD top
+static constexpr float KNOB_PAD_X     = 4.f;    // left padding (label/LCD)
+static constexpr float KNOB_MID_GAP   = 6.f;    // left column → dial
+static constexpr float KNOB_PAD_R     = 4.f;    // right padding after dial
+static constexpr float KNOB_ROUNDING  = 1.5f;
+static constexpr float KNOB_LCD_W     = 36.f;   // fixed LCD width
+static constexpr float KNOB_LCD_H     = 13.f;   // fixed LCD height
+
+// ── Arc / glow helper ─────────────────────────────────────────────────────────
+static void knobDrawArc(ImDrawList* dl, ImVec2 center, float trackR,
+                        float arcA, float arcB)
+{
+    if (arcB <= arcA) return;
+    dl->PathArcTo(center, trackR, arcA, arcB, 32);
+    dl->PathStroke(kClrKnobArc, false, 2.f);
+
+    if (g_glowKnobs > 0.f) {
+        auto ga = [](int a) { return (uint8_t)(a * g_glowKnobs); };
+        dl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+        }, nullptr);
+        dl->PathArcTo(center, trackR, arcA, arcB, 32);
+        dl->PathStroke(IM_COL32(0, 220, 255, ga( 3)), false, 22.0f);
+        dl->PathArcTo(center, trackR, arcA, arcB, 32);
+        dl->PathStroke(IM_COL32(0, 220, 255, ga( 6)), false, 15.0f);
+        dl->PathArcTo(center, trackR, arcA, arcB, 32);
+        dl->PathStroke(IM_COL32(0, 220, 255, ga(10)), false, 10.0f);
+        dl->PathArcTo(center, trackR, arcA, arcB, 32);
+        dl->PathStroke(IM_COL32(0, 220, 255, ga(18)), false,  6.0f);
+        dl->PathArcTo(center, trackR, arcA, arcB, 32);
+        dl->PathStroke(IM_COL32(0, 220, 255, ga(28)), false,  3.0f);
+        float sx = center.x + trackR * cosf(arcA), sy = center.y + trackR * sinf(arcA);
+        float ex = center.x + trackR * cosf(arcB), ey = center.y + trackR * sinf(arcB);
+        for (auto [cx2, cy2] : {std::pair{sx,sy}, std::pair{ex,ey}}) {
+            dl->AddCircleFilled({cx2, cy2}, 11.f, IM_COL32(0, 220, 255, ga( 3)));
+            dl->AddCircleFilled({cx2, cy2},  8.f, IM_COL32(0, 220, 255, ga( 6)));
+            dl->AddCircleFilled({cx2, cy2},  5.f, IM_COL32(0, 220, 255, ga(10)));
+            dl->AddCircleFilled({cx2, cy2},  3.f, IM_COL32(0, 220, 255, ga(18)));
+        }
+        dl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        }, nullptr);
+    }
+}
+
+// Dial: hardware-style knob body with arc outside, indicator, and rim glow.
+static void knobDrawDial(ImDrawList* dl, ImVec2 center, float t, bool bipolar)
+{
+    // bodyR: the physical knob circle (smaller, leaves room for arc outside)
+    // arcR:  the range arc sits in the gap between body and bounding edge
+    const float bodyR = KNOB_DIAL_D * 0.5f - 4.f;   // ~9px
+    const float arcR  = KNOB_DIAL_D * 0.5f - 1.f;   // ~12px
+
+    const float SWEEP      = (float)(M_PI * 1.5);
+    const float ANG_START  = (float)(M_PI * 0.75);
+    const float ANG_CENTER = ANG_START + SWEEP * 0.5f;
+    const float indAng     = ANG_START + t * SWEEP;
+
+    // ── Range arc (panel ring outside the knob body) ──────────────────────────
+    dl->PathArcTo(center, arcR, ANG_START, ANG_START + SWEEP, 32);
+    dl->PathStroke(kClrKnobTrack, false, 2.f);
+
+    float arcA, arcB;
+    if (bipolar) {
+        arcA = (t >= 0.5f) ? ANG_CENTER            : ANG_START + t * SWEEP;
+        arcB = (t >= 0.5f) ? ANG_START + t * SWEEP : ANG_CENTER;
+    } else {
+        arcA = ANG_START;
+        arcB = ANG_START + t * SWEEP;
+    }
+    knobDrawArc(dl, center, arcR, arcA, arcB);
+
+    // Bipolar centre tick on the arc ring
+    if (bipolar) {
+        float tx0 = center.x + (arcR - 2.f) * cosf(ANG_CENTER);
+        float ty0 = center.y + (arcR - 2.f) * sinf(ANG_CENTER);
+        float tx1 = center.x + (arcR + 2.f) * cosf(ANG_CENTER);
+        float ty1 = center.y + (arcR + 2.f) * sinf(ANG_CENTER);
+        dl->AddLine({tx0, ty0}, {tx1, ty1}, kClrKnobTick, 1.5f);
+    }
+
+    // ── Knob body (layered for 3D/physical feel) ──────────────────────────────
+    dl->AddCircleFilled(center, bodyR + 1.f, IM_COL32(  6,  6, 14, 255));  // rim shadow
+    dl->AddCircleFilled(center, bodyR,       IM_COL32( 28, 28, 44, 255));  // main body
+    dl->AddCircle(center, bodyR - 0.5f, IM_COL32(70, 70, 100, 45), 0, 0.8f); // inner bevel
+
+    // Specular highlight at ~10:30 o'clock (top-left light source)
+    const float hlA = (float)(-M_PI * 0.65f);
+    dl->AddCircleFilled(
+        {center.x + (bodyR - 3.5f) * cosf(hlA), center.y + (bodyR - 3.5f) * sinf(hlA)},
+        1.8f, IM_COL32(255, 255, 255, 22));
+
+    // ── Indicator line (handle on the knob face) ──────────────────────────────
+    float tipX  = center.x + (bodyR - 1.5f) * cosf(indAng);
+    float tipY  = center.y + (bodyR - 1.5f) * sinf(indAng);
+    float baseX = center.x + 2.f * cosf(indAng);
+    float baseY = center.y + 2.f * sinf(indAng);
+    dl->AddLine({baseX, baseY}, {tipX, tipY}, IM_COL32(210, 235, 220, 230), 1.5f);
+
+    // ── Glow from behind the handle ───────────────────────────────────────────
+    // Additive bloom centred at the body rim — light bleeds outward into the arc
+    // gap, as if the indicator is a backlit element inside the knob.
+    if (g_glowKnobs > 0.f) {
+        auto ga = [](int a) { return (uint8_t)(a * g_glowKnobs); };
+        dl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+        }, nullptr);
+
+        // Soft glow along the indicator (backlit handle)
+        dl->AddLine({baseX, baseY}, {tipX, tipY},
+                    IM_COL32(100, 220, 160, ga(55)), 3.f);
+
+        // Radial bloom at the rim — "light from behind" bleeding around the edge
+        float rimX = center.x + bodyR * cosf(indAng);
+        float rimY = center.y + bodyR * sinf(indAng);
+        dl->AddCircleFilled({rimX, rimY},  9.f, IM_COL32(100, 220, 160, ga( 4)));
+        dl->AddCircleFilled({rimX, rimY},  6.f, IM_COL32(100, 220, 160, ga(12)));
+        dl->AddCircleFilled({rimX, rimY},  3.5f, IM_COL32(140, 255, 200, ga(28)));
+        dl->AddCircleFilled({rimX, rimY},  1.5f, IM_COL32(210, 255, 235, ga(70)));
+
+        dl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        }, nullptr);
+    }
+}
+
+// SwitchButton-style outer box.
+static void knobDrawBox(ImDrawList* dl, ImVec2 p, float w, float h, bool held, bool hovered)
+{
+    ImU32 bodyCol = held    ? IM_COL32(50, 50, 70, 255)
+                 : hovered  ? IM_COL32(38, 38, 55, 255)
+                            : IM_COL32(25, 25, 38, 255);
+    dl->AddRectFilled(p, {p.x + w, p.y + h}, bodyCol, KNOB_ROUNDING);
+    if (!held)
+        dl->AddRectFilled(p, {p.x + w, p.y + h * 0.5f},
+                          IM_COL32(255, 255, 255, 14), KNOB_ROUNDING);
+    if (!held) {
+        dl->AddLine({p.x + KNOB_ROUNDING,     p.y + 0.5f},
+                    {p.x + w - KNOB_ROUNDING, p.y + 0.5f},     IM_COL32(255,255,255,55));
+        dl->AddLine({p.x + 0.5f, p.y + KNOB_ROUNDING},
+                    {p.x + 0.5f, p.y + h - KNOB_ROUNDING},     IM_COL32(255,255,255,40));
+        dl->AddLine({p.x + KNOB_ROUNDING,     p.y + h - 0.5f},
+                    {p.x + w - KNOB_ROUNDING, p.y + h - 0.5f}, IM_COL32(0,0,0,120));
+        dl->AddLine({p.x + w - 0.5f, p.y + KNOB_ROUNDING},
+                    {p.x + w - 0.5f, p.y + h - KNOB_ROUNDING}, IM_COL32(0,0,0,100));
+    } else {
+        dl->AddLine({p.x + KNOB_ROUNDING,     p.y + 0.5f},
+                    {p.x + w - KNOB_ROUNDING, p.y + 0.5f},     IM_COL32(0,0,0,100));
+        dl->AddLine({p.x + 0.5f, p.y + KNOB_ROUNDING},
+                    {p.x + 0.5f, p.y + h - KNOB_ROUNDING},     IM_COL32(0,0,0,80));
+        dl->AddLine({p.x + KNOB_ROUNDING,     p.y + h - 0.5f},
+                    {p.x + w - KNOB_ROUNDING, p.y + h - 0.5f}, IM_COL32(255,255,255,35));
+        dl->AddLine({p.x + w - 0.5f, p.y + KNOB_ROUNDING},
+                    {p.x + w - 0.5f, p.y + h - KNOB_ROUNDING}, IM_COL32(255,255,255,25));
+    }
+    dl->AddRect(p, {p.x + w, p.y + h}, IM_COL32(30, 30, 45, 255), KNOB_ROUNDING, 0, 1.f);
+}
+
+// ── Layout helper (shared between KnobWidget and KnobEdit) ────────────────────
 //
-// Returns true if *value was changed this frame.
-// ---------------------------------------------------------------------------
+// Left column: label (top) stacked above LCD (bottom), both left-aligned at PAD_X.
+// Right column: dial circle, full box height, centred vertically.
+//
+//  ┌────────────────────────────────────────────────┐
+//  │ Label                          │               │
+//  │ [ LCD value                  ] │  ( ◷ dial )   │
+//  └────────────────────────────────────────────────┘
+//
+// Outputs: totalW, lcdX offset from box left, lcdY offset from box top, lcdH, lcdW.
+static void knobCalcLayout(ImVec2 lblSz, bool hasLabel,
+                           float& totalW, float& lcdX, float& lcdY)
+{
+    float leftW = std::max(hasLabel ? lblSz.x : 0.f, KNOB_LCD_W);
+    totalW = KNOB_PAD_X + leftW + KNOB_MID_GAP + KNOB_DIAL_D + KNOB_PAD_R;
+
+    lcdX = KNOB_PAD_X;
+
+    float lblH    = hasLabel ? lblSz.y : 0.f;
+    float topUsed = hasLabel ? (KNOB_PAD_TOP + lblH + KNOB_LBL_LCD_G) : KNOB_PAD_TOP;
+    lcdY = topUsed;
+}
+
+// ── KnobWidget ────────────────────────────────────────────────────────────────
+//
+// Layout:  [ Label (top-left) / LCD (below label) ]  [ dial (right, full height) ]
+//
+// Returns true if *value changed.
 inline bool KnobWidget(const char* id,
                        int*        value,
                        int         vmin,
@@ -50,339 +230,164 @@ inline bool KnobWidget(const char* id,
 {
     ImGui::PushID(id);
 
-    const float  SIZE    = 36.f;
-    const float  LBL_GAP = 3.f;
-
-    const bool hasLabel = label && label[0] && labelPos != KnobLabelPos::None;
-    if (hasLabel && g_fontKnobLabel) ImGui::PushFont(g_fontKnobLabel);
-    const ImVec2 lblSz = hasLabel ? ImGui::CalcTextSize(label) : ImVec2{0.f, 0.f};
-    if (hasLabel && g_fontKnobLabel) ImGui::PopFont();
-
-    // Full widget bounding box (knob + label)
-    float totalW = SIZE, totalH = SIZE;
+    const bool  hasLabel = label && label[0] && labelPos != KnobLabelPos::None;
+    ImVec2      lblSz    = {0.f, 0.f};
     if (hasLabel) {
-        if (labelPos == KnobLabelPos::Top || labelPos == KnobLabelPos::Bottom) {
-            totalW = SIZE > lblSz.x ? SIZE : lblSz.x;
-            totalH = SIZE + LBL_GAP + lblSz.y;
-        } else {
-            totalW = SIZE + LBL_GAP + lblSz.x;
-            totalH = SIZE > lblSz.y ? SIZE : lblSz.y;
-        }
+        if (g_fontKnobLabel) ImGui::PushFont(g_fontKnobLabel);
+        lblSz = ImGui::CalcTextSize(label);
+        if (g_fontKnobLabel) ImGui::PopFont();
     }
+
+    float totalW, lcdX, lcdY;
+    knobCalcLayout(lblSz, hasLabel, totalW, lcdX, lcdY);
+    const float totalH = KNOB_BTN_H;
 
     ImGui::BeginGroup();
-    const ImVec2 origin = ImGui::GetCursorScreenPos();
-
-    // Knob position within the widget (offset when label is top or left)
-    ImVec2 knobPos = origin;
-    if (hasLabel) {
-        if (labelPos == KnobLabelPos::Top)  knobPos.y += lblSz.y + LBL_GAP;
-        if (labelPos == KnobLabelPos::Left) knobPos.x += lblSz.x + LBL_GAP;
-    }
-
-    const ImVec2 center  = {knobPos.x + SIZE * 0.5f, knobPos.y + SIZE * 0.5f};
-    const float  radius  = SIZE * 0.5f - 1.f;
-    const float  trackR  = radius - 3.f;
-
-    ImGui::SetCursorScreenPos(knobPos);
+    const ImVec2 p = ImGui::GetCursorScreenPos();
     ImGuiID widgetID = ImGui::GetID("knob");
-    ImGui::InvisibleButton("knob", ImVec2(SIZE, SIZE));
+    ImGui::InvisibleButton("knob", {totalW, totalH});
     bool changed = false;
 
-    KnobState& st = knobState(widgetID);
-
+    KnobState& st      = knobState(widgetID);
     const bool hovered = ImGui::IsItemHovered();
     const bool active  = ImGui::IsItemActive();
 
-    // ---- Mouse drag (vertical) ----------------------------------------
+    // ── Drag ─────────────────────────────────────────────────────────────────
     if (ImGui::IsItemActivated()) {
         st.startY   = (int)ImGui::GetIO().MousePos.y;
         st.startVal = *value;
         st.totalDY  = 0.f;
         st.dragged  = false;
     }
-
     if (active) {
-        float dy = (float)(st.startY - (int)ImGui::GetIO().MousePos.y); // up = positive
-        st.totalDY += ImGui::GetIO().MouseDelta.y;  // accumulate for "dragged" threshold
-
-        bool fine = ImGui::GetIO().KeyCtrl;
-        float sensitivity = fine ? 5.f : 1.f;
-
-        int range = vmax - vmin;
+        float dy   = (float)(st.startY - (int)ImGui::GetIO().MousePos.y);
+        st.totalDY += ImGui::GetIO().MouseDelta.y;
+        float sens  = ImGui::GetIO().KeyCtrl ? 5.f : 1.f;
+        int   range = vmax - vmin;
         if (range > 0) {
-            int newVal = st.startVal + (int)(dy / sensitivity * (float)range / 100.f);
-            newVal = newVal < vmin ? vmin : (newVal > vmax ? vmax : newVal);
+            int newVal = std::clamp(st.startVal + (int)(dy / sens * range / 100.f), vmin, vmax);
             if (newVal != *value) { *value = newVal; changed = true; }
         }
-
         if (std::abs(st.totalDY) >= 3.f) st.dragged = true;
     }
+    if (ImGui::IsItemDeactivated() && !st.dragged && editRequested)
+        *editRequested = true;
 
-    if (ImGui::IsItemDeactivated()) {
-        if (!st.dragged && editRequested) *editRequested = true;
-    }
-
-    // ---- Mouse wheel --------------------------------------------------
+    // ── Scroll wheel ──────────────────────────────────────────────────────────
     if (hovered && ImGui::GetIO().MouseWheel != 0.f) {
-        bool  fine        = ImGui::GetIO().KeyCtrl;
-        float sensitivity = fine ? 5.f : 1.f;
-        int   range       = vmax - vmin;
+        float sens  = ImGui::GetIO().KeyCtrl ? 5.f : 1.f;
+        int   range = vmax - vmin;
         if (range > 0) {
-            st.scrollAcc += ImGui::GetIO().MouseWheel / sensitivity * (float)range / 100.f;
+            st.scrollAcc += ImGui::GetIO().MouseWheel / sens * range / 100.f;
             int delta = (int)st.scrollAcc;
             st.scrollAcc -= (float)delta;
-            if (delta != 0) {
-                int newVal = *value + delta;
-                newVal = newVal < vmin ? vmin : (newVal > vmax ? vmax : newVal);
+            if (delta) {
+                int newVal = std::clamp(*value + delta, vmin, vmax);
                 if (newVal != *value) { *value = newVal; changed = true; }
             }
         }
     }
 
-    // ---- Drawing -------------------------------------------------------
+    // ── Drawing ───────────────────────────────────────────────────────────────
     ImDrawList* dl = ImGui::GetWindowDrawList();
+    knobDrawBox(dl, p, totalW, totalH, active, hovered);
 
-    // Body
-    dl->AddCircleFilled(center, radius, kClrKnobBg);
-    dl->AddCircle(center, radius, kClrKnobBorder, 0, 1.5f);
-
-    // Arc geometry: 270° sweep starting at 7 o'clock (135° = PI*0.75)
-    const float SWEEP     = (float)(M_PI * 1.5);
-    const float ANG_START = (float)(M_PI * 0.75);
-
-    // Unlit track
-    dl->PathArcTo(center, trackR, ANG_START, ANG_START + SWEEP, 32);
-    dl->PathStroke(kClrKnobTrack, false, 2.5f);
-
-    // Active (filled) arc
-    float t = (vmax > vmin)
-              ? (float)(*value - vmin) / (float)(vmax - vmin)
-              : 0.f;
-
-    const float ANG_CENTER = ANG_START + SWEEP * 0.5f;  // 12 o'clock
-    float arcA, arcB;
-    if (bipolar) {
-        arcA = (t >= 0.5f) ? ANG_CENTER : ANG_START + t * SWEEP;
-        arcB = (t >= 0.5f) ? ANG_START + t * SWEEP : ANG_CENTER;
-    } else {
-        arcA = ANG_START;
-        arcB = ANG_START + t * SWEEP;
-    }
-
-    auto drawArc = [&](float a, float b) {
-        if (b <= a) return;
-        dl->PathArcTo(center, trackR, a, b, 32);
-        dl->PathStroke(kClrKnobArc, false, 2.5f);
-
-        if (g_glowKnobs > 0.f) {
-            auto ga = [](int a) { return (uint8_t)(a * g_glowKnobs); };
-            dl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {
-                glBlendFunc(GL_SRC_ALPHA, GL_ONE);
-            }, nullptr);
-            dl->PathArcTo(center, trackR, a, b, 32);
-            dl->PathStroke(IM_COL32(0, 220, 255, ga( 3)), false, 22.0f);
-            dl->PathArcTo(center, trackR, a, b, 32);
-            dl->PathStroke(IM_COL32(0, 220, 255, ga( 6)), false, 15.0f);
-            dl->PathArcTo(center, trackR, a, b, 32);
-            dl->PathStroke(IM_COL32(0, 220, 255, ga(10)), false, 10.0f);
-            dl->PathArcTo(center, trackR, a, b, 32);
-            dl->PathStroke(IM_COL32(0, 220, 255, ga(18)), false,  6.0f);
-            dl->PathArcTo(center, trackR, a, b, 32);
-            dl->PathStroke(IM_COL32(0, 220, 255, ga(28)), false,  3.0f);
-            float sx = center.x + trackR * cosf(a), sy = center.y + trackR * sinf(a);
-            float ex = center.x + trackR * cosf(b), ey = center.y + trackR * sinf(b);
-            for (auto [cx2, cy2] : {std::pair{sx,sy}, std::pair{ex,ey}}) {
-                dl->AddCircleFilled({cx2, cy2}, 11.0f, IM_COL32(0, 220, 255, ga( 3)));
-                dl->AddCircleFilled({cx2, cy2},  8.0f, IM_COL32(0, 220, 255, ga( 6)));
-                dl->AddCircleFilled({cx2, cy2},  5.0f, IM_COL32(0, 220, 255, ga(10)));
-                dl->AddCircleFilled({cx2, cy2},  3.0f, IM_COL32(0, 220, 255, ga(18)));
-            }
-            dl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {
-                glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-            }, nullptr);
-        }
-    };
-    drawArc(arcA, arcB);
-
-    // Bipolar: small center tick at 12 o'clock
-    if (bipolar) {
-        float tx0 = center.x + (trackR - 3.f) * cosf(ANG_CENTER);
-        float ty0 = center.y + (trackR - 3.f) * sinf(ANG_CENTER);
-        float tx1 = center.x + (trackR + 3.f) * cosf(ANG_CENTER);
-        float ty1 = center.y + (trackR + 3.f) * sinf(ANG_CENTER);
-        dl->AddLine({tx0, ty0}, {tx1, ty1}, kClrKnobTick, 1.5f);
-    }
-
-    // Value text centered in the knob (suppressed when caller renders an edit field)
-    if (!hideValue) {
-        char buf[16];
-        if (bipolar) {
-            int offset = *value - (vmin + vmax) / 2;
-            snprintf(buf, sizeof(buf), "%+d", offset);
-            if (offset == 0) snprintf(buf, sizeof(buf), "0");
-        } else {
-            snprintf(buf, sizeof(buf), "%d", *value);
-        }
-        if (g_fontKnobValue) ImGui::PushFont(g_fontKnobValue);
-        ImVec2 textSz = ImGui::CalcTextSize(buf);
-        dl->AddText(
-            {center.x - textSz.x * 0.5f, center.y - textSz.y * 0.5f},
-            kClrTextValue,
-            buf
-        );
-        if (g_fontKnobValue) ImGui::PopFont();
-    }
-
-    // ---- Label --------------------------------------------------------
+    // Label (top-left)
     if (hasLabel) {
-        ImVec2 lp;
-        if (labelPos == KnobLabelPos::Top)
-            lp = {origin.x + (totalW - lblSz.x) * 0.5f, origin.y};
-        else if (labelPos == KnobLabelPos::Bottom)
-            lp = {origin.x + (totalW - lblSz.x) * 0.5f, knobPos.y + SIZE + LBL_GAP};
-        else if (labelPos == KnobLabelPos::Left)
-            lp = {origin.x, origin.y + (SIZE - lblSz.y) * 0.5f};
-        else  // Right
-            lp = {knobPos.x + SIZE + LBL_GAP, origin.y + (SIZE - lblSz.y) * 0.5f};
         if (g_fontKnobLabel) ImGui::PushFont(g_fontKnobLabel);
-        dl->AddText(lp, kClrTextLabel, label);
+        dl->AddText({p.x + KNOB_PAD_X, p.y + KNOB_PAD_TOP}, kClrTextLabel, label);
         if (g_fontKnobLabel) ImGui::PopFont();
     }
 
-    // Claim full bounding box so surrounding layout accounts for label space
-    ImGui::SetCursorScreenPos(origin);
-    ImGui::Dummy({totalW, totalH});
+    // LCD housing (below label)
+    float absLcdX = p.x + lcdX;
+    float absLcdY = p.y + lcdY;
+    dl->AddRectFilled({absLcdX - 1.f, absLcdY - 1.f},
+                      {absLcdX + KNOB_LCD_W + 1.f, absLcdY + KNOB_LCD_H + 1.f},
+                      IM_COL32(0, 0, 0, 180), 2.f);
+    dl->AddRectFilled({absLcdX, absLcdY},
+                      {absLcdX + KNOB_LCD_W, absLcdY + KNOB_LCD_H},
+                      kClrLcdBg, 1.5f);
 
+    if (!hideValue) {
+        char buf[16];
+        if (bipolar) {
+            int off = *value - (vmin + vmax) / 2;
+            snprintf(buf, sizeof(buf), off == 0 ? "0" : "%+d", off);
+        } else {
+            snprintf(buf, sizeof(buf), "%d", *value);
+        }
+        ImVec2 textSz = ImGui::CalcTextSize(buf);
+        dl->PushClipRect({absLcdX, absLcdY}, {absLcdX + KNOB_LCD_W, absLcdY + KNOB_LCD_H}, true);
+        dl->AddText({absLcdX + (KNOB_LCD_W - textSz.x) * 0.5f,
+                     absLcdY + (KNOB_LCD_H - textSz.y) * 0.5f},
+                    kClrLcdText, buf);
+        dl->PopClipRect();
+    }
+
+    // Dial (right side, vertically centred)
+    float dialCX = p.x + KNOB_PAD_X + (totalW - KNOB_PAD_X - KNOB_PAD_R - KNOB_DIAL_D) + KNOB_DIAL_D * 0.5f;
+    float dialCY = p.y + totalH * 0.5f;
+    float t = (vmax > vmin) ? (float)(*value - vmin) / (float)(vmax - vmin) : 0.f;
+    knobDrawDial(dl, {dialCX, dialCY}, t, bipolar);
+
+    ImGui::SetCursorScreenPos(p);
+    ImGui::Dummy({totalW, totalH});
     ImGui::EndGroup();
     ImGui::PopID();
     return changed;
 }
 
-// KnobDisplay — read-only bipolar knob used for visual feedback (e.g. pitch bend).
-// t is in [-1.0, 1.0] where 0.0 = center.
+// ── KnobDisplay ───────────────────────────────────────────────────────────────
+// Read-only bipolar arc indicator. t in [-1, 1].
 inline void KnobDisplay(const char* id, float t,
-                        const char* label     = nullptr,
+                        const char*  label    = nullptr,
                         KnobLabelPos labelPos = KnobLabelPos::Bottom)
 {
     ImGui::PushID(id);
 
-    const float  SIZE    = 36.f;
-    const float  LBL_GAP = 3.f;
-
-    const bool hasLabel = label && label[0] && labelPos != KnobLabelPos::None;
-    if (hasLabel && g_fontKnobLabel) ImGui::PushFont(g_fontKnobLabel);
-    const ImVec2 lblSz = hasLabel ? ImGui::CalcTextSize(label) : ImVec2{0.f, 0.f};
-    if (hasLabel && g_fontKnobLabel) ImGui::PopFont();
-
-    float totalW = SIZE, totalH = SIZE;
+    const bool  hasLabel = label && label[0] && labelPos != KnobLabelPos::None;
+    ImVec2      lblSz    = {0.f, 0.f};
     if (hasLabel) {
-        if (labelPos == KnobLabelPos::Top || labelPos == KnobLabelPos::Bottom) {
-            totalW = SIZE > lblSz.x ? SIZE : lblSz.x;
-            totalH = SIZE + LBL_GAP + lblSz.y;
-        } else {
-            totalW = SIZE + LBL_GAP + lblSz.x;
-            totalH = SIZE > lblSz.y ? SIZE : lblSz.y;
-        }
-    }
-
-    ImGui::BeginGroup();
-    const ImVec2 origin = ImGui::GetCursorScreenPos();
-
-    ImVec2 knobPos = origin;
-    if (hasLabel) {
-        if (labelPos == KnobLabelPos::Top)  knobPos.y += lblSz.y + LBL_GAP;
-        if (labelPos == KnobLabelPos::Left) knobPos.x += lblSz.x + LBL_GAP;
-    }
-
-    const ImVec2 center = {knobPos.x + SIZE * 0.5f, knobPos.y + SIZE * 0.5f};
-    const float  radius = SIZE * 0.5f - 1.f;
-    const float  trackR = radius - 3.f;
-
-    ImGui::SetCursorScreenPos(knobPos);
-    ImGui::Dummy({SIZE, SIZE});
-
-    ImDrawList* dl = ImGui::GetWindowDrawList();
-
-    dl->AddCircleFilled(center, radius, kClrKnobBg);
-    dl->AddCircle(center, radius, kClrKnobBorder, 0, 1.5f);
-
-    const float SWEEP      = (float)(M_PI * 1.5);
-    const float ANG_START  = (float)(M_PI * 0.75);
-    const float ANG_CENTER = ANG_START + SWEEP * 0.5f;
-
-    dl->PathArcTo(center, trackR, ANG_START, ANG_START + SWEEP, 32);
-    dl->PathStroke(kClrKnobTrack, false, 2.5f);
-
-    float tN = (t < -1.f ? -1.f : (t > 1.f ? 1.f : t)) * 0.5f + 0.5f;  // [0,1]
-    float arcA = (tN >= 0.5f) ? ANG_CENTER             : ANG_START + tN * SWEEP;
-    float arcB = (tN >= 0.5f) ? ANG_START + tN * SWEEP : ANG_CENTER;
-    if (arcB > arcA) {
-        dl->PathArcTo(center, trackR, arcA, arcB, 32);
-        dl->PathStroke(kClrKnobArc, false, 2.5f);
-        if (g_glowKnobs > 0.f) {
-            auto ga = [](int a) { return (uint8_t)(a * g_glowKnobs); };
-            dl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {
-                glBlendFunc(GL_SRC_ALPHA, GL_ONE);
-            }, nullptr);
-            dl->PathArcTo(center, trackR, arcA, arcB, 32);
-            dl->PathStroke(IM_COL32(0, 220, 255, ga( 3)), false, 22.0f);
-            dl->PathArcTo(center, trackR, arcA, arcB, 32);
-            dl->PathStroke(IM_COL32(0, 220, 255, ga( 6)), false, 15.0f);
-            dl->PathArcTo(center, trackR, arcA, arcB, 32);
-            dl->PathStroke(IM_COL32(0, 220, 255, ga(10)), false, 10.0f);
-            dl->PathArcTo(center, trackR, arcA, arcB, 32);
-            dl->PathStroke(IM_COL32(0, 220, 255, ga(18)), false,  6.0f);
-            dl->PathArcTo(center, trackR, arcA, arcB, 32);
-            dl->PathStroke(IM_COL32(0, 220, 255, ga(28)), false,  3.0f);
-            float sx = center.x + trackR * cosf(arcA), sy = center.y + trackR * sinf(arcA);
-            float ex = center.x + trackR * cosf(arcB), ey = center.y + trackR * sinf(arcB);
-            for (auto [cx2, cy2] : {std::pair{sx,sy}, std::pair{ex,ey}}) {
-                dl->AddCircleFilled({cx2, cy2}, 11.0f, IM_COL32(0, 220, 255, ga( 3)));
-                dl->AddCircleFilled({cx2, cy2},  8.0f, IM_COL32(0, 220, 255, ga( 6)));
-                dl->AddCircleFilled({cx2, cy2},  5.0f, IM_COL32(0, 220, 255, ga(10)));
-                dl->AddCircleFilled({cx2, cy2},  3.0f, IM_COL32(0, 220, 255, ga(18)));
-            }
-            dl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {
-                glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-            }, nullptr);
-        }
-    }
-
-    // Center tick
-    float tx0 = center.x + (trackR - 3.f) * cosf(ANG_CENTER);
-    float ty0 = center.y + (trackR - 3.f) * sinf(ANG_CENTER);
-    float tx1 = center.x + (trackR + 3.f) * cosf(ANG_CENTER);
-    float ty1 = center.y + (trackR + 3.f) * sinf(ANG_CENTER);
-    dl->AddLine({tx0, ty0}, {tx1, ty1}, kClrKnobTick, 1.5f);
-
-    // Label
-    if (hasLabel) {
-        ImVec2 lp;
-        if (labelPos == KnobLabelPos::Top)
-            lp = {origin.x + (totalW - lblSz.x) * 0.5f, origin.y};
-        else if (labelPos == KnobLabelPos::Bottom)
-            lp = {origin.x + (totalW - lblSz.x) * 0.5f, knobPos.y + SIZE + LBL_GAP};
-        else if (labelPos == KnobLabelPos::Left)
-            lp = {origin.x, origin.y + (SIZE - lblSz.y) * 0.5f};
-        else
-            lp = {knobPos.x + SIZE + LBL_GAP, origin.y + (SIZE - lblSz.y) * 0.5f};
         if (g_fontKnobLabel) ImGui::PushFont(g_fontKnobLabel);
-        dl->AddText(lp, kClrTextLabel, label);
+        lblSz = ImGui::CalcTextSize(label);
         if (g_fontKnobLabel) ImGui::PopFont();
     }
 
-    ImGui::SetCursorScreenPos(origin);
+    // Display-only: just label on left + dial on right, no LCD
+    float leftW = hasLabel ? lblSz.x : 0.f;
+    float totalW = KNOB_PAD_X + leftW + KNOB_MID_GAP + KNOB_DIAL_D + KNOB_PAD_R;
+    float totalH = KNOB_BTN_H;
+
+    ImGui::BeginGroup();
+    const ImVec2 p = ImGui::GetCursorScreenPos();
     ImGui::Dummy({totalW, totalH});
 
+    ImDrawList* dl = ImGui::GetWindowDrawList();
+    knobDrawBox(dl, p, totalW, totalH, false, false);
+
+    if (hasLabel) {
+        if (g_fontKnobLabel) ImGui::PushFont(g_fontKnobLabel);
+        dl->AddText({p.x + KNOB_PAD_X, p.y + (totalH - lblSz.y) * 0.5f},
+                    kClrTextLabel, label);
+        if (g_fontKnobLabel) ImGui::PopFont();
+    }
+
+    float tN     = std::clamp(t, -1.f, 1.f) * 0.5f + 0.5f;
+    float dialCX = p.x + totalW - KNOB_PAD_R - KNOB_DIAL_D * 0.5f;
+    float dialCY = p.y + totalH * 0.5f;
+    knobDrawDial(dl, {dialCX, dialCY}, tN, true);
+
+    ImGui::SetCursorScreenPos(p);
+    ImGui::Dummy({totalW, totalH});
     ImGui::EndGroup();
     ImGui::PopID();
 }
 
-// KnobEdit — KnobWidget with click-to-type inline editing (same pattern as toolbar knobs).
-// Bipolar knobs show and accept the offset from center in the edit field.
+// ── KnobEdit ─────────────────────────────────────────────────────────────────
+// KnobWidget with click-to-type editing inside the LCD housing.
 inline bool KnobEdit(const char* id, int* value, int vmin, int vmax,
-                     bool bipolar     = false,
+                     bool        bipolar  = false,
                      const char* label    = nullptr,
                      KnobLabelPos labelPos = KnobLabelPos::Bottom)
 {
@@ -390,30 +395,23 @@ inline bool KnobEdit(const char* id, int* value, int vmin, int vmax,
     static int     s_editVal  = 0;
     static bool    s_doFocus  = false;
 
-    // Compute the same widget ID that KnobWidget's InvisibleButton will use
     ImGui::PushID(id);
     ImGuiID wid = ImGui::GetID("knob");
     ImGui::PopID();
 
+    const bool  hasLabel = label && label[0] && labelPos != KnobLabelPos::None;
+    ImVec2      lblSz    = {0.f, 0.f};
+    if (hasLabel) {
+        if (g_fontKnobLabel) ImGui::PushFont(g_fontKnobLabel);
+        lblSz = ImGui::CalcTextSize(label);
+        if (g_fontKnobLabel) ImGui::PopFont();
+    }
+
+    float totalW, lcdX, lcdY;
+    knobCalcLayout(lblSz, hasLabel, totalW, lcdX, lcdY);
+
     bool   editing = (s_activeID == wid);
     ImVec2 sp      = ImGui::GetCursorScreenPos();
-    const float SIZE = 36.f, LBL_GAP = 3.f;
-
-    // Full widget size — mirrors KnobWidget's calculation for cursor restoration
-    const bool hasLabel = label && label[0] && labelPos != KnobLabelPos::None;
-    if (hasLabel && g_fontKnobLabel) ImGui::PushFont(g_fontKnobLabel);
-    const ImVec2 lblSz = hasLabel ? ImGui::CalcTextSize(label) : ImVec2{0.f, 0.f};
-    if (hasLabel && g_fontKnobLabel) ImGui::PopFont();
-    float totalW = SIZE, totalH = SIZE;
-    if (hasLabel) {
-        if (labelPos == KnobLabelPos::Top || labelPos == KnobLabelPos::Bottom) {
-            totalW = SIZE > lblSz.x ? SIZE : lblSz.x;
-            totalH = SIZE + LBL_GAP + lblSz.y;
-        } else {
-            totalW = SIZE + LBL_GAP + lblSz.x;
-            totalH = SIZE > lblSz.y ? SIZE : lblSz.y;
-        }
-    }
 
     bool editReq = false;
     bool changed = KnobWidget(id, value, vmin, vmax, &editReq, editing, bipolar, label, labelPos);
@@ -425,30 +423,17 @@ inline bool KnobEdit(const char* id, int* value, int vmin, int vmax,
     }
 
     if (editing) {
-        char ibuf[16];
-        snprintf(ibuf, sizeof(ibuf), "%d", s_editVal);
-        ImVec2 textSz = ImGui::CalcTextSize(ibuf);
-        const float iw = textSz.x + ImGui::GetTextLineHeight();
-
-        // Knob center — same offset logic as KnobWidget
-        ImVec2 knobPos = sp;
-        if (hasLabel) {
-            if (labelPos == KnobLabelPos::Top)  knobPos.y += lblSz.y + LBL_GAP;
-            if (labelPos == KnobLabelPos::Left) knobPos.x += lblSz.x + LBL_GAP;
-        }
-
-        float editX = knobPos.x + (SIZE - textSz.x) * 0.5f;
-        float editY = knobPos.y + (SIZE - textSz.y) * 0.5f;
-        ImGui::SetCursorScreenPos({editX, editY});
-        ImGui::SetNextItemWidth(iw);
+        // InputText overlaid on the LCD housing
+        ImGui::SetCursorScreenPos({sp.x + lcdX, sp.y + lcdY});
+        ImGui::SetNextItemWidth(KNOB_LCD_W);
         if (s_doFocus) { ImGui::SetKeyboardFocusHere(); s_doFocus = false; }
 
-        ImGui::PushStyleColor(ImGuiCol_FrameBg,        IM_COL32(0, 0, 0, 0));
-        ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, IM_COL32(0, 0, 0, 0));
-        ImGui::PushStyleColor(ImGuiCol_FrameBgActive,  IM_COL32(0, 0, 0, 0));
-        ImGui::PushStyleColor(ImGuiCol_Text,           kClrTextValue);
-        ImGui::PushStyleColor(ImGuiCol_Border,         IM_COL32(0, 0, 0, 0));
-        ImGui::PushStyleColor(ImGuiCol_NavHighlight,   IM_COL32(0, 0, 0, 0));
+        ImGui::PushStyleColor(ImGuiCol_FrameBg,        IM_COL32(0,0,0,0));
+        ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, IM_COL32(0,0,0,0));
+        ImGui::PushStyleColor(ImGuiCol_FrameBgActive,  IM_COL32(0,0,0,0));
+        ImGui::PushStyleColor(ImGuiCol_Text,           kClrLcdText);
+        ImGui::PushStyleColor(ImGuiCol_Border,         IM_COL32(0,0,0,0));
+        ImGui::PushStyleColor(ImGuiCol_NavHighlight,   IM_COL32(0,0,0,0));
         ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0.f);
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,    ImVec2(0.f, 0.f));
 
@@ -457,9 +442,8 @@ inline bool KnobEdit(const char* id, int* value, int vmin, int vmax,
                 ImGuiInputTextFlags_EnterReturnsTrue |
                 ImGuiInputTextFlags_AutoSelectAll)) {
             int finalVal = bipolar ? ((vmin + vmax) / 2 + s_editVal) : s_editVal;
-            finalVal = finalVal < vmin ? vmin : (finalVal > vmax ? vmax : finalVal);
-            *value   = finalVal;
-            changed  = true;
+            *value     = std::clamp(finalVal, vmin, vmax);
+            changed    = true;
             s_activeID = 0;
         }
         if (ImGui::IsKeyPressed(ImGuiKey_Escape, false))
@@ -469,9 +453,8 @@ inline bool KnobEdit(const char* id, int* value, int vmin, int vmax,
         ImGui::PopStyleVar(2);
         ImGui::PopStyleColor(6);
 
-        // Restore cursor to correct position after the full widget (including label space)
         ImGui::SetCursorScreenPos(sp);
-        ImGui::Dummy({totalW, totalH});
+        ImGui::Dummy({totalW, KNOB_BTN_H});
     }
 
     return changed;

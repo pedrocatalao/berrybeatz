@@ -83,7 +83,7 @@ public:
     std::function<void(int32_t, int32_t, bool)> onPatternPlayFromCursor;
     std::function<void(int32_t, bool)>          onPatternPlayFromStart;
     std::function<void(int32_t, int32_t)>       onPatternPlayRow;
-    std::function<void()>                       onStopRequested;
+    std::function<void()>                       onPauseRequested;
     std::function<void()>                       onInsertPatternRequested;
     std::function<void(bool)>                   onLoopToggled;
 

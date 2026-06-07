@@ -45,8 +45,8 @@ App::App() : m_controller(m_state), m_audio(m_state), m_tracker(m_state), m_gene
 
     m_toolbarState.onOpen = [this]() { openFileDialog(); };
     m_toolbarState.onSave = [this]() { saveModule(); };
-    m_toolbarState.onStop      = [this]() { stopPlayback(); };
     m_toolbarState.onPlayPause = [this]() { togglePlayPause(); };
+    m_toolbarState.onRestart   = [this]() { playFromStart(); };
     m_toolbarState.onSeek      = [this](float f) { seekTo(f); };
 
     m_toolbarState.onOctaveChange    = [this](int v) { m_tracker.setBaseOctave(v); };
@@ -139,14 +139,16 @@ App::App() : m_controller(m_state), m_audio(m_state), m_tracker(m_state), m_gene
     };
     m_tracker.onPatternPlayFromCursor = [this](int32_t order, int32_t row, bool loop) {
         m_inPatternPlay = true;
+        if (m_transport == Transport::Playing) m_transport = Transport::Paused;
         m_audio.playPatternFrom(order, row, loop);
     };
     m_tracker.onPatternPlayFromStart = [this](int32_t order, bool loop) {
         m_inPatternPlay = true;
+        if (m_transport == Transport::Playing) m_transport = Transport::Paused;
         m_audio.playPatternFrom(order, 0, loop);
     };
     m_tracker.onPatternPlayRow  = [this](int32_t order, int32_t row) { m_audio.playRow(order, row); };
-    m_tracker.onStopRequested   = [this]() { stopPlayback(); };
+    m_tracker.onPauseRequested  = [this]() { m_audio.setPaused(true); };
     m_tracker.onInsertPatternRequested = [this]() { insertPattern(); };
     m_tracker.onLoopToggled     = [this](bool loop) { m_audio.setLoopPattern(loop); };
 
@@ -875,8 +877,10 @@ void App::togglePlayPause()
 void App::playFromStart()
 {
     if (!m_hasModule) return;
+    m_inPatternPlay = false;
     m_audio.rewind();
     m_audio.start();
+    m_transport = Transport::Playing;
 }
 
 void App::dispatchMidiCC(int cc, int value)

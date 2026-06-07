@@ -50,8 +50,8 @@ struct ToolbarState {
     std::function<void()>      onOpen;
     std::function<void()>      onSave;
     std::function<void()>      onInsertPattern;
-    std::function<void()>      onStop;
     std::function<void()>      onPlayPause;
+    std::function<void()>      onRestart;
     std::function<void(float)> onSeek;
     std::function<void(int)>   onOctaveChange;
     std::function<void(int)>   onTempoChange;

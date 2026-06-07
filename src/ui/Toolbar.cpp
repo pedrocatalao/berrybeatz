@@ -198,23 +198,17 @@ float DrawToolbar(ToolbarState& state,
     // ─── Transport ────────────────────────────────────────────────────────────
     if (!state.hasModule) ImGui::BeginDisabled();
 
-    // Stop button — red LED when stopped
-    btnY();
-    const bool isStopped = state.transport == Transport::Stopped;
-    if (SwitchButton("Stop##stop", "Stop", (int)isStopped, 1, {0.f, 0.f}, IM_COL32(220, 60, 60, 255)))
-        { if (state.onStop) state.onStop(); }
-
-    // Play/Pause — fixed width (sized for "Pause"), green LED playing, blue LED paused
-    ImGui::SameLine();
+    // Play — green LED when playing; click toggles play/pause
     btnY();
     const bool isPlaying = state.transport == Transport::Playing;
-    const bool isPaused  = state.transport == Transport::Paused;
-    const char* playLbl  = isPlaying ? "Pause" : "Play";
-    const float playBtnW = ImGui::CalcTextSize("Pause").x
-                         + ImGui::GetStyle().FramePadding.x + 16.f; // PAD_X + LED area
-    ImU32 ppLedCol = isPlaying ? IM_COL32(80, 200, 100, 255) : IM_COL32(80, 120, 255, 255);
-    if (SwitchButton("PlayPause##pp", playLbl, (int)(isPlaying || isPaused), 1, {playBtnW, 0.f}, ppLedCol))
+    if (SwitchButton("Play##play", "Play", (int)isPlaying, 1, {0.f, 0.f}, IM_COL32(80, 200, 100, 255)))
         { if (state.onPlayPause) state.onPlayPause(); }
+
+    // Restart — rewind to beginning and play
+    ImGui::SameLine();
+    btnY();
+    if (SwitchButton("Restart##rst", "Restart"))
+        { if (state.onRestart) state.onRestart(); }
 
     if (!state.hasModule) ImGui::EndDisabled();
 

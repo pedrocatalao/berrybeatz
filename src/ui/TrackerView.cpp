@@ -360,7 +360,7 @@ void TrackerView::drawPatternToolbar1(float /*x*/, float /*y*/, float /*w*/) {
                 if (SwitchButton("Play##play", "Play", patPlaying, 1,
                                  {0.f, 0.f}, kClrLcdText)) {
                     if (patPlaying) {
-                        if (onStopRequested) onStopRequested();
+                        if (onPauseRequested) onPauseRequested();
                     } else {
                         int32_t row = m_editMode ? m_cur.row : m_state.current_row.load();
                         if (onPatternPlayFromCursor)
@@ -370,21 +370,12 @@ void TrackerView::drawPatternToolbar1(float /*x*/, float /*y*/, float /*w*/) {
                 tip(patPlaying ? "Pause" : "Play from cursor");
                 if (dis) ImGui::EndDisabled();
             }},
-            {sw("Play Start"), [&] {
+            {sw("Restart"), [&] {
                 bool dis = !has;
                 if (dis) ImGui::BeginDisabled();
-                if (SwitchButton("Play Start##playstart", "Play Start"))
+                if (SwitchButton("Restart##patrestart", "Restart"))
                     if (onPatternPlayFromStart) onPatternPlayFromStart(m_state.current_order.load(), m_loopPattern);
                 tip("Play pattern from start");
-                if (dis) ImGui::EndDisabled();
-            }},
-            {sw("Stop"), [&] {
-                bool dis = !has;
-                if (dis) ImGui::BeginDisabled();
-                if (SwitchButton("Stop##stop2", "Stop")) {
-                    if (onStopRequested) onStopRequested();
-                }
-                tip("Stop playback");
                 if (dis) ImGui::EndDisabled();
             }},
             {sw("Play Row"), [&] {

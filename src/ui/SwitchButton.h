@@ -21,7 +21,7 @@ inline bool SwitchButton(const char* id, const char* label,
                          int    value  = 0,
                          int    levels = 0,
                          ImVec2 size   = {0.f, 0.f},
-                         ImU32  ledCol = kClrCyan)
+                         ImU32  ledCol = kClrLedGreen)
 {
     ImGui::PushID(id);
 

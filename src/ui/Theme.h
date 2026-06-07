@@ -53,6 +53,7 @@ static constexpr ImU32 kClrTextTitle   = IM_COL32(200, 200, 220, 255);  // setti
 // ── Accent colours ────────────────────────────────────────────────────────────
 static constexpr ImU32 kClrCyan       = IM_COL32(  0, 220, 255, 255);  // glow, knob arc, waveform
 static constexpr ImU32 kClrCyanDim    = IM_COL32(  0, 180, 210, 100);  // knob arc body fill
+static constexpr ImU32 kClrLedGreen   = IM_COL32(100, 220, 160, 255);  // default button LED
 static constexpr ImU32 kClrBlue       = IM_COL32( 40,  85, 145, 255);  // current row, order selection
 static constexpr ImU32 kClrRed        = IM_COL32(160,  30,  30, 255);  // record / danger button
 static constexpr ImU32 kClrRedHover   = IM_COL32(190,  50,  50, 255);  // record / danger hovered

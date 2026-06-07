@@ -201,7 +201,7 @@ float DrawToolbar(ToolbarState& state,
     // Play — green LED when playing; click toggles play/pause
     btnY();
     const bool isPlaying = state.transport == Transport::Playing;
-    if (SwitchButton("Play##play", "Play", (int)isPlaying, 1, {0.f, 0.f}, IM_COL32(80, 200, 100, 255)))
+    if (SwitchButton("Play##play", "Play", (int)isPlaying, 1, {0.f, 0.f}, kClrLedGreen))
         { if (state.onPlayPause) state.onPlayPause(); }
 
     // Restart — rewind to beginning and play

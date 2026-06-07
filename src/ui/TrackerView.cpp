@@ -359,7 +359,7 @@ void TrackerView::drawPatternToolbar1(float /*x*/, float /*y*/, float /*w*/) {
                 bool dis = !has;
                 if (dis) ImGui::BeginDisabled();
                 if (SwitchButton("Play##play", "Play", patPlaying, 1,
-                                 {0.f, 0.f}, kClrLcdText)) {
+                                 {0.f, 0.f}, kClrLedGreen)) {
                     if (patPlaying) {
                         if (onPauseRequested) onPauseRequested();
                     } else {
@@ -446,7 +446,7 @@ void TrackerView::drawPatternToolbar1(float /*x*/, float /*y*/, float /*w*/) {
             {sw("Follow", true), [&] {
                 bool suspended = m_editMode && m_followSong;
                 bool blink     = suspended && ((int)(ImGui::GetTime() * 2.0) % 2 == 0);
-                ImU32 ledCol   = suspended ? IM_COL32(255, 160, 0, 255) : kClrCyan;
+                ImU32 ledCol   = suspended ? IM_COL32(255, 160, 0, 255) : kClrLedGreen;
                 int   ledVal   = suspended ? (int)blink : (int)m_followSong;
                 if (SwitchButton("Follow##fw", "Follow", ledVal, 1, {0.f, 0.f}, ledCol) && !m_editMode)
                     m_followSong = !m_followSong;
@@ -800,15 +800,15 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
                     constexpr float E1 = 5.f, E2 = 2.5f;
                     dl->AddRectFilled({ledX - E1, ledY - E1},
                                       {ledX + LED_W + E1, ledY + LED_H + E1},
-                                      IM_COL32(0,200,255, ga(10)), R + E1);
+                                      IM_COL32(100,220,160, ga(10)), R + E1);
                     dl->AddRectFilled({ledX - E2, ledY - E2},
                                       {ledX + LED_W + E2, ledY + LED_H + E2},
-                                      IM_COL32(0,200,255, ga(28)), 2.f + E2);
+                                      IM_COL32(100,220,160, ga(28)), 2.f + E2);
                     dl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {
                         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
                     }, nullptr);
                 }
-                dl->AddRectFilled({ledX, ledY}, {ledX + LED_W, ledY + LED_H}, kClrCyan, 1.5f);
+                dl->AddRectFilled({ledX, ledY}, {ledX + LED_W, ledY + LED_H}, kClrLedGreen, 1.5f);
             } else {
                 dl->AddRectFilled({ledX, ledY}, {ledX + LED_W, ledY + LED_H},
                                   IM_COL32(10,30,40,255), 1.5f);

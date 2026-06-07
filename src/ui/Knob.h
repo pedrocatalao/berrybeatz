@@ -4,6 +4,7 @@
 #include "imgui.h"
 #include "RenderSettings.h"
 #include "Theme.h"
+#include "../platform/CocoaHelpers.h"
 #include <unordered_map>
 #include <cmath>
 #include <algorithm>
@@ -259,6 +260,9 @@ inline bool KnobWidget(const char* id,
     KnobState& st      = knobState(widgetID);
     const bool hovered = ImGui::IsItemHovered();
     const bool active  = ImGui::IsItemActive();
+
+    if (active)        setCursorClosedHand();
+    else if (hovered)  setCursorOpenHand();
 
     // ── Drag ─────────────────────────────────────────────────────────────────
     if (ImGui::IsItemActivated()) {

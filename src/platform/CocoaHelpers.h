@@ -19,3 +19,7 @@ void setWindowCornerRadius(GLFWwindow* win, float radius);
 
 // Set the Dock icon from the app bundle's AppIcon.icns resource.
 void setDockIcon();
+
+// Native macOS cursor helpers — call each frame from within widget rendering.
+void setCursorOpenHand();
+void setCursorClosedHand();

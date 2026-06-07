@@ -140,3 +140,6 @@ void setupTransparentTitleBar(GLFWwindow* glfwWin, float& titleBarH, float& traf
         trafficW = zoom ? (float)(NSMaxX(zoom.frame) + 8.f) : 80.f;
     }
 }
+
+void setCursorOpenHand()   { [[NSCursor openHandCursor]   set]; }
+void setCursorClosedHand() { [[NSCursor closedHandCursor] set]; }

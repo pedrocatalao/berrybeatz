@@ -291,7 +291,8 @@ void TrackerView::drawPatternToolbar1(float /*x*/, float /*y*/, float /*w*/) {
             {sw("Record", true), [&] {
                 bool dis = !has;
                 if (dis) ImGui::BeginDisabled();
-                if (SwitchButton("Record##rec", "Record", m_editMode, 1, {0.f, 0.f}, IM_COL32(255, 60, 60, 255)))
+                bool recLit = m_editMode && ((int)(ImGui::GetTime() * 2.0) % 2 == 0);
+                if (SwitchButton("Record##rec", "Record", (int)recLit, 1, {0.f, 0.f}, IM_COL32(255, 60, 60, 255)))
                     setEditMode(!m_editMode);
                 tip("Toggle record mode (Enter)");
                 if (dis) ImGui::EndDisabled();
@@ -443,11 +444,13 @@ void TrackerView::drawPatternToolbar1(float /*x*/, float /*y*/, float /*w*/) {
         }},
         {"Navigate", 120.f, 200.f, m_fontUI, {
             {sw("Follow", true), [&] {
-                bool dis = m_editMode;
-                if (dis) ImGui::BeginDisabled();
-                if (SwitchButton("Follow##fw", "Follow", m_followSong, 1)) m_followSong = !m_followSong;
-                tip("Follow playback cursor");
-                if (dis) ImGui::EndDisabled();
+                bool suspended = m_editMode && m_followSong;
+                bool blink     = suspended && ((int)(ImGui::GetTime() * 2.0) % 2 == 0);
+                ImU32 ledCol   = suspended ? IM_COL32(255, 160, 0, 255) : kClrCyan;
+                int   ledVal   = suspended ? (int)blink : (int)m_followSong;
+                if (SwitchButton("Follow##fw", "Follow", ledVal, 1, {0.f, 0.f}, ledCol) && !m_editMode)
+                    m_followSong = !m_followSong;
+                tip(suspended ? "Follow suspended while recording" : "Follow playback cursor");
             }},
             {sw("Seek", true), [&] {
                 if (SwitchButton("Seek##sk", "Seek", m_seekMode, 1)) m_seekMode = !m_seekMode;

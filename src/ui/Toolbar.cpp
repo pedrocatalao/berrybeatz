@@ -45,7 +45,7 @@ static void drawVU(ImDrawList* dl,
     constexpr float stride = 3.f;
     const float gap  = 2.f;
     const float bh   = (h - gap) * 0.5f;
-    const int   N    = std::max(1, (int)((w - 1.f) / stride));
+    const int   N    = std::max(1, (int)((w - barW - 1) / stride) + 1);
     const float norm[2] = { std::min(lvlL / 1.2f, 1.f), std::min(lvlR / 1.2f, 1.f) };
     const float tops[2] = { y, y + bh + gap };
 
@@ -90,6 +90,52 @@ static void drawVU(ImDrawList* dl,
                               norm[ch] > frac ? litCol : unlitCol);
         }
     }
+}
+
+static void drawVUWidget(ImDrawList* dl, ImVec2 p, float boxW, float boxH,
+                         float lvlL, float lvlR)
+{
+    constexpr float ROUNDING = 1.5f;
+    constexpr float PAD_X    = 5.f;
+    constexpr float PAD_Y    = 3.f;
+    constexpr float LBL_GAP  = 4.f;
+    constexpr float LCD_R    = 2.f;
+    constexpr float LCD_PAD  = 2.f;
+
+    const ImVec2 q = {p.x + boxW, p.y + boxH};
+
+    // Outer button box (SwitchButton style, display-only)
+    dl->AddRectFilled(p, q, IM_COL32(25, 25, 38, 255), ROUNDING);
+    dl->AddRectFilled(p, {q.x, p.y + boxH * 0.5f}, IM_COL32(255, 255, 255, 14), ROUNDING);
+    dl->AddLine({p.x + ROUNDING, p.y + 0.5f}, {q.x - ROUNDING, p.y + 0.5f}, IM_COL32(255,255,255,55));
+    dl->AddLine({p.x + 0.5f, p.y + ROUNDING}, {p.x + 0.5f, q.y - ROUNDING}, IM_COL32(255,255,255,40));
+    dl->AddLine({p.x + ROUNDING, q.y - 0.5f}, {q.x - ROUNDING, q.y - 0.5f}, IM_COL32(0,0,0,120));
+    dl->AddLine({q.x - 0.5f, p.y + ROUNDING}, {q.x - 0.5f, q.y - ROUNDING}, IM_COL32(0,0,0,100));
+    dl->AddRect(p, q, IM_COL32(30, 30, 45, 255), ROUNDING, 0, 1.0f);
+
+    // "VU" label — small font, left side, vertically centered
+    if (g_fontKnobLabel) ImGui::PushFont(g_fontKnobLabel);
+    const ImVec2 lblSz = ImGui::CalcTextSize("VU");
+    dl->AddText({p.x + PAD_X, p.y + (boxH - lblSz.y) * 0.5f}, kClrTextLabel, "VU");
+    if (g_fontKnobLabel) ImGui::PopFont();
+
+    // LCD inner box
+    const float lcdX = p.x + PAD_X + lblSz.x + LBL_GAP;
+    const float lcdY = p.y + PAD_Y;
+    const float lcdW = q.x - PAD_X - lcdX;
+    const float lcdH = boxH - PAD_Y * 2.f;
+
+    dl->AddRectFilled({lcdX, lcdY}, {lcdX + lcdW, lcdY + lcdH}, IM_COL32(14, 20, 24, 255), LCD_R);
+    dl->AddLine({lcdX + LCD_R,        lcdY + 0.5f},       {lcdX + lcdW - LCD_R, lcdY + 0.5f},       IM_COL32(0,0,0,120));
+    dl->AddLine({lcdX + 0.5f,         lcdY + LCD_R},       {lcdX + 0.5f,         lcdY + lcdH - LCD_R}, IM_COL32(0,0,0,100));
+    dl->AddLine({lcdX + LCD_R,        lcdY + lcdH - 0.5f}, {lcdX + lcdW - LCD_R, lcdY + lcdH - 0.5f}, IM_COL32(255,255,255,12));
+    dl->AddLine({lcdX + lcdW - 0.5f, lcdY + LCD_R},       {lcdX + lcdW - 0.5f, lcdY + lcdH - LCD_R}, IM_COL32(255,255,255,10));
+
+    // Bar graphs inside the LCD box
+    drawVU(dl,
+           lcdX + LCD_PAD, lcdY + LCD_PAD,
+           lcdW - LCD_PAD, lcdH - LCD_PAD * 2.f,
+           lvlL, lvlR);
 }
 
 float DrawToolbar(ToolbarState& state,
@@ -251,21 +297,13 @@ float DrawToolbar(ToolbarState& state,
 
     // ─── VU meters (knob row) ─────────────────────────────────────────────────
     {
-        const float vuW   = 202.f;
-        const float vuH   = 25.f;
-        const float kGap  = 4.f;
-        if (g_fontKnobLabel) ImGui::PushFont(g_fontKnobLabel);
-        const float lblW  = ImGui::CalcTextSize("VU").x;
-        const float lblH  = ImGui::GetTextLineHeight();
-        if (g_fontKnobLabel) ImGui::PopFont();
-        float vuX = ImGui::GetItemRectMax().x + 12.f + lblW + kGap;
-        float vuY = ImGui::GetWindowPos().y + knobMidY + (knobSz - vuH) * 0.5f;
-        if (g_fontKnobLabel) ImGui::PushFont(g_fontKnobLabel);
-        dl->AddText({vuX - kGap - lblW, vuY + (vuH - lblH) * 0.5f}, kClrTextLabel, "VU");
-        if (g_fontKnobLabel) ImGui::PopFont();
-        drawVU(dl, vuX, vuY, vuW, vuH, state.vuLeft, state.vuRight);
-        ImGui::SetCursorScreenPos({vuX - lblW - kGap, ImGui::GetWindowPos().y + knobMidY});
-        ImGui::Dummy({vuW + lblW + kGap, knobSz});
+        const float boxW = 220.f;
+        const float boxH = knobSz;
+        ImGui::SameLine(0.f, 6.f);
+        ImGui::SetCursorPosY(knobMidY);
+        const ImVec2 vuPos = ImGui::GetCursorScreenPos();
+        drawVUWidget(dl, vuPos, boxW, boxH, state.vuLeft, state.vuRight);
+        ImGui::Dummy({boxW, boxH});
     }
 
     // ─── Logo (top-right) ─────────────────────────────────────────────────────

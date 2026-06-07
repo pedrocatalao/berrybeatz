@@ -144,6 +144,36 @@ void setupTransparentTitleBar(GLFWwindow* glfwWin, float& titleBarH, float& traf
 void setCursorOpenHand()   { [[NSCursor openHandCursor]   set]; }
 void setCursorClosedHand() { [[NSCursor closedHandCursor] set]; }
 
+void enableNativeTitlebar(GLFWwindow* glfwWin)
+{
+    @autoreleasepool {
+        NSWindow* win = glfwGetCocoaWindow(glfwWin);
+        win.styleMask |= NSWindowStyleMaskTitled
+                       | NSWindowStyleMaskClosable
+                       | NSWindowStyleMaskMiniaturizable
+                       | NSWindowStyleMaskFullSizeContentView;
+        win.titlebarAppearsTransparent = YES;
+        win.titleVisibility            = NSWindowTitleHidden;
+        win.movableByWindowBackground  = NO;
+
+        // Defer nudge to next run loop so AppKit finishes its own layout first
+        dispatch_async(dispatch_get_main_queue(), ^{
+            NSWindowButton types[] = { NSWindowCloseButton,
+                                       NSWindowMiniaturizeButton,
+                                       NSWindowZoomButton };
+            for (NSWindowButton type : types) {
+                NSButton* btn = [win standardWindowButton:type];
+                if (!btn) continue;
+                btn.autoresizingMask = NSViewNotSizable;
+                NSRect f = btn.frame;
+                f.origin.x += 4.5f;
+                f.origin.y -= 4.5f;  // AppKit y=0 is bottom, so -= moves down on screen
+                btn.frame = f;
+            }
+        });
+    }
+}
+
 void toggleNativeFullscreen(GLFWwindow* glfwWin)
 {
     @autoreleasepool {

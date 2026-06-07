@@ -81,8 +81,12 @@ int main(int argc, char* argv[])
     g_app = app.get();
 
     app->setGLFWWindow(window);
+    enableNativeTitlebar(window);
     setWindowCornerRadius(window, 10.f);
     setupWindowEventMonitor(window);
+    glfwSetWindowCloseCallback(window, [](GLFWwindow* w) {
+        glfwSetWindowShouldClose(w, GLFW_TRUE);
+    });
     glfwSetDropCallback(window, dropCallback);
 
     // ── GLFW callbacks ────────────────────────────────────────────────────

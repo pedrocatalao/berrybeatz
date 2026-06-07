@@ -17,6 +17,10 @@ void beginWindowDrag(GLFWwindow* win);
 // Round the window's content view corners (macOS layer mask).
 void setWindowCornerRadius(GLFWwindow* win, float radius);
 
+// Enable native traffic-light buttons with a transparent title bar.
+// Content extends under the title bar (full-size content view).
+void enableNativeTitlebar(GLFWwindow* win);
+
 // Native macOS fullscreen (toggles into its own Space with system animation).
 void toggleNativeFullscreen(GLFWwindow* win);
 

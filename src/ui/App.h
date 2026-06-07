@@ -102,9 +102,6 @@ private:
     float  m_logoW   {0.f};
     float  m_logoH   {0.f};
 
-    GLuint m_speakerConeTex {0};
-    float  m_speakerConeW   {0.f};
-    float  m_speakerConeH   {0.f};
 
     static constexpr float kToolbarH  = 78.f;
     static constexpr float kTabBarH   = 26.f;

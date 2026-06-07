@@ -245,8 +245,7 @@ App::~App()
 {
     m_audio.stop();
     m_audio.join();
-    if (m_logoTex)        glDeleteTextures(1, &m_logoTex);
-    if (m_speakerConeTex) glDeleteTextures(1, &m_speakerConeTex);
+    if (m_logoTex) glDeleteTextures(1, &m_logoTex);
 }
 
 // ─── Public API ───────────────────────────────────────────────────────────────
@@ -255,8 +254,7 @@ void App::setGLFWWindow(GLFWwindow* w)
 {
     m_glfwWindow = w;
     m_chrome.setWindow(w);
-    m_logoTex        = loadLogoTexture(m_logoW, m_logoH);
-    m_speakerConeTex = loadSpeakerConeTexture(m_speakerConeW, m_speakerConeH);
+    m_logoTex = loadLogoTexture(m_logoW, m_logoH);
 }
 
 void App::setFonts(ImFont* mono, ImFont* ui)
@@ -406,9 +404,9 @@ void App::render(int winW, int winH)
 
         // Bottom shadow
         fg->AddRectFilledMultiColor(
-            {0.f, h - 40.f}, {w, h},
-            IM_COL32(0, 0, 0,   0), IM_COL32(0, 0, 0,   0),
-            IM_COL32(0, 0, 0, 170), IM_COL32(0, 0, 0, 170));
+            {0.f, h - 22.f}, {w, h},
+            IM_COL32(0, 0, 0,  0), IM_COL32(0, 0, 0,  0),
+            IM_COL32(0, 0, 0, 80), IM_COL32(0, 0, 0, 80));
 
         // Left edge shadow  (UL, UR, LR, LL)
         fg->AddRectFilledMultiColor(
@@ -771,9 +769,6 @@ void App::syncToolbarState()
     m_toolbarState.logoTex        = m_logoTex;
     m_toolbarState.logoW          = m_logoW;
     m_toolbarState.logoH          = m_logoH;
-    m_toolbarState.speakerConeTex = m_speakerConeTex;
-    m_toolbarState.speakerConeW   = m_speakerConeW;
-    m_toolbarState.speakerConeH   = m_speakerConeH;
     if (m_audio.pollSongEnded()) m_transport = Transport::Stopped;
     m_toolbarState.hasModule  = m_hasModule;
     m_toolbarState.transport  = m_transport;

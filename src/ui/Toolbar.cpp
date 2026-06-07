@@ -311,9 +311,7 @@ float DrawToolbar(ToolbarState& state,
         static LogoView logo;
         ImVec2 winPos = ImGui::GetWindowPos();
         logo.draw(winPos.x, winPos.y, ImGui::GetWindowSize().x,
-                  state.logoTex, state.logoW, state.logoH,
-                  state.speakerConeTex, state.speakerConeW, state.speakerConeH,
-                  state.vuLeft, state.vuRight);
+                  state.logoTex, state.logoW, state.logoH);
     }
 
     ImGui::End();

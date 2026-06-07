@@ -63,12 +63,14 @@ static constexpr ImU32 kClrOrangeHint = IM_COL32(255, 153,  76, 255);  // "move 
 // ── LCD widgets ───────────────────────────────────────────────────────────────
 static constexpr ImU32 kClrLcdBg   = IM_COL32( 10,  30,  40, 255);  // LCD display background
 static constexpr ImU32 kClrLcdText = IM_COL32(100, 220, 160, 255);  // LCD green text
+static constexpr ImU32 kClrAmber   = IM_COL32(200, 160,   0, 255);  // amber accent
 // Returns kClrLcdText with a custom alpha (0–255).
 inline ImU32 LcdTextA(uint8_t a) { return IM_COL32(100, 220, 160, a); }
 
 
 // ── Tab bar ───────────────────────────────────────────────────────────────────
 static constexpr ImU32   kClrTabBg        = IM_COL32( 10,  10,  22, 255);
+static constexpr ImU32   kClrTabSelected  = IM_COL32( 35,  35,  48, 255);
 static constexpr ImU32   kClrTabHover     = IM_COL32( 35,  35,  60, 255);
 static constexpr ImU32   kClrTabBodyBg    = IM_COL32( 15,  15,  20, 255);
 static constexpr ImVec2  kTabFramePad     = {8.5f, 4.f};
@@ -233,6 +235,8 @@ static constexpr ImVec4 kStyleTitleBg   = {0.067f, 0.067f, 0.086f, 1.f};
 static constexpr ImVec4 kStyleTitleBgAct= {0.10f,  0.10f,  0.13f,  1.f};
 
 // ── Widgets ───────────────────────────────────────────────────────────────────
+
+static constexpr ImU32 kClrDivider  = IM_COL32( 80,  80, 100, 255);
 
 // Full-width 1px divider line with a 20px fade-to-transparent on each end.
 // col  — line colour (typically ImGuiCol_TabSelected)

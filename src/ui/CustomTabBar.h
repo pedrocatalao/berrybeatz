@@ -70,7 +70,7 @@ inline bool CustomTabItem(const char* label, bool* = nullptr, ImGuiTabItemFlags 
     if (ImGui::IsItemClicked()) detail::g_ctb.activeIdx = i;
 
     ImDrawList* dl = ImGui::GetWindowDrawList();
-    ImU32 selCol  = ImGui::ColorConvertFloat4ToU32(ImGui::GetStyle().Colors[ImGuiCol_TabSelected]);
+    ImU32 selCol  = kClrTabSelected;
     ImU32 bodyCol = selected    ? selCol
                   : hov || held ? kClrTabHover
                                 : kClrTabBg;

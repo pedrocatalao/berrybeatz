@@ -432,9 +432,7 @@ void App::render(int winW, int winH)
     drawSongBar(w, h);
 
     // ── Status bar divider line ───────────────────────────────────────────
-    DrawFadeDivider(ImGui::GetForegroundDrawList(),
-        ImGui::ColorConvertFloat4ToU32(ImGui::GetStyle().Colors[ImGuiCol_TabSelected]),
-        h - kSongBarH, w);
+    DrawFadeDivider(ImGui::GetForegroundDrawList(), kClrDivider, h - kSongBarH, w);
 
     // ── Sidebar ───────────────────────────────────────────────────────────
     {
@@ -532,9 +530,7 @@ void App::render(int winW, int winH)
     }
     ImGui::End();
 
-    DrawFadeDivider(ImGui::GetForegroundDrawList(),
-        ImGui::ColorConvertFloat4ToU32(ImGui::GetStyle().Colors[ImGuiCol_TabSelected]),
-        contentY + kTabBarH - 4.f, w);
+    DrawFadeDivider(ImGui::GetForegroundDrawList(), kClrDivider, contentY + kTabBarH - 4.f, w);
 
     // ── Content area ──────────────────────────────────────────────────────
     float cy = contentY + kTabBarH;
@@ -703,7 +699,7 @@ void App::drawSongBar(float w, float h)
     const float padX   = 7.f;
     const float xGap   = 6.f;
     const float xW     = ImGui::CalcTextSize("x").x + xGap * 2.f;
-    const ImU32 kActBg = ImGui::ColorConvertFloat4ToU32(ImGui::GetStyle().Colors[ImGuiCol_TabSelected]);
+    const ImU32 kActBg = kClrTabSelected;
 
     for (int i = 0; i < (int)m_songs.size(); ++i) {
         if (i > 0) ImGui::SameLine(0, 2.f);

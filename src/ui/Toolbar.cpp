@@ -155,14 +155,14 @@ float DrawToolbar(ToolbarState& state,
 
     const float frameH   = ImGui::GetFrameHeight();
     const float knobSz   = 36.f;
-    const float btnMidY  = 7.f;
-    const float knobMidY = 33.f;
+    const float btnMidY  = 11.f;
+    const float knobMidY = 36.f;
 
     auto btnY = [&]() { ImGui::SetCursorPosY(btnMidY); };
 
     // ─── File buttons (native traffic lights sit to the left via CocoaHelpers) ──
     {
-        const float by = 7.f;
+        const float by = 11.f;
 
         // Leave space for the 3 native traffic light buttons (~80px)
         ImGui::SetCursorPosX(80.f);
@@ -203,7 +203,7 @@ float DrawToolbar(ToolbarState& state,
 
     if (!state.hasModule) ImGui::EndDisabled();
 
-    ImGui::SetCursorPos({13.f, knobMidY});
+    ImGui::SetCursorPos({12.f, knobMidY});
 
     // ─── Knobs ────────────────────────────────────────────────────────────────
     ImDrawList* dl = ImGui::GetWindowDrawList();

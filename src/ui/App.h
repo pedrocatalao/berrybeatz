@@ -104,7 +104,7 @@ private:
     float  m_logoH   {0.f};
 
 
-    static constexpr float kToolbarH  = 78.f;
+    static constexpr float kToolbarH  = 79.f;
     static constexpr float kTabBarH   = 26.f;
     static constexpr float kSongBarH  = 26.f;
     static constexpr float kSplitterW =  6.f;

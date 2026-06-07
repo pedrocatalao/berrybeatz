@@ -353,15 +353,21 @@ void TrackerView::drawPatternToolbar1(float /*x*/, float /*y*/, float /*w*/) {
             }},
         }},
         {"Playback", 180.f, 200.f, m_fontUI, {
-            {sw("Play Cursor"), [&] {
+            {sw("Play", true), [&] {
+                bool patPlaying = m_state.is_pattern_playing.load();
                 bool dis = !has;
                 if (dis) ImGui::BeginDisabled();
-                if (SwitchButton("Play Cursor##playcur", "Play Cursor")) {
-                    int32_t row = m_editMode ? m_cur.row : m_state.current_row.load();
-                    if (onPatternPlayFromCursor)
-                        onPatternPlayFromCursor(m_state.current_order.load(), row, m_loopPattern);
+                if (SwitchButton("Play##play", "Play", patPlaying, 1,
+                                 {0.f, 0.f}, kClrLcdText)) {
+                    if (patPlaying) {
+                        if (onStopRequested) onStopRequested();
+                    } else {
+                        int32_t row = m_editMode ? m_cur.row : m_state.current_row.load();
+                        if (onPatternPlayFromCursor)
+                            onPatternPlayFromCursor(m_state.current_order.load(), row, m_loopPattern);
+                    }
                 }
-                tip("Play from cursor");
+                tip(patPlaying ? "Pause" : "Play from cursor");
                 if (dis) ImGui::EndDisabled();
             }},
             {sw("Play Start"), [&] {
@@ -375,7 +381,9 @@ void TrackerView::drawPatternToolbar1(float /*x*/, float /*y*/, float /*w*/) {
             {sw("Stop"), [&] {
                 bool dis = !has;
                 if (dis) ImGui::BeginDisabled();
-                if (SwitchButton("Stop##stop2", "Stop")) if (onStopRequested) onStopRequested();
+                if (SwitchButton("Stop##stop2", "Stop")) {
+                    if (onStopRequested) onStopRequested();
+                }
                 tip("Stop playback");
                 if (dis) ImGui::EndDisabled();
             }},

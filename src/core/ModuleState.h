@@ -39,7 +39,9 @@ struct ModuleState {
     std::atomic<double>  bpm              {125.0};
     std::atomic<int32_t> num_channels     {0};
     std::atomic<int32_t> num_orders       {0};
-    std::atomic<bool>    is_playing       {false};
+    std::atomic<bool>    is_playing         {false};
+    std::atomic<bool>    is_paused          {false};
+    std::atomic<bool>    is_pattern_playing {false};
 
     // Master output VU (audio thread writes)
     std::atomic<float>    master_vu_left   {0.0f};
@@ -86,7 +88,9 @@ struct ModuleState {
         bpm              = 125.0;
         num_channels     = 0;
         num_orders       = 0;
-        is_playing       = false;
+        is_playing         = false;
+        is_paused          = false;
+        is_pattern_playing = false;
         channel_mute_mask= 0;
         master_vu_left   = 0.0f;
         master_vu_right  = 0.0f;

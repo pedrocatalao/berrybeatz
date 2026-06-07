@@ -171,7 +171,8 @@ private:
     bool    m_showWave      {true};
     bool    m_showPluginRow {true};
     bool    m_showKbd       {false};
-    bool    m_loopPattern   {false};
+    bool    m_loopPattern        {false};
+    bool    m_playCursorActive   {false};
     bool    m_seekMode      {false};
     bool    m_continuousScroll   {false};
     bool    m_followSong         {true};

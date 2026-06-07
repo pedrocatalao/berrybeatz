@@ -69,6 +69,7 @@ public:
     void    playPatternFrom(int32_t order, int32_t startRow, bool loop);
     void    playRow(int32_t order, int32_t row);
     void    setLoopPattern(bool loop) { m_patPlayLoop.store(loop); }
+    void    exitPatternPlay() { m_exitPatternPlay.store(true); }
 
     // Callbacks (set before start(); called from audio thread)
     std::function<void(const std::string&)> onLoadFailed;
@@ -121,6 +122,7 @@ private:
     std::atomic<int32_t>     m_patPlayStartRow {0};
     std::atomic<bool>        m_patPlayLoop     {false};
     std::atomic<bool>        m_patPlaySingle   {false};
+    std::atomic<bool>        m_exitPatternPlay {false};
 
     std::atomic<bool>        m_restartStream   {false};
     AudioDeviceMonitor       m_deviceMonitor;

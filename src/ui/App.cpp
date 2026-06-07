@@ -842,6 +842,7 @@ void App::startPlayback()
     if (!m_hasModule) return;
     if (m_transport == Transport::Playing) return;
     m_inPatternPlay = false;
+    m_audio.exitPatternPlay();   // clear inPatternPlay in audio thread before resuming
     m_audio.setPaused(false);
     if (!m_audio.isRunning()) m_audio.start();
     m_transport = Transport::Playing;
@@ -850,6 +851,7 @@ void App::startPlayback()
 void App::stopPlayback()
 {
     if (!m_hasModule) return;
+    m_audio.exitPatternPlay();   // clear inPatternPlay in audio thread before pausing
     m_audio.setPaused(true);
     if (auto* mod = m_audio.getModule())
         mod->setPositionSeconds(0.0);

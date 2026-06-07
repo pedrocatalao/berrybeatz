@@ -29,6 +29,7 @@ struct PaCallbackData {
     std::atomic<int32_t>* pat_play_startrow {nullptr};
     std::atomic<bool>*    pat_play_loop     {nullptr};
     std::atomic<bool>*    pat_play_single   {nullptr};
+    std::atomic<bool>*    exit_pattern_play {nullptr};
 
     SoundModule*          previewMod      {nullptr};
     std::mutex*           previewCopyMtx  {nullptr};
@@ -277,6 +278,14 @@ int AudioEngine::paCallback(const void*, void* output,
 
     bool paused = d->paused->load();
 
+    // Exit-pattern-play signal: processed even while paused so song play / stop
+    // clears pattern mode on the very next callback frame.
+    if (d->exit_pattern_play->exchange(false))
+        d->inPatternPlay = false;
+
+    d->state->is_paused.store(paused);
+    d->state->is_pattern_playing.store(d->inPatternPlay && !paused);
+
     // ── Preview module — always rendered, fully isolated from song state ──────
     size_t pc = 0;
     if (d->previewCopyMtx && d->previewCopyMtx->try_lock()) {
@@ -396,8 +405,12 @@ int AudioEngine::paCallback(const void*, void* output,
             }
         } else {
             if (curOrder != d->patPlayOrder) {
-                d->mod->setPositionOrderRow(d->patPlayOrder, d->patPlayStartRow);
-                if (!d->pat_play_loop->load()) {
+                if (d->pat_play_loop->load()) {
+                    d->mod->setPositionOrderRow(d->patPlayOrder, d->patPlayStartRow);
+                } else {
+                    int pat     = d->mod->getOrderPattern(d->patPlayOrder);
+                    int lastRow = (pat >= 0) ? std::max(0, d->mod->getPatternNumRows(pat) - 1) : 0;
+                    d->mod->setPositionOrderRow(d->patPlayOrder, lastRow);
                     d->paused->store(true);
                     d->inPatternPlay = false;
                 }
@@ -491,6 +504,7 @@ void AudioEngine::run() {
     cbData.pat_play_startrow = &m_patPlayStartRow;
     cbData.pat_play_loop     = &m_patPlayLoop;
     cbData.pat_play_single   = &m_patPlaySingle;
+    cbData.exit_pattern_play = &m_exitPatternPlay;
     cbData.previewMod        = m_previewMod.get();
     cbData.previewCopyMtx    = &m_previewCopyMutex;
     cbData.songEnded         = &m_songEnded;

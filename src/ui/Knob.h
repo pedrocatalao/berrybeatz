@@ -112,23 +112,31 @@ static void knobDrawDial(ImDrawList* dl, ImVec2 center, float t, bool bipolar)
         dl->AddLine({tx0, ty0}, {tx1, ty1}, kClrKnobTick, 1.5f);
     }
 
-    // ── Knob body (layered for 3D/physical feel) ──────────────────────────────
+    // ── Knob body ─────────────────────────────────────────────────────────────
     dl->AddCircleFilled(center, bodyR + 1.f, IM_COL32(  6,  6, 14, 255));  // rim shadow
     dl->AddCircleFilled(center, bodyR,       IM_COL32( 28, 28, 44, 255));  // main body
-    dl->AddCircle(center, bodyR - 0.5f, IM_COL32(70, 70, 100, 45), 0, 0.8f); // inner bevel
 
-    // Specular highlight at ~10:30 o'clock (top-left light source)
-    const float hlA = (float)(-M_PI * 0.65f);
-    dl->AddCircleFilled(
-        {center.x + (bodyR - 3.5f) * cosf(hlA), center.y + (bodyR - 3.5f) * sinf(hlA)},
-        1.8f, IM_COL32(255, 255, 255, 22));
-
-    // ── Indicator line (handle on the knob face) ──────────────────────────────
+    // ── 3D ridge indicator ────────────────────────────────────────────────────
+    // Three parallel lines — shadow / surface / highlight — give the impression
+    // of a raised groove pressed into the knob face.
     float tipX  = center.x + (bodyR - 1.5f) * cosf(indAng);
     float tipY  = center.y + (bodyR - 1.5f) * sinf(indAng);
     float baseX = center.x + 2.f * cosf(indAng);
     float baseY = center.y + 2.f * sinf(indAng);
-    dl->AddLine({baseX, baseY}, {tipX, tipY}, IM_COL32(210, 235, 220, 230), 1.5f);
+
+    // Perpendicular direction for offset
+    float px = -sinf(indAng);
+    float py =  cosf(indAng);
+    constexpr float OFF = 0.7f;
+
+    dl->AddLine({baseX + px*OFF, baseY + py*OFF},
+                {tipX  + px*OFF, tipY  + py*OFF},
+                IM_COL32( 0,  0,  0, 130), 1.f);   // shadow side
+    dl->AddLine({baseX, baseY}, {tipX, tipY},
+                IM_COL32(110, 125, 118, 210), 1.5f); // ridge surface (muted)
+    dl->AddLine({baseX - px*OFF, baseY - py*OFF},
+                {tipX  - px*OFF, tipY  - py*OFF},
+                IM_COL32(180, 200, 190, 100), 0.8f); // highlight side
 
     // ── Glow from behind the handle ───────────────────────────────────────────
     // Additive bloom centred at the body rim — light bleeds outward into the arc

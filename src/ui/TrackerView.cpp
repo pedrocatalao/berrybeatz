@@ -9,6 +9,10 @@
 #include <imgui.h>
 #include "SwitchButton.h"
 #include "LcdSpinner.h"
+#include "LcdDropdown.h"
+#include "LcdInput.h"
+#include "OrderList.h"
+#include "ControlGroup.h"
 #include <algorithm>
 
 // ── OpenMPT "Blue (FT2)" colour scheme — sourced from Theme.h ─────────────────
@@ -34,10 +38,8 @@ static constexpr ImU32 kVuHiLit    = kVuVioletLit;
 static constexpr ImU32 kVuHiUnlit  = kVuVioletUnlit;
 
 // ── Layout constants ──────────────────────────────────────────────────────────
-static constexpr float PTBAR1_H   = 28.0f;
-static constexpr float PTBAR2_H   = 28.0f;
-static constexpr float PTBAR3_H   = 28.0f;
-static constexpr float ORDER_H    = 26.0f;
+static constexpr float PTBAR1_H   = 120.0f;
+static constexpr float ORDER_H    = 20.0f;
 static constexpr float CHANNAME_H = 18.0f;
 static constexpr float VU_H       = 13.0f;
 static constexpr float WAVE_H     = 28.0f;
@@ -105,7 +107,10 @@ void TrackerView::render(float x, float y, float w, float h, float boxTopExt) {
              + (m_showVU        ? VU_H     : 0.f)
              + (m_showWave      ? WAVE_H   : 0.f)
              + (m_showPluginRow ? PLUGIN_H : 0.f);
-    m_patTop = y + PTBAR1_H + PTBAR2_H + PTBAR3_H + ORDER_H + m_chanH;
+    constexpr float ORDER_GAP  = 6.f;
+    const bool      hasModule  = m_ctrl != nullptr;
+    const float     orderSlotH = hasModule ? (ORDER_H + ORDER_GAP) : 0.f;
+    m_patTop = y + m_toolbar1H + orderSlotH + m_chanH;
 
     ImGuiWindowFlags noDecoFlags =
         ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
@@ -114,31 +119,15 @@ void TrackerView::render(float x, float y, float w, float h, float boxTopExt) {
 
     const ImVec4 kBarBg{0.f, 0.f, 0.f, 0.f};
 
-    // Pattern toolbar row 1
+    // Pattern toolbar — height adapts to group content (one-frame lag via m_toolbar1H)
     ImGui::SetNextWindowPos ({x, y});
-    ImGui::SetNextWindowSize({w, PTBAR1_H});
+    ImGui::SetNextWindowSize({w, m_toolbar1H});
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.f, 0.f));
     ImGui::PushStyleColor(ImGuiCol_WindowBg, kBarBg);
     ImGui::Begin("##ptbar1", nullptr, noDecoFlags | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
     ImGui::PopStyleColor();
+    ImGui::PopStyleVar();
     drawPatternToolbar1(x, y, w);
-    ImGui::End();
-
-    // Pattern toolbar row 2 (edit ops)
-    ImGui::SetNextWindowPos ({x, y + PTBAR1_H});
-    ImGui::SetNextWindowSize({w, PTBAR3_H});
-    ImGui::PushStyleColor(ImGuiCol_WindowBg, kBarBg);
-    ImGui::Begin("##ptbar2", nullptr, noDecoFlags | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
-    ImGui::PopStyleColor();
-    drawPatternToolbar3(x, y + PTBAR1_H, w);
-    ImGui::End();
-
-    // Pattern toolbar row 3 (instrument/step)
-    ImGui::SetNextWindowPos ({x, y + PTBAR1_H + PTBAR3_H});
-    ImGui::SetNextWindowSize({w, PTBAR2_H});
-    ImGui::PushStyleColor(ImGuiCol_WindowBg, kBarBg);
-    ImGui::Begin("##ptbar3", nullptr, noDecoFlags | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
-    ImGui::PopStyleColor();
-    drawPatternToolbar2(x, y + PTBAR1_H + PTBAR3_H, w);
     ImGui::End();
 
     // Box behind order list + pattern panel (extends up behind tab bar)
@@ -149,31 +138,43 @@ void TrackerView::render(float x, float y, float w, float h, float boxTopExt) {
         bg->AddRectFilled(p0, p1, kClrTabBodyBg);
     }
 
-    // "Pat" label — vertically centred in the order row strip, left of the order list
-    if (m_fontUI) {
-        float fh    = m_fontUI->LegacySize;
-        float lblY  = y + PTBAR1_H + PTBAR2_H + PTBAR3_H + (ORDER_H - fh) * 0.5f;
-        ImGui::GetBackgroundDrawList()->AddText(
-            m_fontUI, fh, {x + 8.f, lblY},
-            kClrTextHint, "Pat");
+    // Pattern toolbar row 4 — order list (only when a module is loaded)
+    if (hasModule) {
+        float rowY = y + m_toolbar1H;
+        ImGui::SetNextWindowPos ({x, rowY});
+        ImGui::SetNextWindowSize({w, ORDER_H});
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.f, 0.f));
+        ImGui::PushStyleColor(ImGuiCol_WindowBg, kBarBg);
+        ImGui::Begin("##ptbar4", nullptr,
+                     noDecoFlags | ImGuiWindowFlags_NoScrollbar
+                                 | ImGuiWindowFlags_NoScrollWithMouse
+                                 | ImGuiWindowFlags_NoMouseInputs);
+        ImGui::PopStyleColor();
+        ImGui::PopStyleVar();
+
+        constexpr float RIGHT_MARGIN = 16.f;
+        float cursorX = x + 2.f + m_rowNumW;
+        float cursorY = ImGui::GetCursorScreenPos().y;
+        float maxW    = (x + w) - cursorX - RIGHT_MARGIN;
+
+        int32_t norders  = m_state.num_orders.load();
+        int32_t curOrder = m_state.current_order.load();
+        OrderList("##orders", "Order", m_fontUI, g_fontSidebar,
+                  norders, curOrder,
+                  [this](int32_t i) { return m_ctrl->module()->getOrderPattern(i); },
+                  [this](int32_t i) { if (onOrderSeekRequested) onOrderSeekRequested(i); },
+                  cursorX, cursorY, ORDER_H, maxW, noDecoFlags);
+
+        ImGui::End();
     }
 
-    // Order list
-    ImGui::SetNextWindowPos ({x + 26.f + 7.f, y + PTBAR1_H + PTBAR2_H + PTBAR3_H});
-    ImGui::SetNextWindowSize({w - 26.f - 7.f - 4.f, ORDER_H});
-    ImGui::PushStyleColor(ImGuiCol_WindowBg, kOrderBg);
-    ImGui::Begin("##orders", nullptr, noDecoFlags | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_HorizontalScrollbar);
-    ImGui::PopStyleColor();
-    drawOrderList(x, y + PTBAR1_H + PTBAR2_H + PTBAR3_H, w);
-    ImGui::End();
-
     // Pattern panel — channel headers are the frozen first row of the table
-    float chanY = y + PTBAR1_H + PTBAR2_H + PTBAR3_H + ORDER_H;
+    float chanY = y + m_toolbar1H + orderSlotH;
     float patH  = h - (chanY - y);
-    m_patAreaMin = {x + 7.f, chanY};
+    m_patAreaMin = {x + 2.f, chanY};
     m_patAreaMax = {x + w,   y + h};
-    ImGui::SetNextWindowPos ({x + 7.f, chanY});
-    ImGui::SetNextWindowSize({w - 7.f, patH});
+    ImGui::SetNextWindowPos ({x + 2.f, chanY});
+    ImGui::SetNextWindowSize({w - 2.f, patH});
     ImGui::PushStyleColor(ImGuiCol_ScrollbarBg,          IM_COL32(  0,   0,   0,   0));
     ImGui::PushStyleColor(ImGuiCol_ScrollbarGrab,        IM_COL32( 40,  85, 145, 200));
     ImGui::PushStyleColor(ImGuiCol_ScrollbarGrabHovered, IM_COL32( 55, 112, 175, 230));
@@ -237,7 +238,6 @@ void TrackerView::render(float x, float y, float w, float h, float boxTopExt) {
         m_pluginPopup.end();
     }
     ImGui::End();
-
 }
 
 // ── Pattern toolbar row 1 ─────────────────────────────────────────────────────
@@ -246,267 +246,229 @@ void TrackerView::drawPatternToolbar1(float /*x*/, float /*y*/, float /*w*/) {
     bool has = m_ctrl != nullptr;
     if (m_fontUI) ImGui::PushFont(m_fontUI);
     pushToolbarStyle();
-    ImGui::SetCursorPosY((ImGui::GetWindowHeight() - ImGui::GetFrameHeight()) * 0.5f);
 
-    if (!has) ImGui::BeginDisabled();
-    if (SwitchButton("Insert##ins",       "Insert"))     { if (onInsertPatternRequested) onInsertPatternRequested(); }
-    tip("Insert pattern");
-    ImGui::SameLine();
-    if (SwitchButton("Play Cursor##playcur", "Play Cursor")) {
-        int32_t row = m_editMode ? m_cur.row : m_state.current_row.load();
-        if (onPatternPlayFromCursor) onPatternPlayFromCursor(m_state.current_order.load(), row, m_loopPattern);
-    }
-    tip("Play from cursor (stops at pattern end, loops if Loop is on)");
-    ImGui::SameLine();
-    if (SwitchButton("Play Start##playstart", "Play Start")) { if (onPatternPlayFromStart) onPatternPlayFromStart(m_state.current_order.load(), m_loopPattern); }
-    tip("Play pattern from start");
-    ImGui::SameLine();
-    if (SwitchButton("Stop##stop2",  "Stop"))  { if (onStopRequested) onStopRequested(); }
-    tip("Stop playback");
-    ImGui::SameLine();
-    if (SwitchButton("Play Row##playrow", "Play Row")) {
-        int32_t ord = m_state.current_order.load();
-        int32_t row = m_cur.row;
-        advanceCursor();
-        if (onPatternPlayRow) onPatternPlayRow(ord, row);
-    }
-    tip("Play current row and advance cursor");
-    ImGui::SameLine();
-    if (SwitchButton("Record##rec", "Record", m_editMode, 1, {0.f, 0.f}, IM_COL32(255, 60, 60, 255)))
-        setEditMode(!m_editMode);
-    if (!has) ImGui::EndDisabled();
-    tip("Toggle record mode (Enter)");
-
-    tbSep();
-    if (SwitchButton("VU##vu", "VU", m_showVU, 1)) m_showVU = !m_showVU;
-    tip("Show/hide channel VU meters");
-    ImGui::SameLine();
-    if (SwitchButton("WF##wf", "WF", m_showWave, 1)) m_showWave = !m_showWave;
-    tip("Show/hide channel waveform");
-    ImGui::SameLine();
-    if (SwitchButton("FX##fx", "FX", m_showPluginRow, 1)) m_showPluginRow = !m_showPluginRow;
-    tip("Show/hide plugin row");
-
-    popToolbarStyle();
-    if (m_fontUI) ImGui::PopFont();
-}
-
-// ── Pattern toolbar row 3 ─────────────────────────────────────────────────────
-
-void TrackerView::drawPatternToolbar3(float /*x*/, float /*y*/, float /*w*/) {
-    bool has = m_ctrl != nullptr;
-    if (m_fontUI) ImGui::PushFont(m_fontUI);
-    pushToolbarStyle();
-    ImGui::SetCursorPosY((ImGui::GetWindowHeight() - ImGui::GetFrameHeight()) * 0.5f);
-
-    if (!(has && m_undo.canUndo())) ImGui::BeginDisabled();
-    if (SwitchButton("Undo##undo", "Undo")) { m_undo.undo(*m_ctrl); }
-    if (!(has && m_undo.canUndo())) ImGui::EndDisabled();
-    tip("Undo");
-    ImGui::SameLine();
-    if (!has) ImGui::BeginDisabled();
-    if (SwitchButton("Props##props",  "Props"))  {} tip("Pattern properties");
-    ImGui::SameLine();
-    if (SwitchButton("Expand##exp",   "Expand")) {} tip("Expand pattern");
-    ImGui::SameLine();
-    if (SwitchButton("Shrink##shr",   "Shrink")) {} tip("Shrink pattern");
-    if (!has) ImGui::EndDisabled();
-
-    tbSep();
-    { bool prev = m_loopPattern;
-      if (SwitchButton("Loop##lp", "Loop", m_loopPattern, 1)) m_loopPattern = !m_loopPattern;
-      if (m_loopPattern != prev && onLoopToggled) onLoopToggled(m_loopPattern); }
-    tip("Loop current pattern");
-    ImGui::SameLine();
-    if (m_editMode) ImGui::BeginDisabled();
-    if (SwitchButton("Follow##fw", "Follow", m_followSong, 1)) m_followSong = !m_followSong;
-    if (m_editMode) ImGui::EndDisabled();
-    tip("Follow playback cursor");
-    ImGui::SameLine();
-    if (SwitchButton("Seek##sk", "Seek", m_seekMode, 1)) m_seekMode = !m_seekMode;
-    tip("Scroll seeks play cursor (also: Option+Scroll)");
-    tbSep();
-    if (SwitchButton("Detail##detail", "Detail", 3 - m_detailView, 3))
-        m_detailView = (m_detailView + 1) % 4;
-    static const char* detailTips[] = {
-        "Note + Instrument + Volume + Effect",
-        "Note + Instrument + Volume",
-        "Note + Instrument",
-        "Note only",
+    auto sw = [](const char* lbl, bool led = false) -> float {
+        float tx = ImGui::CalcTextSize(lbl).x;
+        float px = ImGui::GetStyle().FramePadding.x;
+        return led ? (px + tx + 6.f + 4.f + 6.f) : (px * 2.f + tx);
     };
-    tip(detailTips[m_detailView]);
-    tbSep();
-    if (SwitchButton("Overflow##ovf", "Overflow", m_overflowPaste, 1)) m_overflowPaste = !m_overflowPaste;
-    tip("Overflow paste");
-    tbSep();
-    if (SwitchButton("KB##kbd", "KB", m_showKbd, 1)) m_showKbd = !m_showKbd;
-    tip("Show piano keyboard");
 
-    popToolbarStyle();
-    if (m_fontUI) ImGui::PopFont();
-}
+    auto spinW = [](const char* lbl, int vmax) -> float {
+        float px  = ImGui::GetStyle().FramePadding.x;
+        float lw  = ImGui::CalcTextSize(lbl).x;
+        char  buf[12]; snprintf(buf, sizeof(buf), "%d", vmax);
+        float lcdW = ImGui::CalcTextSize(buf).x + 8.f;
+        return px + lw + 6.f + lcdW + 6.f + 18.f + 18.f + 4.f;
+    };
+    float stepW  = spinW("Step", 16);
+    float instrW = ImGui::GetStyle().FramePadding.x + ImGui::CalcTextSize("Instr").x + 6.f + 130.f + 22.f + 2.f;
+    float patW   = ImGui::GetStyle().FramePadding.x + ImGui::CalcTextSize("Pattern").x + 6.f + 120.f + 6.f;
 
-// ── Pattern toolbar row 2 ─────────────────────────────────────────────────────
-
-void TrackerView::drawPatternToolbar2(float /*x*/, float /*y*/, float /*w*/) {
-    bool has = m_ctrl != nullptr;
-    if (m_fontUI) ImGui::PushFont(m_fontUI);
-    pushToolbarStyle();
-    ImGui::SetCursorPosY((ImGui::GetWindowHeight() - ImGui::GetFrameHeight()) * 0.5f);
-
-    ImGui::AlignTextToFramePadding();
-    ImGui::TextColored(kClrTextHintV4, "Instr");
-    ImGui::SameLine(0, 4);
-    {
-        std::vector<std::string> names;
-        int total = 0;
-        {
-            std::lock_guard<std::mutex> lk(m_state.meta_mutex);
-            if (m_state.num_instruments > 0) {
-                names = m_state.instrument_names;
-                total = m_state.num_instruments;
-            } else {
-                names = m_state.sample_names;
-                total = m_state.num_samples;
-            }
-        }
-        char preview[80];
-        if (m_selectedInstrument <= 0)
-            snprintf(preview, sizeof(preview), "No instrument");
-        else {
-            int idx = m_selectedInstrument - 1;
-            if (idx < (int)names.size() && !names[idx].empty())
-                snprintf(preview, sizeof(preview), "%02d: %s", m_selectedInstrument.load(), names[idx].c_str());
-            else
-                snprintf(preview, sizeof(preview), "%02d", m_selectedInstrument.load());
-        }
-        ImGui::SetNextItemWidth(160.0f);
-        bool comboOpen = ImGui::BeginCombo("##instr", preview,
-            ImGuiComboFlags_HeightLarge | ImGuiComboFlags_NoArrowButton);
-        // Small custom down-arrow
-        {
-            ImVec2 rMin = ImGui::GetItemRectMin(), rMax = ImGui::GetItemRectMax();
-            float cx = rMax.x - 10.f, cy = (rMin.y + rMax.y) * 0.5f;
-            constexpr float s = 4.f;
-            ImGui::GetWindowDrawList()->AddTriangleFilled(
-                {cx - s, cy - s * 0.55f}, {cx + s, cy - s * 0.55f}, {cx, cy + s * 0.65f},
-                IM_COL32(180, 180, 200, 200));
-        }
-        if (comboOpen) {
-            if (ImGui::Selectable("No instrument", m_selectedInstrument <= 0))
-                m_selectedInstrument = 0;
-            if (m_selectedInstrument <= 0) ImGui::SetItemDefaultFocus();
-            for (int i = 1; i <= total; i++) {
-                char lbl[80];
-                int idx = i - 1;
-                if (idx < (int)names.size() && !names[idx].empty())
-                    snprintf(lbl, sizeof(lbl), "%02d: %s", i, names[idx].c_str());
-                else
-                    snprintf(lbl, sizeof(lbl), "%02d", i);
-                bool sel = (m_selectedInstrument == i);
-                if (ImGui::Selectable(lbl, sel)) {
-                    m_selectedInstrument = i;
-                    if (onInstrumentChanged) onInstrumentChanged(i);
+    std::vector<ControlGroupDef> groups = {
+        {"Edit", 270.f, 200.f, m_fontUI, {
+            {sw("Undo"), [&] {
+                bool dis = !(has && m_undo.canUndo());
+                if (dis) ImGui::BeginDisabled();
+                if (SwitchButton("Undo##undo", "Undo")) m_undo.undo(*m_ctrl);
+                tip("Undo");
+                if (dis) ImGui::EndDisabled();
+            }},
+            {sw("Redo"), [&] {
+                bool dis = !(has && m_undo.canRedo());
+                if (dis) ImGui::BeginDisabled();
+                if (SwitchButton("Redo##redo", "Redo")) m_undo.redo(*m_ctrl);
+                tip("Redo");
+                if (dis) ImGui::EndDisabled();
+            }},
+            {sw("Insert"), [&] {
+                bool dis = !has;
+                if (dis) ImGui::BeginDisabled();
+                if (SwitchButton("Insert##ins", "Insert"))
+                    if (onInsertPatternRequested) onInsertPatternRequested();
+                tip("Insert pattern");
+                if (dis) ImGui::EndDisabled();
+            }},
+            {sw("Record", true), [&] {
+                bool dis = !has;
+                if (dis) ImGui::BeginDisabled();
+                if (SwitchButton("Record##rec", "Record", m_editMode, 1, {0.f, 0.f}, IM_COL32(255, 60, 60, 255)))
+                    setEditMode(!m_editMode);
+                tip("Toggle record mode (Enter)");
+                if (dis) ImGui::EndDisabled();
+            }},
+            {sw("Expand"), [&] {
+                bool dis = !has;
+                if (dis) ImGui::BeginDisabled();
+                if (SwitchButton("Expand##exp", "Expand")) {}
+                tip("Expand pattern");
+                if (dis) ImGui::EndDisabled();
+            }},
+            {sw("Shrink"), [&] {
+                bool dis = !has;
+                if (dis) ImGui::BeginDisabled();
+                if (SwitchButton("Shrink##shr", "Shrink")) {}
+                tip("Shrink pattern");
+                if (dis) ImGui::EndDisabled();
+            }},
+            {stepW, [&] {
+                if (int d = LcdSpinner("Step##step", "Step", m_editStep, 0, 16))
+                    m_editStep = std::clamp(m_editStep + d, 0, 16);
+                tip("Edit step (- / + keys)");
+            }},
+            {instrW, [&] {
+                std::vector<std::string> names;
+                int total = 0;
+                {
+                    std::lock_guard<std::mutex> lk(m_state.meta_mutex);
+                    if (m_state.num_instruments > 0) { names = m_state.instrument_names; total = m_state.num_instruments; }
+                    else                             { names = m_state.sample_names;     total = m_state.num_samples;     }
                 }
-                if (sel) ImGui::SetItemDefaultFocus();
-            }
-            ImGui::EndCombo();
-        }
-    }
-    tip("Current instrument — click to pick from list");
+                std::vector<std::string> fmtItems;
+                fmtItems.reserve(total);
+                for (int i = 1; i <= total; i++) {
+                    char lbl[80]; int idx = i - 1;
+                    if (idx < (int)names.size() && !names[idx].empty())
+                        snprintf(lbl, sizeof(lbl), "%02d: %s", i, names[idx].c_str());
+                    else
+                        snprintf(lbl, sizeof(lbl), "%02d", i);
+                    fmtItems.push_back(lbl);
+                }
+                std::vector<const char*> ptrs;
+                ptrs.reserve(fmtItems.size());
+                for (auto& s : fmtItems) ptrs.push_back(s.c_str());
+                int sel = m_selectedInstrument - 1;
+                if (!has) ImGui::BeginDisabled();
+                if (LcdDropdown("##instr", "Instr", &sel, ptrs.data(), (int)ptrs.size(), "No instrument", 130.f)) {
+                    m_selectedInstrument = sel + 1;
+                    if (onInstrumentChanged) onInstrumentChanged(sel + 1);
+                }
+                if (!has) ImGui::EndDisabled();
+                tip("Current instrument — click to pick from list");
+            }},
+            {sw("Plugin"), [&] {
+                ImGui::BeginDisabled();
+                SwitchButton("Plugin##plugin2", "Plugin");
+                ImGui::EndDisabled();
+                tip("Plugin selector (not yet available)");
+            }},
+        }},
+        {"Playback", 180.f, 200.f, m_fontUI, {
+            {sw("Play Cursor"), [&] {
+                bool dis = !has;
+                if (dis) ImGui::BeginDisabled();
+                if (SwitchButton("Play Cursor##playcur", "Play Cursor")) {
+                    int32_t row = m_editMode ? m_cur.row : m_state.current_row.load();
+                    if (onPatternPlayFromCursor)
+                        onPatternPlayFromCursor(m_state.current_order.load(), row, m_loopPattern);
+                }
+                tip("Play from cursor");
+                if (dis) ImGui::EndDisabled();
+            }},
+            {sw("Play Start"), [&] {
+                bool dis = !has;
+                if (dis) ImGui::BeginDisabled();
+                if (SwitchButton("Play Start##playstart", "Play Start"))
+                    if (onPatternPlayFromStart) onPatternPlayFromStart(m_state.current_order.load(), m_loopPattern);
+                tip("Play pattern from start");
+                if (dis) ImGui::EndDisabled();
+            }},
+            {sw("Stop"), [&] {
+                bool dis = !has;
+                if (dis) ImGui::BeginDisabled();
+                if (SwitchButton("Stop##stop2", "Stop")) if (onStopRequested) onStopRequested();
+                tip("Stop playback");
+                if (dis) ImGui::EndDisabled();
+            }},
+            {sw("Play Row"), [&] {
+                bool dis = !has;
+                if (dis) ImGui::BeginDisabled();
+                if (SwitchButton("Play Row##playrow", "Play Row")) {
+                    int32_t ord = m_state.current_order.load();
+                    int32_t row = m_cur.row;
+                    advanceCursor();
+                    if (onPatternPlayRow) onPatternPlayRow(ord, row);
+                }
+                tip("Play current row and advance cursor");
+                if (dis) ImGui::EndDisabled();
+            }},
+            {sw("Loop", true), [&] {
+                bool prev = m_loopPattern;
+                if (SwitchButton("Loop##lp", "Loop", m_loopPattern, 1)) m_loopPattern = !m_loopPattern;
+                if (m_loopPattern != prev && onLoopToggled) onLoopToggled(m_loopPattern);
+                tip("Loop current pattern");
+            }},
+        }},
+        {"View", 280.f, 200.f, m_fontUI, {
+            {sw("VU", true), [&] {
+                if (SwitchButton("VU##vu", "VU", m_showVU, 1)) m_showVU = !m_showVU;
+                tip("Show/hide channel VU meters");
+            }},
+            {sw("WF", true), [&] {
+                if (SwitchButton("WF##wf", "WF", m_showWave, 1)) m_showWave = !m_showWave;
+                tip("Show/hide channel waveform");
+            }},
+            {sw("FX", true), [&] {
+                if (SwitchButton("FX##fx", "FX", m_showPluginRow, 1)) m_showPluginRow = !m_showPluginRow;
+                tip("Show/hide plugin row");
+            }},
+            {sw("Keyjazz", true), [&] {
+                if (SwitchButton("Keyjazz##kj", "Keyjazz", m_showKbd, 1)) m_showKbd = !m_showKbd;
+                tip("Show piano keyboard");
+            }},
+            {patW, [&] {
+                int32_t curPat = m_ctrl ? m_state.current_pattern.load() : -1;
+                std::string patName;
+                if (curPat >= 0) {
+                    std::lock_guard<std::mutex> lk(m_state.meta_mutex);
+                    if (curPat < (int32_t)m_state.pattern_names.size())
+                        patName = m_state.pattern_names[curPat];
+                }
+                char patBuf[64] = {};
+                strncpy(patBuf, patName.c_str(), 63);
+                if (!has) ImGui::BeginDisabled();
+                LcdInput("##patname", "Pattern", patBuf, 64, 120.f);
+                if (!has) ImGui::EndDisabled();
+                tip("Pattern name");
+            }},
+            {sw("Detail", true), [&] {
+                if (SwitchButton("Detail##detail", "Detail", 3 - m_detailView, 3))
+                    m_detailView = (m_detailView + 1) % 4;
+                static const char* detailTips[] = {
+                    "Note + Instrument + Volume + Effect",
+                    "Note + Instrument + Volume",
+                    "Note + Instrument",
+                    "Note only",
+                };
+                tip(detailTips[m_detailView]);
+            }},
+        }},
+        {"Navigate", 120.f, 200.f, m_fontUI, {
+            {sw("Follow", true), [&] {
+                bool dis = m_editMode;
+                if (dis) ImGui::BeginDisabled();
+                if (SwitchButton("Follow##fw", "Follow", m_followSong, 1)) m_followSong = !m_followSong;
+                tip("Follow playback cursor");
+                if (dis) ImGui::EndDisabled();
+            }},
+            {sw("Seek", true), [&] {
+                if (SwitchButton("Seek##sk", "Seek", m_seekMode, 1)) m_seekMode = !m_seekMode;
+                tip("Scroll seeks play cursor (also: Option+Scroll)");
+            }},
+            {sw("Overflow", true), [&] {
+                if (SwitchButton("Overflow##ovf", "Overflow", m_overflowPaste, 1)) m_overflowPaste = !m_overflowPaste;
+                tip("Overflow paste");
+            }},
+        }},
+    };
 
-    ImGui::SameLine(0, 6);
-    ImGui::BeginDisabled();
-    SwitchButton("Plugin##plugin2", "Plugin");
-    ImGui::EndDisabled();
-    tip("Plugin selector (not yet available)");
-
-    tbSep();
-
-    if (int d = LcdSpinner("Step##step", "Step", m_editStep, 0, 16))
-        m_editStep = std::clamp(m_editStep + d, 0, 16);
-    tip("Edit step (- / + keys)");
-
-    tbSep();
-
-    ImGui::TextColored(kClrTextHintV4, "Pattern");
-    ImGui::SameLine(0, 4);
-    int32_t curPat = m_ctrl ? m_state.current_pattern.load() : -1;
-    std::string patName;
-    if (curPat >= 0) {
-        std::lock_guard<std::mutex> lk(m_state.meta_mutex);
-        if (curPat < (int32_t)m_state.pattern_names.size())
-            patName = m_state.pattern_names[curPat];
-    }
-    char patBuf[64] = {};
-    strncpy(patBuf, patName.c_str(), 63);
-    ImGui::SetNextItemWidth(120.0f);
-    ImGui::BeginDisabled(!has);
-    ImGui::InputText("##patname", patBuf, 64);
-    ImGui::EndDisabled();
+    float groupsH = DrawControlGroups(15.f, 6.f, ImGui::GetContentRegionMax().x - 15.f, groups);
+    m_toolbar1H = 6.f + groupsH + 15.f;
 
     popToolbarStyle();
     if (m_fontUI) ImGui::PopFont();
 }
 
-// ── Order list ────────────────────────────────────────────────────────────────
 
-void TrackerView::drawOrderList(float /*x*/, float /*y*/, float /*w*/) {
-    int32_t norders  = m_state.num_orders.load();
-    int32_t curOrder = m_state.current_order.load();
-
-    if (g_fontOrderRow) ImGui::PushFont(g_fontOrderRow);
-
-    if (norders <= 0) {
-        ImGui::SetCursorPosY(4);
-        ImGui::TextColored(kDim, "  Open a module file  (File > Open or drag & drop)");
-        if (g_fontOrderRow) ImGui::PopFont();
-        return;
-    }
-
-    float boxW = m_charW * 4.2f;
-    float boxH = ORDER_H - 4.0f;
-
-    ImGui::SetCursorPosY(2);
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, {2.0f, 0.0f});
-
-    ImDrawList* dl = ImGui::GetWindowDrawList();
-
-    for (int32_t i = 0; i < norders; i++) {
-        bool    isCur = (i == curOrder);
-        int32_t pat   = m_ctrl ? m_ctrl->module()->getOrderPattern(i) : i;
-
-        char id[12], txt[8];
-        snprintf(id,  sizeof(id),  "##o%d", i);
-        snprintf(txt, sizeof(txt), "%02d",  pat);
-
-        ImVec2 p = ImGui::GetCursorScreenPos();
-        ImGui::InvisibleButton(id, {boxW, boxH});
-        bool hov     = ImGui::IsItemHovered();
-        bool pressed = ImGui::IsItemActive();
-        if (ImGui::IsItemClicked() && onOrderSeekRequested)
-            onOrderSeekRequested(i);
-
-        // Background
-        ImVec4 bg = isCur ? kOrderCur : kOrderBg;
-        if (pressed)   bg = {bg.x+.2f, bg.y+.2f, bg.z+.3f, 1.f};
-        else if (hov)  bg = {bg.x+.1f, bg.y+.1f, bg.z+.2f, 1.f};
-        if (isCur || hov || pressed)
-            dl->AddRectFilled(p, {p.x + boxW, p.y + boxH},
-                              ImGui::ColorConvertFloat4ToU32(bg));
-
-        // Text — explicitly centred, no FramePadding interference
-        ImVec2 ts  = ImGui::CalcTextSize(txt);
-        float  tx  = p.x + (boxW - ts.x) * 0.5f + 1.f;
-        float  ty  = p.y + (boxH - ts.y) * 0.5f;
-        dl->AddText({tx, ty}, ImGui::ColorConvertFloat4ToU32(isCur ? kTextCurRow : kTextNormal), txt);
-
-        ImGui::SameLine(0, 2);
-    }
-
-    ImGui::PopStyleVar();
-    if (g_fontOrderRow) ImGui::PopFont();
-}
 
 // ── Stereo VU ─────────────────────────────────────────────────────────────────
 
@@ -981,7 +943,7 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
 
                 dl->AddRect(fxTL, fxBR, IM_COL32(30,30,45,255), fxR, ImDrawFlags_RoundCornersBottom, 1.f);
 
-                const char* lbl = "no fx";
+                const char* lbl = "---";
                 ImVec2 ts  = ImGui::CalcTextSize(lbl);
                 float  off = fxPressed ? 1.f : 0.f;
                 ImU32  fxTextCol = muted ? IM_COL32(80,80,90,255) : kClrTextLabel;

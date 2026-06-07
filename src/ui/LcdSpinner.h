@@ -112,7 +112,7 @@ inline int LcdSpinner(const char* id, const char* label,
                       {lcdX + LCD_W + 1.f, lcdY + LCD_H + 1.f},
                       IM_COL32(0, 0, 0, 180), 2.f);
     dl->AddRectFilled({lcdX, lcdY}, {lcdX + LCD_W, lcdY + LCD_H},
-                      IM_COL32(10, 30, 40, 255), 1.5f);
+                      kClrLcdBg, 1.5f);
 
     char   valBuf[12];
     snprintf(valBuf, sizeof(valBuf), "%d", value);
@@ -120,7 +120,7 @@ inline int LcdSpinner(const char* id, const char* label,
     dl->PushClipRect({lcdX, lcdY}, {lcdX + LCD_W, lcdY + LCD_H}, true);
     dl->AddText({lcdX + (LCD_W - valSz.x) * 0.5f,
                  lcdY + (LCD_H - valSz.y) * 0.5f},
-                IM_COL32(100, 220, 160, 255), valBuf);
+                kClrLcdText, valBuf);
     dl->PopClipRect();
 
     // ── Dec (−) mini button ──────────────────────────────────────────────
@@ -132,12 +132,15 @@ inline int LcdSpinner(const char* id, const char* label,
                    : decHov  ? IM_COL32(48, 48, 68, 255)
                               : IM_COL32(35, 35, 52, 255);
         dl->AddRectFilled(bTL, bBR, bCol, 1.f);
+        if (!decHeld)
+            dl->AddRectFilled(bTL, {bBR.x, bTL.y + (bBR.y - bTL.y) * 0.5f},
+                              IM_COL32(255,255,255,10), 1.f);
 
         if (!decHeld) {
-            dl->AddLine(bTL,              {bBR.x, bTL.y}, IM_COL32(255,255,255, 55));
-            dl->AddLine(bTL,              {bTL.x, bBR.y}, IM_COL32(255,255,255, 40));
-            dl->AddLine({bTL.x, bBR.y},  bBR,            IM_COL32(0, 0, 0, 110));
-            dl->AddLine({bBR.x, bTL.y},  bBR,            IM_COL32(0, 0, 0,  90));
+            dl->AddLine(bTL,              {bBR.x, bTL.y}, IM_COL32(255,255,255,  8));
+            dl->AddLine(bTL,              {bTL.x, bBR.y}, IM_COL32(255,255,255,  6));
+            dl->AddLine({bTL.x, bBR.y},  bBR,            IM_COL32(0, 0, 0, 16));
+            dl->AddLine({bBR.x, bTL.y},  bBR,            IM_COL32(0, 0, 0, 12));
         } else {
             dl->AddLine(bTL,              {bBR.x, bTL.y}, IM_COL32(0, 0, 0, 110));
             dl->AddLine(bTL,              {bTL.x, bBR.y}, IM_COL32(0, 0, 0,  90));
@@ -161,12 +164,15 @@ inline int LcdSpinner(const char* id, const char* label,
                    : incHov  ? IM_COL32(48, 48, 68, 255)
                               : IM_COL32(35, 35, 52, 255);
         dl->AddRectFilled(bTL, bBR, bCol, 1.f);
+        if (!incHeld)
+            dl->AddRectFilled(bTL, {bBR.x, bTL.y + (bBR.y - bTL.y) * 0.5f},
+                              IM_COL32(255,255,255,10), 1.f);
 
         if (!incHeld) {
-            dl->AddLine(bTL,              {bBR.x, bTL.y}, IM_COL32(255,255,255, 55));
-            dl->AddLine(bTL,              {bTL.x, bBR.y}, IM_COL32(255,255,255, 40));
-            dl->AddLine({bTL.x, bBR.y},  bBR,            IM_COL32(0, 0, 0, 110));
-            dl->AddLine({bBR.x, bTL.y},  bBR,            IM_COL32(0, 0, 0,  90));
+            dl->AddLine(bTL,              {bBR.x, bTL.y}, IM_COL32(255,255,255,  8));
+            dl->AddLine(bTL,              {bTL.x, bBR.y}, IM_COL32(255,255,255,  6));
+            dl->AddLine({bTL.x, bBR.y},  bBR,            IM_COL32(0, 0, 0, 16));
+            dl->AddLine({bBR.x, bTL.y},  bBR,            IM_COL32(0, 0, 0, 12));
         } else {
             dl->AddLine(bTL,              {bBR.x, bTL.y}, IM_COL32(0, 0, 0, 110));
             dl->AddLine(bTL,              {bTL.x, bBR.y}, IM_COL32(0, 0, 0,  90));

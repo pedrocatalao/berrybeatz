@@ -634,6 +634,19 @@ void SoundModule::stopNote(int channel) {
     chn.pCurrentSample = nullptr;
 }
 
+bool SoundModule::releaseFinishedChannel(int channel) {
+    if (channel < 0 || channel >= OpenMPT::MAX_CHANNELS) return true;
+    auto& sf  = m_impl->sf;
+    // If the channel is still in the mix it hasn't finished yet.
+    const auto* mb = std::begin(sf.m_PlayState.ChnMix);
+    const auto* me = mb + sf.m_nMixChannels;
+    if (std::find(mb, me, static_cast<OpenMPT::CHANNELINDEX>(channel)) != me)
+        return false;
+    // Channel left the mix naturally — zero fadeout so GetNNAChannel can reuse it.
+    sf.m_PlayState.Chn[channel].nFadeOutVol = 0;
+    return true;
+}
+
 void SoundModule::setNotePitch(int channel, double semitones) {
     if (channel < 0 || channel >= OpenMPT::MAX_CHANNELS) return;
     m_impl->sf.m_PlayState.Chn[channel].microTuning =

@@ -281,9 +281,18 @@ int AudioEngine::paCallback(const void*, void* output,
     size_t pc = 0;
     if (d->previewCopyMtx && d->previewCopyMtx->try_lock()) {
         drainPreviewQueue(d);
-        if (d->previewMod)
+        if (d->previewMod) {
             pc = d->previewMod->read(d->sampleRate, frameCount,
                                       d->previewLeft.data(), d->previewRight.data());
+            // Reclaim channels whose samples played to natural end.
+            // Leaving nFadeOutVol=0x10000 on finished channels causes GetNNAChannel
+            // to skip them, leaking slots until the fallback channel is reused and clips.
+            for (int k = 0; k <= 128; ++k) {
+                if (d->previewChannels[k] >= 0 &&
+                    d->previewMod->releaseFinishedChannel(d->previewChannels[k]))
+                    d->previewChannels[k] = -1;
+            }
+        }
         d->previewCopyMtx->unlock();
     }
 

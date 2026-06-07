@@ -1,6 +1,6 @@
 #include "App.h"
 #include "Theme.h"
-#include "TabBar.h"
+#include "CustomTabBar.h"
 #include "RenderSettings.h"
 #include "CocoaHelpers.h"
 #include "LogoView.h"
@@ -484,18 +484,16 @@ void App::render(int winW, int winH)
     ImGui::PopStyleVar(2);
     ImGui::PopStyleColor();
 
-    if (BeginStyledTabBar("##tabs")) {
-        const char* tabs[] = {"Tracker", "Properties", "Samples", "Instruments", "Comments"};
-        for (int i = 0; i < 5; ++i) {
-            ImGuiTabItemFlags flags = (m_pendingTab == i) ? ImGuiTabItemFlags_SetSelected : 0;
-            if (StyledTabItem(tabs[i], nullptr, flags)) {
-                m_activeTab = i;
-                ImGui::EndTabItem();
-            }
+    {
+        int forceActive = (m_pendingTab >= 0 && m_pendingTab < 5) ? m_pendingTab : -1;
+        if (BeginCustomTabBar("##tabs", forceActive)) {
+            const char* tabs[] = {"Tracker", "Properties", "Samples", "Instruments", "Comments"};
+            for (int i = 0; i < 5; ++i)
+                if (CustomTabItem(tabs[i])) m_activeTab = i;
+            m_tabsInited = true;
+            m_pendingTab = -1;
+            EndCustomTabBar();
         }
-        m_tabsInited = true;
-        m_pendingTab = -1;
-        EndStyledTabBar();
     }
     ImGui::End();
 
@@ -683,10 +681,28 @@ void App::drawSongBar(float w, float h)
         bool xHov = (mp.x >= xMin.x && mp.x < tMax.x && mp.y >= tMin.y && mp.y < tMax.y);
 
         // Background — bottom corners rounded only (bottom tab style)
+        bool tabHov  = ImGui::IsMouseHoveringRect(tMin, tMax);
+        bool tabHeld = tabHov && ImGui::IsMouseDown(0);
         if (isActive)
             dl->AddRectFilled(tMin, tMax, kActBg, kStyleTabRounding, ImDrawFlags_RoundCornersBottom);
-        else if (ImGui::IsMouseHoveringRect(tMin, tMax))
+        else if (tabHov)
             dl->AddRectFilled(tMin, tMax, IM_COL32(60, 60, 80, 120), kStyleTabRounding, ImDrawFlags_RoundCornersBottom);
+
+        // Bevel
+        {
+            float bvR = tMax.x - 1.f;
+            float bvB = tMax.y - 1.f;
+            float br  = kStyleTabRounding;
+            if (!tabHeld) {
+                dl->AddLine({tMin.x+0.5f, tMin.y       }, {tMin.x+0.5f, bvB - br   }, IM_COL32(255,255,255,40));
+                dl->AddLine({tMin.x + br, bvB           }, {bvR - br,  bvB          }, IM_COL32(0,0,0,50), 2.f);
+                dl->AddLine({bvR,         tMin.y        }, {bvR,       bvB - br      }, IM_COL32(0,0,0,40));
+            } else {
+                dl->AddLine({tMin.x+0.5f, tMin.y       }, {tMin.x+0.5f, bvB - br   }, IM_COL32(0,0,0,80));
+                dl->AddLine({tMin.x + br, bvB           }, {bvR - br,  bvB          }, IM_COL32(255,255,255,35), 2.f);
+                dl->AddLine({bvR,         tMin.y        }, {bvR,       bvB - br      }, IM_COL32(255,255,255,25));
+            }
+        }
 
         // Name
         float ty = tMin.y + (tabH - ImGui::GetTextLineHeight()) * 0.5f;

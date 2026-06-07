@@ -1250,10 +1250,17 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
             // Row background — drawn per channel cell so it excludes the row-number
             // column and any empty space to the right of the last channel.
             {
-                ImVec2 cp  = ImGui::GetCursorScreenPos();
+                ImVec2 cp   = ImGui::GetCursorScreenPos();
                 float  padY = ImGui::GetStyle().CellPadding.y;
-                ImGui::GetWindowDrawList()->AddRectFilled(
-                    {cp.x, cp.y - padY}, {cp.x + m_cellW, cp.y - padY + m_rowH}, rowBg);
+                ImVec2 rMin = {cp.x, cp.y - padY};
+                ImVec2 rMax = {cp.x + m_cellW, cp.y - padY + m_rowH};
+                ImDrawList* wdl = ImGui::GetWindowDrawList();
+                wdl->AddRectFilled(rMin, rMax, rowBg);
+                if (isCur) {
+                    wdl->AddRectFilled(rMin, {rMax.x, rMin.y + m_rowH * 0.5f}, IM_COL32(255,255,255,18));
+                    wdl->AddLine({rMin.x, rMin.y + 0.5f}, {rMax.x, rMin.y + 0.5f}, IM_COL32(255,255,255,70));
+                    wdl->AddLine({rMin.x, rMax.y - 0.5f}, {rMax.x, rMax.y - 0.5f}, IM_COL32(0,0,0,110));
+                }
             }
 
             // Channel divider lines

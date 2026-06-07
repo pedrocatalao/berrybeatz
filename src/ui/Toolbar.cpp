@@ -173,7 +173,8 @@ float DrawToolbar(ToolbarState& state,
         if (SwitchButton("Open##open",  "Open"))   { if (state.onOpen)  state.onOpen();  }
         ImGui::SameLine(0.f, 3.f);
         ImGui::SetCursorPosY(by);
-        if (SwitchButton("Save##save",  "Save"))   { if (state.onSave)  state.onSave();  }
+        if (SwitchButton("Save##save", "Save", (int)state.isDirty, 1, {0.f, 0.f}, kClrAmber))
+            { if (state.onSave) state.onSave(); }
         ImGui::SameLine(0.f, 3.f);
         ImGui::SetCursorPosY(by);
         if (SwitchButton("Config##cfg", "Config")) { if (state.onSetup) state.onSetup(); }

@@ -446,7 +446,7 @@ void TrackerView::drawPatternToolbar1(float /*x*/, float /*y*/, float /*w*/) {
             {sw("Follow", true), [&] {
                 bool suspended = m_editMode && m_followSong;
                 bool blink     = suspended && ((int)(ImGui::GetTime() * 2.0) % 2 == 0);
-                ImU32 ledCol   = suspended ? IM_COL32(255, 160, 0, 255) : kClrLedGreen;
+                ImU32 ledCol   = suspended ? kClrAmber : kClrLedGreen;
                 int   ledVal   = suspended ? (int)blink : (int)m_followSong;
                 if (SwitchButton("Follow##fw", "Follow", ledVal, 1, {0.f, 0.f}, ledCol) && !m_editMode)
                     m_followSong = !m_followSong;
@@ -1411,9 +1411,10 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
                     }
                     m_glowLastPos[pkey] = cur;
 
-                    uint8_t a1 = (uint8_t)((isCur ? 64 : 24) * g_glowPattern);
-                    uint8_t a2 = (uint8_t)((isCur ? 128 :  8) * g_glowPattern);
-                    uint8_t a3 = (uint8_t)((isCur ? 64 :  2) * g_glowPattern);
+                    uint8_t a1 = (uint8_t)((isCur ? 124 : 24) * g_glowPattern); // wide halo (large blur radius)
+                    uint8_t a2 = (uint8_t)((isCur ? 30 :  8) * g_glowPattern); // tight core glow (bright center)
+                    uint8_t a3 = (uint8_t)((isCur ? 54 :  2) * g_glowPattern); // outermost soft bloom
+
                     ImU32 gc1 = IM_COL32((uint8_t)(c.x*255.f),(uint8_t)(c.y*255.f),(uint8_t)(c.z*255.f), a1);
                     ImU32 gc2 = IM_COL32((uint8_t)(c.x*255.f),(uint8_t)(c.y*255.f),(uint8_t)(c.z*255.f), a2);
                     ImU32 gc3 = IM_COL32((uint8_t)(c.x*255.f),(uint8_t)(c.y*255.f),(uint8_t)(c.z*255.f), a3);

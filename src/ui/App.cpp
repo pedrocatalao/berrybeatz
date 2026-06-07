@@ -50,8 +50,8 @@ App::App() : m_controller(m_state), m_audio(m_state), m_tracker(m_state), m_gene
     m_toolbarState.onSeek      = [this](float f) { seekTo(f); };
 
     m_toolbarState.onOctaveChange    = [this](int v) { m_tracker.setBaseOctave(v); };
-    m_toolbarState.onTempoChange     = [this](int v) { m_controller.setTempo(v); };
-    m_toolbarState.onSpeedChange     = [this](int v) { m_controller.setSpeed(v); };
+    m_toolbarState.onTempoChange     = [this](int v) { m_controller.setTempo(v);  if (m_activeSongIdx >= 0) m_songs[m_activeSongIdx]->isDirty = true; };
+    m_toolbarState.onSpeedChange     = [this](int v) { m_controller.setSpeed(v);  if (m_activeSongIdx >= 0) m_songs[m_activeSongIdx]->isDirty = true; };
     m_toolbarState.onRPBChange       = [](int) {};
     m_toolbarState.onGlobalVolChange = [this](int v) {
         int mx = m_state.gvol_max.load();
@@ -154,6 +154,10 @@ App::App() : m_controller(m_state), m_audio(m_state), m_tracker(m_state), m_gene
 
     m_tracker.onNoteEntry         = [this](int note) { m_tracker.inputNote(note); };
     m_tracker.onInstrumentChanged = [this](int instr) { m_audio.copyPreviewInstrument(instr); };
+    m_tracker.onEdit = [this]() {
+        if (m_activeSongIdx >= 0 && m_activeSongIdx < (int)m_songs.size())
+            m_songs[m_activeSongIdx]->isDirty = true;
+    };
     m_tracker.onKbdNeedAudio = [this]() { if (m_hasModule) m_audio.ensureRunning(); };
     m_tracker.onKbdPlay = [this](int note, int key) {
         AudioEngine::PreviewEvent ev{};
@@ -274,7 +278,8 @@ void App::openFile(const std::string& path)
     std::string filename = (slash != std::string::npos) ? path.substr(slash + 1) : path;
     auto dot = filename.rfind('.');
     doc->displayName = filename;
-    doc->path = path;
+    doc->path     = path;
+    doc->isDirty  = false;
 
     m_songs.push_back(std::move(doc));
     switchToSong((int)m_songs.size() - 1);
@@ -773,6 +778,8 @@ void App::syncToolbarState()
     if (m_audio.pollSongEnded()) m_transport = Transport::Stopped;
     m_toolbarState.hasModule  = m_hasModule;
     m_toolbarState.transport  = m_transport;
+    m_toolbarState.isDirty    = (m_activeSongIdx >= 0 && m_activeSongIdx < (int)m_songs.size())
+                                ? m_songs[m_activeSongIdx]->isDirty : false;
     m_toolbarState.vuLeft     = m_state.master_vu_left.load();
     m_toolbarState.vuRight    = m_state.master_vu_right.load();
 
@@ -849,6 +856,7 @@ void App::saveModule()
     const std::string& path = m_songs[m_activeSongIdx]->path;
     if (path.empty()) return;
     m_controller.save(path, mod->getType());
+    m_songs[m_activeSongIdx]->isDirty = false;
 }
 
 void App::insertPattern()

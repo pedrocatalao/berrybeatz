@@ -63,7 +63,7 @@ static constexpr ImU32 kClrOrangeHint = IM_COL32(255, 153,  76, 255);  // "move 
 // ── LCD widgets ───────────────────────────────────────────────────────────────
 static constexpr ImU32 kClrLcdBg   = IM_COL32( 10,  30,  40, 255);  // LCD display background
 static constexpr ImU32 kClrLcdText = IM_COL32(100, 220, 160, 255);  // LCD green text
-static constexpr ImU32 kClrAmber   = IM_COL32(200, 160,   0, 255);  // amber accent
+static constexpr ImU32 kClrAmber   = IM_COL32(255, 160,   0, 255);  // amber accent
 // Returns kClrLcdText with a custom alpha (0–255).
 inline ImU32 LcdTextA(uint8_t a) { return IM_COL32(100, 220, 160, a); }
 

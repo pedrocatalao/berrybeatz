@@ -93,8 +93,11 @@ public:
     std::function<void(int)>       onKbdStop;    // (key)
     std::function<void(int)>       onNoteEntry;        // (note1based) — pattern entry, distinct from audio
     std::function<void(int)>       onInstrumentChanged; // (instrIdx 1-based) — fired when dropdown changes
+    std::function<void()>          onEdit;             // fired after any undoable pattern edit
 
 private:
+    void commitEdit(UndoEntry e) { m_undo.push(std::move(e)); if (onEdit) onEdit(); }
+
     void processInput();
     void drawPatternToolbar1(float x, float y, float w);
     void drawPatternPanel(float x, float y, float w, float h);

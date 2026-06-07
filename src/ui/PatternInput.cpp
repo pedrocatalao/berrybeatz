@@ -55,7 +55,7 @@ void TrackerView::setCell(int32_t pat, int32_t row, int32_t ch, const PatternCel
     m_ctrl->setPatternCell(pat, row, ch, cell);
     UndoEntry e;
     e.push_back({pat, row, ch, before, cell});
-    m_undo.push(std::move(e));
+    commitEdit(std::move(e));
 }
 
 // ── Block operations ──────────────────────────────────────────────────────────
@@ -91,7 +91,7 @@ void TrackerView::selPaste() {
             e.push_back({pat, dr, dc, before, m_clip.cells[r][c]});
         }
     }
-    if (!e.empty()) m_undo.push(std::move(e));
+    if (!e.empty()) commitEdit(std::move(e));
 }
 
 void TrackerView::selDelete() {
@@ -109,7 +109,7 @@ void TrackerView::selDelete() {
             e.push_back({pat, r, c, before, kEmpty});
         }
     }
-    if (!e.empty()) m_undo.push(std::move(e));
+    if (!e.empty()) commitEdit(std::move(e));
 }
 
 void TrackerView::insertRow() {
@@ -129,7 +129,7 @@ void TrackerView::insertRow() {
     m_ctrl->insertPatternRow(pat, m_cur.row, nch);
     for (auto& ce : e)
         pe_get_cell(m_ctrl->module(), pat, ce.row, ce.ch, ce.after);
-    m_undo.push(std::move(e));
+    commitEdit(std::move(e));
 }
 
 void TrackerView::deleteRow() {
@@ -149,7 +149,7 @@ void TrackerView::deleteRow() {
     m_ctrl->deletePatternRow(pat, m_cur.row, nch);
     for (auto& ce : e)
         pe_get_cell(m_ctrl->module(), pat, ce.row, ce.ch, ce.after);
-    m_undo.push(std::move(e));
+    commitEdit(std::move(e));
 }
 
 // ── Input processing ──────────────────────────────────────────────────────────
@@ -276,7 +276,7 @@ void TrackerView::processInput() {
         PatternCell after{};
         UndoEntry e;
         e.push_back({pat, m_cur.row, m_cur.channel, before, after});
-        m_undo.push(std::move(e));
+        commitEdit(std::move(e));
         advanceCursor(); return;
     }
 

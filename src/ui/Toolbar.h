@@ -9,6 +9,7 @@ struct ImFont;
 struct ToolbarState {
     // Playback (App → Toolbar, read-only)
     bool      hasModule  {false};
+    bool      isDirty    {false};
     Transport transport  {Transport::Stopped};
     float vuLeft    {0.f};
     float vuRight   {0.f};

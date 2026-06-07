@@ -11,4 +11,5 @@ struct SongDocument {
     std::string displayName;
     Transport   transport {Transport::Stopped};
     double      position  {0.0};
+    bool        isDirty   {false};
 };

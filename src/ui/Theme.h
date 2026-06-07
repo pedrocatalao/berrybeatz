@@ -87,7 +87,7 @@ static constexpr ImU32  kClrBtnHover          = IM_COL32( 65,  65,  98, 255);
 static constexpr ImU32  kClrBtnActive         = IM_COL32( 80,  80, 120, 255);
 static constexpr ImU32  kClrBtnBorder         = IM_COL32( 80,  80, 112, 255);
 static constexpr ImU32  kClrKnobBoxBg         = IM_COL32( 28,  28,  44,  86);
-static constexpr ImVec2 kToolbarFramePad      = {8.f, 2.f};
+static constexpr ImVec2 kToolbarFramePad      = {8.f, 3.5f};
 static constexpr ImVec2 kToolbarItemSpacing   = {3.f, 0.f};
 static constexpr ImVec2 kToolbarWindowPad     = {8.f, 0.f};
 

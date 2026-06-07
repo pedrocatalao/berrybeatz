@@ -80,7 +80,7 @@ static void pushToolbarStyle() {
     ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, IM_COL32( 26,  26,  46, 255));
     ImGui::PushStyleColor(ImGuiCol_FrameBgActive,  IM_COL32( 46,  46,  90, 255));
     ImGui::PushStyleColor(ImGuiCol_CheckMark,      IM_COL32(208, 208, 224, 255));
-    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,    {8.0f, 2.0f});
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,    {8.0f, 3.5f});
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,     {3.0f, 0.0f});
     ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding,   0.0f);
     ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0.0f);

@@ -184,6 +184,9 @@ private:
     int32_t m_lastAbsRow          {0};
     int32_t m_lastCurOrder        {-1};
     float   m_wheelAcc            {0.f};
+    int32_t m_seekTargetOrd       {-1};  // seek base accumulator; -1 = use audio state
+    int32_t m_seekTargetRow       {0};
+    float   m_seekSettleTimer     {0.f}; // clears accumulator after scroll inactivity
     std::unordered_map<int32_t, float> m_slotDim;   // orderIdx → animated dim factor
     std::atomic<int32_t> m_selectedInstrument {0};
     bool    m_overflowPaste {false};

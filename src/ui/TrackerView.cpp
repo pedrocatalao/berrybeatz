@@ -7,6 +7,7 @@
 #include "PatternEditor.h"
 #include "SoundModule.h"
 #include <imgui.h>
+#include "imgui_internal.h"
 #include "SwitchButton.h"
 #include "LcdSpinner.h"
 #include "LcdDropdown.h"
@@ -353,6 +354,25 @@ void TrackerView::drawPatternToolbar1(float /*x*/, float /*y*/, float /*w*/) {
                 tip("Plugin selector (not yet available)");
             }},
         }},
+        {"Navigation", 120.f, 200.f, m_fontUI, {
+            {sw("Follow", true), [&] {
+                bool suspended = m_editMode && m_followSong;
+                bool blink     = suspended && ((int)(ImGui::GetTime() * 2.0) % 2 == 0);
+                ImU32 ledCol   = suspended ? kClrAmber : kClrLedGreen;
+                int   ledVal   = suspended ? (int)blink : (int)m_followSong;
+                if (SwitchButton("Follow##fw", "Follow", ledVal, 1, {0.f, 0.f}, ledCol) && !m_editMode)
+                    m_followSong = !m_followSong;
+                tip(suspended ? "Follow suspended while recording" : "Follow playback cursor");
+            }},
+            {sw("Seek", true), [&] {
+                if (SwitchButton("Seek##sk", "Seek", m_seekMode, 1)) m_seekMode = !m_seekMode;
+                tip("Scroll seeks play cursor (also: Option+Scroll)");
+            }},
+            {sw("Overflow", true), [&] {
+                if (SwitchButton("Overflow##ovf", "Overflow", m_overflowPaste, 1)) m_overflowPaste = !m_overflowPaste;
+                tip("Overflow paste");
+            }},
+        }},
         {"Playback", 180.f, 200.f, m_fontUI, {
             {sw("Play", true), [&] {
                 bool patPlaying = m_state.is_pattern_playing.load();
@@ -440,25 +460,6 @@ void TrackerView::drawPatternToolbar1(float /*x*/, float /*y*/, float /*w*/) {
                     "Note only",
                 };
                 tip(detailTips[m_detailView]);
-            }},
-        }},
-        {"Navigate", 120.f, 200.f, m_fontUI, {
-            {sw("Follow", true), [&] {
-                bool suspended = m_editMode && m_followSong;
-                bool blink     = suspended && ((int)(ImGui::GetTime() * 2.0) % 2 == 0);
-                ImU32 ledCol   = suspended ? kClrAmber : kClrLedGreen;
-                int   ledVal   = suspended ? (int)blink : (int)m_followSong;
-                if (SwitchButton("Follow##fw", "Follow", ledVal, 1, {0.f, 0.f}, ledCol) && !m_editMode)
-                    m_followSong = !m_followSong;
-                tip(suspended ? "Follow suspended while recording" : "Follow playback cursor");
-            }},
-            {sw("Seek", true), [&] {
-                if (SwitchButton("Seek##sk", "Seek", m_seekMode, 1)) m_seekMode = !m_seekMode;
-                tip("Scroll seeks play cursor (also: Option+Scroll)");
-            }},
-            {sw("Overflow", true), [&] {
-                if (SwitchButton("Overflow##ovf", "Overflow", m_overflowPaste, 1)) m_overflowPaste = !m_overflowPaste;
-                tip("Overflow paste");
             }},
         }},
     };
@@ -652,11 +653,74 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
         }
     }
 
+    // ── Seek mode: consume wheel BEFORE BeginTable so ImGui never auto-scrolls it ─────────
+    const float dt = ImGui::GetIO().DeltaTime;
+    if ((m_seekMode != ImGui::GetIO().KeyAlt) &&
+        ImGui::IsWindowHovered(ImGuiHoveredFlags_RootAndChildWindows))
+    {
+        const float wy = ImGui::GetIO().MouseWheel;
+        if (std::abs(wy) > 0.f && onRowSeekRequested && m_ctrl) {
+            m_wheelAcc += wy;
+            int steps = (int)m_wheelAcc;
+            m_wheelAcc -= (float)steps;
+            if (steps != 0) {
+                int32_t nOrds  = m_state.num_orders.load();
+                int32_t newOrd = (m_seekTargetOrd >= 0) ? m_seekTargetOrd : m_state.current_order.load();
+                int32_t newRow = (m_seekTargetOrd >= 0) ? m_seekTargetRow : m_state.current_row.load();
+                newRow -= steps;
+                while (newRow < 0 && newOrd > 0) {
+                    --newOrd;
+                    int prevPat  = m_ctrl->module()->getOrderPattern(newOrd);
+                    int prevRows = pe_num_rows(m_ctrl->module(), prevPat);
+                    newRow += prevRows;
+                }
+                newRow = std::max(newRow, 0);
+                int newPat     = m_ctrl->module()->getOrderPattern(newOrd);
+                int curPatRows = pe_num_rows(m_ctrl->module(), newPat);
+                while (newRow >= curPatRows && newOrd < nOrds - 1) {
+                    newRow -= curPatRows;
+                    ++newOrd;
+                    int nextPat  = m_ctrl->module()->getOrderPattern(newOrd);
+                    curPatRows   = pe_num_rows(m_ctrl->module(), nextPat);
+                }
+                newRow = std::min(newRow, curPatRows - 1);
+                m_seekTargetOrd       = newOrd;
+                m_seekTargetRow       = newRow;
+                m_seekSettleTimer     = 0.15f;
+                m_scrollSuppressTimer = 0.f;
+                onRowSeekRequested(newOrd, newRow);
+            }
+            ImGui::GetIO().MouseWheel = 0.f;
+        } else {
+            if (m_seekTargetOrd >= 0) {
+                m_seekSettleTimer -= dt;
+                if (m_seekSettleTimer <= 0.f) {
+                    m_seekSettleTimer = 0.f;
+                    m_seekTargetOrd   = -1;
+                }
+            }
+        }
+    } else {
+        m_wheelAcc        = 0.f;
+        m_seekTargetOrd   = -1;
+        m_seekSettleTimer = 0.f;
+    }
+
     ImGui::PushStyleColor(ImGuiCol_TableBorderStrong, IM_COL32(0, 0, 0, 0));
     ImGui::PushStyleColor(ImGuiCol_TableBorderLight,  IM_COL32(0, 0, 0, 0));
     ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2(0.f, ImGui::GetStyle().CellPadding.y));
     bool tableOpen = ImGui::BeginTable("##pat", totalCols, tFlags, avail);
     if (!tableOpen) { ImGui::PopStyleVar(); ImGui::PopStyleColor(2); return; }
+
+    // Seek mode: ImGui's UpdateMouseWheel() runs in NewFrame() and writes a wheel-scroll
+    // into ScrollTarget before our code runs; BeginTable's internal Begin() applies it to
+    // Scroll immediately — the visual jump happens right there.  SetScrollY() only queues
+    // a new ScrollTarget for next frame.  Override Scroll.y directly so the rendered rows
+    // this frame use our known-good position instead of the wheel-jumped one.
+    if (m_seekMode || ImGui::GetIO().KeyAlt) {
+        ImGuiWindow* w = ImGui::GetCurrentWindow();
+        w->Scroll.y = std::max(0.f, std::min(m_scrollY, w->ScrollMax.y));
+    }
 
     ImGui::TableSetupScrollFreeze(1, 1);  // freeze col 0 + row 0 (channel headers)
     ImGui::TableSetupColumn("##row", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, m_rowNumW);
@@ -975,44 +1039,6 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
     }
 
     float currentScrollY = ImGui::GetScrollY();
-
-    // Option+Scroll — seek play cursor row by row (consumes wheel before free-scroll check).
-    const float dt = ImGui::GetIO().DeltaTime;
-    if ((m_seekMode != ImGui::GetIO().KeyAlt) &&
-        ImGui::IsWindowHovered(ImGuiHoveredFlags_RootAndChildWindows))
-    {
-        const float wy = ImGui::GetIO().MouseWheel;
-        if (std::abs(wy) > 0.f && onRowSeekRequested && m_ctrl) {
-            m_wheelAcc += wy;
-            int steps = (int)m_wheelAcc;
-            m_wheelAcc -= (float)steps;
-            if (steps != 0) {
-                int32_t nOrds  = m_state.num_orders.load();
-                int32_t newOrd = m_state.current_order.load();
-                int32_t newRow = m_state.current_row.load() - steps; // up = wy>0 = earlier row
-                // navigate across pattern boundaries
-                while (newRow < 0 && newOrd > 0) {
-                    --newOrd;
-                    int prevPat  = m_ctrl->module()->getOrderPattern(newOrd);
-                    int prevRows = pe_num_rows(m_ctrl->module(), prevPat);
-                    newRow += prevRows;
-                }
-                newRow = std::max(newRow, 0);
-                int curPatRows = pe_num_rows(m_ctrl->module(), curPat);
-                while (newRow >= curPatRows && newOrd < nOrds - 1) {
-                    newRow -= curPatRows;
-                    ++newOrd;
-                    int nextPat  = m_ctrl->module()->getOrderPattern(newOrd);
-                    curPatRows   = pe_num_rows(m_ctrl->module(), nextPat);
-                }
-                newRow = std::min(newRow, curPatRows - 1);
-                onRowSeekRequested(newOrd, newRow);
-            }
-            ImGui::GetIO().MouseWheel = 0.f;
-        }
-    } else {
-        m_wheelAcc = 0.f;
-    }
 
     // Manual vertical scroll while hovered → suppress follow for 1 second.
     // Ignore when horizontal component dominates (trackpad horizontal swipe bleed).

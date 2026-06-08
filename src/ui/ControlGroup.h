@@ -10,7 +10,7 @@
 // ── Layout constants ──────────────────────────────────────────────────────────
 static constexpr float kCG_GapH     = 10.f;  // horizontal space between groups
 static constexpr float kCG_GapV     =  6.f;  // vertical space between group rows
-static constexpr float kCG_PadX     =  6.f;  // border → content (left)
+static constexpr float kCG_PadX     =  7.f;  // border → content (left)
 static constexpr float kCG_PadRight = 13.f;  // border → content (right)
 static constexpr float kCG_PadTop   = 12.f;  // border → content (top)
 static constexpr float kCG_PadBot   =  6.f;  // border → content (bottom)

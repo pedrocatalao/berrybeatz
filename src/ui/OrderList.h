@@ -71,11 +71,11 @@ inline void OrderList(const char*   id,
                         IM_COL32(255, 255, 255, 14), R);
 
     // LCD housing shadow + fill (drawn once, explicitly, in background)
-    bgDL->AddRectFilled({lcdX - 1.f, lcdY - 1.f},
-                        {lcdX + lcdW + 1.f, lcdY + LCD_H + 1.f},
-                        IM_COL32(0, 0, 0, 180), 2.f);
-    bgDL->AddRectFilled({lcdX, lcdY}, {lcdX + lcdW, lcdY + LCD_H},
-                        kClrLcdBg, 1.5f);
+    bgDL->AddRectFilled({lcdX, lcdY}, {lcdX + lcdW, lcdY + LCD_H}, kClrLcdBg, 1.5f);
+    bgDL->AddLine({lcdX + 1.5f,          lcdY + 0.5f},         {lcdX + lcdW - 1.5f, lcdY + 0.5f},         IM_COL32(0,0,0,100));
+    bgDL->AddLine({lcdX + 0.5f,          lcdY + 1.5f},         {lcdX + 0.5f,        lcdY + LCD_H - 1.5f}, IM_COL32(0,0,0,80));
+    bgDL->AddLine({lcdX + 1.5f,          lcdY + LCD_H - 0.5f},{lcdX + lcdW - 1.5f,  lcdY + LCD_H - 0.5f},IM_COL32(255,255,255,50));
+    bgDL->AddLine({lcdX + lcdW - 0.5f,   lcdY + 1.5f},        {lcdX + lcdW - 0.5f,  lcdY + LCD_H - 1.5f},IM_COL32(255,255,255,40));
 
     // ── "Pat" label + bevel + border on top (foreground) ─────────────────────
     if (labelFont) {

@@ -95,10 +95,11 @@ inline bool SwitchButton(const char* id, const char* label,
         float ledX = p.x + btnW - LED_PAD_R - LED_W + nudge;
         float ledY = p.y + (btnH - LED_H) * 0.5f + nudge;
 
-        // Housing (recessed slot)
-        dl->AddRectFilled({ledX - 1.f, ledY - 1.f},
-                          {ledX + LED_W + 1.f, ledY + LED_H + 1.f},
-                          IM_COL32(0, 0, 0, 150), 2.0f);
+        // Housing (recessed slot) — segments drawn below, border on top
+        dl->AddLine({ledX + 0.5f,          ledY + 0.5f},         {ledX + LED_W - 0.5f, ledY + 0.5f},         IM_COL32(0,0,0,100));
+        dl->AddLine({ledX + 0.5f,          ledY + 0.5f},         {ledX + 0.5f,         ledY + LED_H - 0.5f}, IM_COL32(0,0,0,80));
+        dl->AddLine({ledX + 0.5f,          ledY + LED_H - 0.5f},{ledX + LED_W - 0.5f,  ledY + LED_H - 0.5f},IM_COL32(255,255,255,50));
+        dl->AddLine({ledX + LED_W - 0.5f,  ledY + 0.5f},         {ledX + LED_W - 0.5f,  ledY + LED_H - 0.5f},IM_COL32(255,255,255,40));
 
         // Glow halo when any segment is lit — additive blend
         if (value > 0 && g_glowKnobs > 0.f) {

@@ -108,11 +108,11 @@ inline int LcdSpinner(const char* id, const char* label,
     float lcdX = p.x + PAD_X + textSz.x + LCD_GAP;
     float lcdY = p.y + (btnH - LCD_H) * 0.5f;
 
-    dl->AddRectFilled({lcdX - 1.f, lcdY - 1.f},
-                      {lcdX + LCD_W + 1.f, lcdY + LCD_H + 1.f},
-                      IM_COL32(0, 0, 0, 180), 2.f);
-    dl->AddRectFilled({lcdX, lcdY}, {lcdX + LCD_W, lcdY + LCD_H},
-                      kClrLcdBg, 1.5f);
+    dl->AddRectFilled({lcdX, lcdY}, {lcdX + LCD_W, lcdY + LCD_H}, kClrLcdBg, 1.5f);
+    dl->AddLine({lcdX + 1.5f,          lcdY + 0.5f},         {lcdX + LCD_W - 1.5f, lcdY + 0.5f},         IM_COL32(0,0,0,100));
+    dl->AddLine({lcdX + 0.5f,          lcdY + 1.5f},         {lcdX + 0.5f,         lcdY + LCD_H - 1.5f}, IM_COL32(0,0,0,80));
+    dl->AddLine({lcdX + 1.5f,          lcdY + LCD_H - 0.5f},{lcdX + LCD_W - 1.5f,  lcdY + LCD_H - 0.5f},IM_COL32(255,255,255,50));
+    dl->AddLine({lcdX + LCD_W - 0.5f,  lcdY + 1.5f},        {lcdX + LCD_W - 0.5f,  lcdY + LCD_H - 1.5f},IM_COL32(255,255,255,40));
 
     char   valBuf[12];
     snprintf(valBuf, sizeof(valBuf), "%d", value);

@@ -45,9 +45,7 @@ inline bool LcdInput(const char* id, const char* label,
     dl->AddRectFilled(p, widgetBR, IM_COL32(25, 25, 38, 255), ROUNDING);
     dl->AddRectFilled(p, {p.x + totalW, p.y + btnH * 0.5f},
                       IM_COL32(255, 255, 255, 14), ROUNDING);
-    dl->AddRectFilled({lcdAbsX - 1.f, lcdAbsY - 1.f},
-                      {lcdAbsX + lcdWidth + 1.f, lcdAbsY + LCD_H + 1.f},
-                      IM_COL32(0, 0, 0, 180), 2.f);
+    // border lines drawn after InputText renders (below)
 
     // ── Group so the shorter InputText doesn't shrink the layout line height ──
     ImGui::BeginGroup();
@@ -79,7 +77,11 @@ inline bool LcdInput(const char* id, const char* label,
 
     ImGui::EndGroup();
 
-    // ── Post-draw: label and outer bevel drawn on top of InputText ────────────
+    // ── Post-draw: LCD border, label and outer bevel drawn on top of InputText ──
+    dl->AddLine({lcdAbsX + 1.5f,            lcdAbsY + 0.5f},         {lcdAbsX + lcdWidth - 1.5f, lcdAbsY + 0.5f},         IM_COL32(0,0,0,100));
+    dl->AddLine({lcdAbsX + 0.5f,            lcdAbsY + 1.5f},         {lcdAbsX + 0.5f,            lcdAbsY + LCD_H - 1.5f}, IM_COL32(0,0,0,80));
+    dl->AddLine({lcdAbsX + 1.5f,            lcdAbsY + LCD_H - 0.5f},{lcdAbsX + lcdWidth - 1.5f,  lcdAbsY + LCD_H - 0.5f},IM_COL32(255,255,255,50));
+    dl->AddLine({lcdAbsX + lcdWidth - 0.5f, lcdAbsY + 1.5f},        {lcdAbsX + lcdWidth - 0.5f,  lcdAbsY + LCD_H - 1.5f},IM_COL32(255,255,255,40));
     dl->AddText({p.x + PAD_X, p.y + (btnH - labelSz.y) * 0.5f},
                 ImGui::GetColorU32(kClrTextLabel), label);
 

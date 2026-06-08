@@ -30,6 +30,7 @@ inline bool LcdInput(const char* id, const char* label,
     ImVec2 labelSz = ImGui::CalcTextSize(label);
     float  btnH    = labelSz.y + PAD_Y * 2.f;
     float  lcdRelX = PAD_X + labelSz.x + LCD_GAP;
+    lcdWidth += kCG_StretchExtra; kCG_StretchExtra = 0.f;
     float  totalW  = lcdRelX + lcdWidth + PAD_R;
 
     float  LCD_H   = btnH - 8.f;   // 4px inset top+bottom, matching LcdDropdown

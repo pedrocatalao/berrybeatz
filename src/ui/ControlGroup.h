@@ -88,30 +88,51 @@ inline float DrawControlGroups(float localX, float localY, float availW,
         float contentMaxX    = lsX(contentLocalX) + g.max_width;   // screen right limit
         float contentMaxY    = lsY(contentLocalY) + g.max_height;  // screen bottom limit
 
-        // ── Widget layout via BeginGroup/EndGroup ─────────────────────────────
+        // ── Pass 1: measure natural row widths from declared w.width ──────────
+        struct RowMeasure { int lastWi; float width; };
+        std::vector<RowMeasure> rowMeasures;
+        {
+            float rowW = 0.f; bool first = true; int lastWi = -1, wi = 0;
+            for (const auto& w : g.widgets) {
+                if (!w.render) {
+                    if (!first) { rowMeasures.push_back({lastWi, rowW}); rowW = 0.f; first = true; }
+                    wi++; continue;
+                }
+                float gap = first ? 0.f : kCG_ItemGapH;
+                if (!first && rowW + gap + w.width > g.max_width) {
+                    rowMeasures.push_back({lastWi, rowW}); rowW = 0.f; first = true; gap = 0.f;
+                }
+                rowW += gap + w.width; lastWi = wi; first = false; wi++;
+            }
+            if (!first) rowMeasures.push_back({lastWi, rowW});
+        }
+        float maxNatRowW = 0.f;
+        for (auto& r : rowMeasures) maxNatRowW = std::max(maxNatRowW, r.width);
+
+        // ── Pass 2: render, stretching last widget on each shorter row ─────────
         ImGui::SetCursorPos({contentLocalX, contentLocalY});
         ImGui::BeginGroup();
 
-        float rowEndX      = lsX(contentLocalX);  // screen right edge of last widget on row
-        float maxRowEndX   = lsX(contentLocalX);  // widest row seen so far
+        float rowEndX      = lsX(contentLocalX);
+        float maxRowEndX   = lsX(contentLocalX);
         float rowLocalY    = contentLocalY;
         float rowH         = ImGui::GetFrameHeight();
         bool  firstOnRow   = true;
+        int   wi = 0, rowMeasIdx = 0;
 
         for (const auto& w : g.widgets) {
             if (!w.render) {
-                // Explicit row break
                 if (!firstOnRow) {
                     maxRowEndX  = std::max(maxRowEndX, rowEndX);
                     rowLocalY  += rowH + kCG_ItemGapV;
                     rowH        = ImGui::GetFrameHeight();
                     rowEndX     = lsX(contentLocalX);
                     firstOnRow  = true;
+                    rowMeasIdx++;
                 }
-                continue;
+                wi++; continue;
             }
 
-            // Implicit wrap when widget doesn't fit
             float gap = firstOnRow ? 0.f : kCG_ItemGapH;
             if (!firstOnRow && rowEndX + gap + w.width > contentMaxX) {
                 maxRowEndX  = std::max(maxRowEndX, rowEndX);
@@ -119,10 +140,17 @@ inline float DrawControlGroups(float localX, float localY, float availW,
                 rowH        = ImGui::GetFrameHeight();
                 rowEndX     = lsX(contentLocalX);
                 firstOnRow  = true;
+                rowMeasIdx++;
             }
 
-            // Stop if row exceeds max_height
-            if (lsY(rowLocalY) >= contentMaxY) break;
+            if (lsY(rowLocalY) >= contentMaxY) { wi++; break; }
+
+            // Stretch last widget on shorter rows to match the widest row
+            if (rowMeasIdx < (int)rowMeasures.size() &&
+                wi == rowMeasures[rowMeasIdx].lastWi) {
+                float extra = maxNatRowW - rowMeasures[rowMeasIdx].width;
+                if (extra > 0.5f) kCG_StretchExtra = extra;
+            }
 
             if (firstOnRow)
                 ImGui::SetCursorPos({contentLocalX, rowLocalY});
@@ -135,6 +163,7 @@ inline float DrawControlGroups(float localX, float localY, float availW,
             rowH       = std::max(rowH, iH > 0.f ? iH : ImGui::GetFrameHeight());
             rowEndX    = ImGui::GetItemRectMax().x;
             firstOnRow = false;
+            wi++;
         }
         maxRowEndX = std::max(maxRowEndX, rowEndX);
 

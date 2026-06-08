@@ -229,6 +229,10 @@ static constexpr ImU32 kClrModalCloseAct= IM_COL32(200,  50,  50, 255);  // acti
 static constexpr float  kStyleWindowRounding    = 0.f;
 static constexpr float  kStyleFrameRounding     = 0.f;
 static constexpr float  kStyleScrollbarSize      = 9.f;
+
+// Set by DrawControlGroups before calling the last widget on a short row.
+// Widgets read this once and reset it to 0 to stretch themselves to fill the row.
+inline float kCG_StretchExtra = 0.f;
 static constexpr float  kStyleScrollbarRounding  = 3.f;
 static constexpr float  kStyleTabRounding        = 3.f;
 static constexpr ImVec4 kStyleWindowBg  = {0.067f, 0.067f, 0.086f, 1.f};  // cool blue-grey — switch button tone

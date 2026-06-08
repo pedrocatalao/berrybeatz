@@ -39,6 +39,7 @@ inline bool SwitchButton(const char* id, const char* label,
     float  btnW   = (size.x > 0.f) ? size.x
                   : hasLed ? (PAD_X + textSz.x + LED_GAP + LED_W + LED_PAD_R)
                            : (PAD_X * 2.f + textSz.x);
+    btnW += kCG_StretchExtra; kCG_StretchExtra = 0.f;
     float  btnH   = (size.y > 0.f) ? size.y : (textSz.y + PAD_Y * 2.f);
 
     ImVec2 p = ImGui::GetCursorScreenPos();

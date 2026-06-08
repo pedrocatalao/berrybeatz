@@ -38,6 +38,7 @@ inline bool LcdDropdown(const char* id, const char* label,
     float  LCD_H  = btnH - 8.f;
 
     float lcdX   = PAD_X + textSz.x + LCD_GAP;  // relative to p.x
+    lcdWidth += kCG_StretchExtra; kCG_StretchExtra = 0.f;
     float totalW = lcdX + lcdWidth + ARROW_W + PAD_R;
     float arrowX = lcdX + lcdWidth;              // relative to p.x
 

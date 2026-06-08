@@ -46,6 +46,7 @@ inline int LcdSpinner(const char* id, const char* label,
     float  btnH   = (size.y > 0.f) ? size.y : (textSz.y + PAD_Y * 2.f);
     float  LCD_H  = btnH - 8.f;   // 4px frame margin top+bottom
 
+    LCD_W += kCG_StretchExtra; kCG_StretchExtra = 0.f;
     float mainW  = PAD_X + textSz.x + LCD_GAP + LCD_W + CTRL_GAP;
     float incW   = CTRL_W + PAD_R;
     float totalW = (size.x > 0.f) ? size.x : (mainW + CTRL_W + incW);

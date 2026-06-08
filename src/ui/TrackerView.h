@@ -92,7 +92,8 @@ public:
     std::function<void(int, int)>  onKbdPlay;    // (note1based, key) — audio only
     std::function<void(int)>       onKbdStop;    // (key)
     std::function<void(int)>       onNoteEntry;        // (note1based) — pattern entry, distinct from audio
-    std::function<void(int)>       onInstrumentChanged; // (instrIdx 1-based) — fired when dropdown changes
+    std::function<void(int)>       onInstrumentChanged; // (instrIdx 1-based) — fired when dropdown changes (instrument-based songs)
+    std::function<void(int)>       onSampleChanged;     // (sampleIdx 1-based) — fired when dropdown changes (sample-based songs)
     std::function<void()>          onEdit;             // fired after any undoable pattern edit
 
 private:

@@ -340,9 +340,11 @@ void TrackerView::drawPatternToolbar1(float /*x*/, float /*y*/, float /*w*/) {
                 for (auto& s : fmtItems) ptrs.push_back(s.c_str());
                 int sel = m_selectedInstrument - 1;
                 if (!has) ImGui::BeginDisabled();
+                bool hasInstruments = m_state.num_instruments > 0;
                 if (LcdDropdown("##instr", "Instr", &sel, ptrs.data(), (int)ptrs.size(), "No instrument", 130.f)) {
                     m_selectedInstrument = sel + 1;
-                    if (onInstrumentChanged) onInstrumentChanged(sel + 1);
+                    if (hasInstruments) { if (onInstrumentChanged) onInstrumentChanged(sel + 1); }
+                    else                { if (onSampleChanged)     onSampleChanged(sel + 1);     }
                 }
                 if (!has) ImGui::EndDisabled();
                 tip("Current instrument — click to pick from list");

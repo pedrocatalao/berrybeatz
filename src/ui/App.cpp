@@ -153,7 +153,8 @@ App::App() : m_controller(m_state), m_audio(m_state), m_tracker(m_state), m_gene
     m_tracker.onLoopToggled     = [this](bool loop) { m_audio.setLoopPattern(loop); };
 
     m_tracker.onNoteEntry         = [this](int note) { m_tracker.inputNote(note); };
-    m_tracker.onInstrumentChanged = [this](int instr) { m_audio.copyPreviewInstrument(instr); };
+    m_tracker.onInstrumentChanged = [this](int instr)  { m_audio.copyPreviewInstrument(instr); };
+    m_tracker.onSampleChanged     = [this](int sample) { m_audio.copyPreviewSample(sample); };
     m_tracker.onEdit = [this]() {
         if (m_activeSongIdx >= 0 && m_activeSongIdx < (int)m_songs.size())
             m_songs[m_activeSongIdx]->isDirty = true;

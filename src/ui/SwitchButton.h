@@ -49,16 +49,15 @@ inline bool SwitchButton(const char* id, const char* label,
 
     ImDrawList* dl = ImGui::GetWindowDrawList();
 
-    // Body
-    ImU32 bodyCol = held    ? IM_COL32(50, 50, 70, 255)
-                 : hovered ? IM_COL32(38, 38, 55, 255)
-                            : IM_COL32(25, 25, 38, 255);
-    dl->AddRectFilled({p.x, p.y}, {p.x + btnW, p.y + btnH}, bodyCol, ROUNDING);
-
-    // Top sheen — convex feel, removed when pressed
-    if (!held)
-        dl->AddRectFilled({p.x, p.y}, {p.x + btnW, p.y + btnH * 0.5f},
-                          IM_COL32(255, 255, 255, 14), ROUNDING);
+    // Body — smooth gradient top (lighter) to bottom (darker)
+    ImU32 topCol = held    ? IM_COL32(58, 58, 78, 255)
+                : hovered  ? IM_COL32(46, 46, 63, 255)
+                           : IM_COL32(33, 33, 48, 255);
+    ImU32 botCol = held    ? IM_COL32(36, 36, 54, 255)
+                : hovered  ? IM_COL32(24, 24, 40, 255)
+                           : IM_COL32(14, 14, 26, 255);
+    dl->AddRectFilledMultiColor({p.x, p.y}, {p.x + btnW, p.y + btnH},
+                                topCol, topCol, botCol, botCol);
 
     // Bevel
     if (!held) {

@@ -169,13 +169,13 @@ static void knobDrawDial(ImDrawList* dl, ImVec2 center, float t, bool bipolar)
 // SwitchButton-style outer box.
 static void knobDrawBox(ImDrawList* dl, ImVec2 p, float w, float h, bool held, bool hovered)
 {
-    ImU32 bodyCol = held    ? IM_COL32(50, 50, 70, 255)
-                 : hovered  ? IM_COL32(38, 38, 55, 255)
-                            : IM_COL32(25, 25, 38, 255);
-    dl->AddRectFilled(p, {p.x + w, p.y + h}, bodyCol, KNOB_ROUNDING);
-    if (!held)
-        dl->AddRectFilled(p, {p.x + w, p.y + h * 0.5f},
-                          IM_COL32(255, 255, 255, 14), KNOB_ROUNDING);
+    ImU32 topCol = held    ? IM_COL32(58, 58, 78, 255)
+                : hovered  ? IM_COL32(46, 46, 63, 255)
+                           : IM_COL32(33, 33, 48, 255);
+    ImU32 botCol = held    ? IM_COL32(36, 36, 54, 255)
+                : hovered  ? IM_COL32(24, 24, 40, 255)
+                           : IM_COL32(14, 14, 26, 255);
+    dl->AddRectFilledMultiColor(p, {p.x + w, p.y + h}, topCol, topCol, botCol, botCol);
     if (!held) {
         dl->AddLine({p.x + KNOB_ROUNDING,     p.y + 0.5f},
                     {p.x + w - KNOB_ROUNDING, p.y + 0.5f},     IM_COL32(255,255,255,55));

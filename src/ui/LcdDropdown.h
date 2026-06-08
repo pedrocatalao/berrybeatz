@@ -60,12 +60,9 @@ inline bool LcdDropdown(const char* id, const char* label,
     ImDrawList* dl = ImGui::GetWindowDrawList();
 
     // ── Outer body ───────────────────────────────────────────────────────────
-    ImU32 bodyCol = anyHov ? IM_COL32(38, 38, 55, 255) : IM_COL32(25, 25, 38, 255);
-    dl->AddRectFilled(p, widgetBR, bodyCol, ROUNDING);
-
-    // Top sheen
-    dl->AddRectFilled(p, {p.x + totalW, p.y + btnH * 0.5f},
-                      IM_COL32(255, 255, 255, 14), ROUNDING);
+    ImU32 topCol = anyHov ? IM_COL32(46, 46, 63, 255) : IM_COL32(33, 33, 48, 255);
+    ImU32 botCol = anyHov ? IM_COL32(24, 24, 40, 255) : IM_COL32(14, 14, 26, 255);
+    dl->AddRectFilledMultiColor(p, widgetBR, topCol, topCol, botCol, botCol);
 
     // Outer bevel
     dl->AddLine({p.x + ROUNDING,          p.y + 0.5f},
@@ -125,14 +122,6 @@ inline bool LcdDropdown(const char* id, const char* label,
         float  arrowAbsX = p.x + arrowX;
         ImVec2 bTL = {arrowAbsX + BTN_M,           p.y + BTN_M};
         ImVec2 bBR = {p.x + totalW - PAD_R - BTN_M, p.y + btnH - BTN_M};
-
-        ImU32 bCol = arrowHeld ? IM_COL32(18, 18, 30, 255)
-                   : arrowHov  ? IM_COL32(48, 48, 68, 255)
-                                : IM_COL32(35, 35, 52, 255);
-        dl->AddRectFilled(bTL, bBR, bCol, 1.f);
-        if (!arrowHeld)
-            dl->AddRectFilled(bTL, {bBR.x, bTL.y + (bBR.y - bTL.y) * 0.5f},
-                              IM_COL32(255, 255, 255, 10), 1.f);
 
         if (!arrowHeld) {
             dl->AddLine(bTL,              {bBR.x, bTL.y}, IM_COL32(255,255,255,  8));

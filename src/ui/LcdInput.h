@@ -42,9 +42,9 @@ inline bool LcdInput(const char* id, const char* label,
     ImDrawList* dl = ImGui::GetWindowDrawList();
 
     // ── Pre-draw: outer body and LCD inset shadow (drawn under the InputText) ──
-    dl->AddRectFilled(p, widgetBR, IM_COL32(25, 25, 38, 255), ROUNDING);
-    dl->AddRectFilled(p, {p.x + totalW, p.y + btnH * 0.5f},
-                      IM_COL32(255, 255, 255, 14), ROUNDING);
+    dl->AddRectFilledMultiColor(p, widgetBR,
+        IM_COL32(33, 33, 48, 255), IM_COL32(33, 33, 48, 255),
+        IM_COL32(14, 14, 26, 255), IM_COL32(14, 14, 26, 255));
     dl->AddLine({lcdAbsX + 0.5f,            lcdAbsY + 0.5f},         {lcdAbsX + lcdWidth - 0.5f, lcdAbsY + 0.5f},         IM_COL32(0,0,0,100));
     dl->AddLine({lcdAbsX + 0.5f,            lcdAbsY + 0.5f},         {lcdAbsX + 0.5f,            lcdAbsY + LCD_H - 0.5f}, IM_COL32(0,0,0,80));
     dl->AddLine({lcdAbsX + 0.5f,            lcdAbsY + LCD_H - 0.5f},{lcdAbsX + lcdWidth - 0.5f,  lcdAbsY + LCD_H - 0.5f},IM_COL32(255,255,255,50));

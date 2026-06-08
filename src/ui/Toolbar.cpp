@@ -105,8 +105,9 @@ static void drawVUWidget(ImDrawList* dl, ImVec2 p, float boxW, float boxH,
     const ImVec2 q = {p.x + boxW, p.y + boxH};
 
     // Outer button box (SwitchButton style, display-only)
-    dl->AddRectFilled(p, q, IM_COL32(25, 25, 38, 255), ROUNDING);
-    dl->AddRectFilled(p, {q.x, p.y + boxH * 0.5f}, IM_COL32(255, 255, 255, 14), ROUNDING);
+    dl->AddRectFilledMultiColor(p, q,
+        IM_COL32(33, 33, 48, 255), IM_COL32(33, 33, 48, 255),
+        IM_COL32(14, 14, 26, 255), IM_COL32(14, 14, 26, 255));
     dl->AddLine({p.x + ROUNDING, p.y + 0.5f}, {q.x - ROUNDING, p.y + 0.5f}, IM_COL32(255,255,255,55));
     dl->AddLine({p.x + 0.5f, p.y + ROUNDING}, {p.x + 0.5f, q.y - ROUNDING}, IM_COL32(255,255,255,40));
     dl->AddLine({p.x + ROUNDING, q.y - 0.5f}, {q.x - ROUNDING, q.y - 0.5f}, IM_COL32(0,0,0,120));

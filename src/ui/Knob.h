@@ -315,11 +315,11 @@ inline bool KnobWidget(const char* id,
     // LCD housing (below label)
     float absLcdX = p.x + lcdX;
     float absLcdY = p.y + lcdY;
+    dl->AddLine({absLcdX + 0.5f,               absLcdY + 0.5f},             {absLcdX + KNOB_LCD_W - 0.5f, absLcdY + 0.5f},             IM_COL32(0,0,0,100));
+    dl->AddLine({absLcdX + 0.5f,               absLcdY + 0.5f},             {absLcdX + 0.5f,              absLcdY + KNOB_LCD_H - 0.5f}, IM_COL32(0,0,0,80));
+    dl->AddLine({absLcdX + 0.5f,               absLcdY + KNOB_LCD_H - 0.5f},{absLcdX + KNOB_LCD_W - 0.5f, absLcdY + KNOB_LCD_H - 0.5f},IM_COL32(255,255,255,50));
+    dl->AddLine({absLcdX + KNOB_LCD_W - 0.5f,  absLcdY + 0.5f},             {absLcdX + KNOB_LCD_W - 0.5f, absLcdY + KNOB_LCD_H - 0.5f},IM_COL32(255,255,255,40));
     dl->AddRectFilled({absLcdX, absLcdY}, {absLcdX + KNOB_LCD_W, absLcdY + KNOB_LCD_H}, kClrLcdBg, 1.5f);
-    dl->AddLine({absLcdX + 1.5f,               absLcdY + 0.5f},              {absLcdX + KNOB_LCD_W - 1.5f, absLcdY + 0.5f},              IM_COL32(0,0,0,100));
-    dl->AddLine({absLcdX + 0.5f,               absLcdY + 1.5f},              {absLcdX + 0.5f,              absLcdY + KNOB_LCD_H - 1.5f},  IM_COL32(0,0,0,80));
-    dl->AddLine({absLcdX + 1.5f,               absLcdY + KNOB_LCD_H - 0.5f},{absLcdX + KNOB_LCD_W - 1.5f, absLcdY + KNOB_LCD_H - 0.5f}, IM_COL32(255,255,255,50));
-    dl->AddLine({absLcdX + KNOB_LCD_W - 0.5f,  absLcdY + 1.5f},             {absLcdX + KNOB_LCD_W - 0.5f, absLcdY + KNOB_LCD_H - 1.5f},  IM_COL32(255,255,255,40));
 
     if (!hideValue) {
         char buf[16];

@@ -125,11 +125,11 @@ static void drawVUWidget(ImDrawList* dl, ImVec2 p, float boxW, float boxH,
     const float lcdW = q.x - PAD_X - lcdX;
     const float lcdH = boxH - PAD_Y * 2.f;
 
+    dl->AddLine({lcdX + 0.5f,        lcdY + 0.5f},         {lcdX + lcdW - 0.5f, lcdY + 0.5f},         IM_COL32(0,0,0,100));
+    dl->AddLine({lcdX + 0.5f,        lcdY + 0.5f},         {lcdX + 0.5f,        lcdY + lcdH - 0.5f},  IM_COL32(0,0,0,80));
+    dl->AddLine({lcdX + 0.5f,        lcdY + lcdH - 0.5f}, {lcdX + lcdW - 0.5f, lcdY + lcdH - 0.5f},  IM_COL32(255,255,255,50));
+    dl->AddLine({lcdX + lcdW - 0.5f, lcdY + 0.5f},         {lcdX + lcdW - 0.5f, lcdY + lcdH - 0.5f},  IM_COL32(255,255,255,40));
     dl->AddRectFilled({lcdX, lcdY}, {lcdX + lcdW, lcdY + lcdH}, IM_COL32(14, 20, 24, 255), LCD_R);
-    dl->AddLine({lcdX + LCD_R,       lcdY + 0.5f},        {lcdX + lcdW - LCD_R, lcdY + 0.5f},        IM_COL32(0,0,0,100));
-    dl->AddLine({lcdX + 0.5f,        lcdY + LCD_R},        {lcdX + 0.5f,         lcdY + lcdH - LCD_R}, IM_COL32(0,0,0,80));
-    dl->AddLine({lcdX + LCD_R,       lcdY + lcdH - 0.5f}, {lcdX + lcdW - LCD_R, lcdY + lcdH - 0.5f}, IM_COL32(255,255,255,50));
-    dl->AddLine({lcdX + lcdW - 0.5f, lcdY + LCD_R},        {lcdX + lcdW - 0.5f,  lcdY + lcdH - LCD_R},IM_COL32(255,255,255,40));
 
     // Bar graphs inside the LCD box
     drawVU(dl,

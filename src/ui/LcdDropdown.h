@@ -91,11 +91,11 @@ inline bool LcdDropdown(const char* id, const char* label,
     float lcdAbsX = p.x + lcdX;
     float lcdAbsY = p.y + (btnH - LCD_H) * 0.5f;
 
+    dl->AddLine({lcdAbsX + 0.5f,            lcdAbsY + 0.5f},         {lcdAbsX + lcdWidth - 0.5f, lcdAbsY + 0.5f},         IM_COL32(0,0,0,100));
+    dl->AddLine({lcdAbsX + 0.5f,            lcdAbsY + 0.5f},         {lcdAbsX + 0.5f,            lcdAbsY + LCD_H - 0.5f}, IM_COL32(0,0,0,80));
+    dl->AddLine({lcdAbsX + 0.5f,            lcdAbsY + LCD_H - 0.5f},{lcdAbsX + lcdWidth - 0.5f,  lcdAbsY + LCD_H - 0.5f},IM_COL32(255,255,255,50));
+    dl->AddLine({lcdAbsX + lcdWidth - 0.5f, lcdAbsY + 0.5f},        {lcdAbsX + lcdWidth - 0.5f,  lcdAbsY + LCD_H - 0.5f},IM_COL32(255,255,255,40));
     dl->AddRectFilled({lcdAbsX, lcdAbsY}, {lcdAbsX + lcdWidth, lcdAbsY + LCD_H}, kClrLcdBg, 1.5f);
-    dl->AddLine({lcdAbsX + 1.5f,            lcdAbsY + 0.5f},         {lcdAbsX + lcdWidth - 1.5f, lcdAbsY + 0.5f},         IM_COL32(0,0,0,100));
-    dl->AddLine({lcdAbsX + 0.5f,            lcdAbsY + 1.5f},         {lcdAbsX + 0.5f,            lcdAbsY + LCD_H - 1.5f}, IM_COL32(0,0,0,80));
-    dl->AddLine({lcdAbsX + 1.5f,            lcdAbsY + LCD_H - 0.5f},{lcdAbsX + lcdWidth - 1.5f,  lcdAbsY + LCD_H - 0.5f},IM_COL32(255,255,255,50));
-    dl->AddLine({lcdAbsX + lcdWidth - 0.5f, lcdAbsY + 1.5f},        {lcdAbsX + lcdWidth - 0.5f,  lcdAbsY + LCD_H - 1.5f},IM_COL32(255,255,255,40));
 
     const char* preview = (noneLabel && *selected < 0) ? noneLabel
                         : (*selected >= 0 && *selected < count) ? items[*selected]

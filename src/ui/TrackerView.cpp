@@ -493,9 +493,9 @@ void TrackerView::drawStereoVU(ImDrawList* dl, float x, float y, float w, float 
         for (int i = 0; i < N; i++) {
             float frac = float(i) / float(N);
             int gr, gg, gb;
-            if      (frac >= 0.80f) { gr = 200; gg =   0; gb = 255; }
-            else if (frac >= 0.60f) { gr = 255; gg =  30; gb = 180; }
-            else                    { gr =   0; gg = 220; gb = 255; }
+            if      (frac >= 0.80f) { gr = 250; gg = 100; gb = 140; }
+            else if (frac >= 0.60f) { gr = 220; gg = 200; gb = 110; }
+            else                    { gr = 100; gg = 220; gb = 160; }
             float rx = cx + 1.0f + float(i) * stride;
             float lx = cx - 1.0f - float(i) * stride - barW;
             if (normR > frac) {

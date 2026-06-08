@@ -149,13 +149,13 @@ static constexpr float kVuBarW       = 2.f;
 static constexpr float kVuStride     = 3.f;
 
 // Lit segment colours (alpha 225 = slightly translucent for additive blending)
-static constexpr ImU32 kVuCyanLit    = IM_COL32(  0, 220, 255, 225);
-static constexpr ImU32 kVuCyanUnlit  = IM_COL32(  0,  35,  45, 225);
-static constexpr ImU32 kVuPinkLit    = IM_COL32(255,  30, 180, 225);
-static constexpr ImU32 kVuPinkUnlit  = IM_COL32( 45,   0,  30, 225);
+static constexpr ImU32 kVuCyanLit    = IM_COL32(100, 220, 160, 225);
+static constexpr ImU32 kVuCyanUnlit  = IM_COL32( 16,  35,  25, 225);
+static constexpr ImU32 kVuPinkLit    = IM_COL32(220, 200, 110, 225);
+static constexpr ImU32 kVuPinkUnlit  = IM_COL32( 36,  32,  16, 225);
 // Toolbar VU high zone (red) / TrackerView high zone (violet) differ intentionally
-static constexpr ImU32 kVuRedLit     = IM_COL32(255,   0,  90, 225);  // toolbar
-static constexpr ImU32 kVuRedUnlit   = IM_COL32( 45,   0,  20, 225);
+static constexpr ImU32 kVuRedLit     = IM_COL32(250, 100, 140, 225);  // toolbar
+static constexpr ImU32 kVuRedUnlit   = IM_COL32( 42,  14,  20, 225);
 static constexpr ImU32 kVuVioletLit  = IM_COL32(200,   0, 255,  90);  // tracker (lower alpha)
 static constexpr ImU32 kVuVioletUnlit= IM_COL32( 45,   0,  20, 225);
 

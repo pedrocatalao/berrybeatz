@@ -59,9 +59,9 @@ static void drawVU(ImDrawList* dl,
                 float frac = float(i) / float(N);
                 if (norm[ch] <= frac) continue;
                 int gr, gg, gb;
-                if      (frac >= 0.80f) { gr = 200; gg =   0; gb = 255; }
-                else if (frac >= 0.60f) { gr = 255; gg =  30; gb = 180; }
-                else                    { gr =   0; gg = 220; gb = 255; }
+                if      (frac >= 0.80f) { gr = 250; gg = 100; gb = 140; }
+                else if (frac >= 0.60f) { gr = 220; gg = 200; gb = 110; }
+                else                    { gr = 100; gg = 220; gb = 160; }
                 float sx = x + float(i) * stride;
                 float ty = tops[ch];
                 dl->AddRectFilled({sx - 16, ty - 6}, {sx + barW + 16, ty + bh + 6}, IM_COL32(gr, gg, gb, (uint8_t)( 3 * opa)));

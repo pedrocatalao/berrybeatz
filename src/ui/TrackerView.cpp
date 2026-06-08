@@ -1105,7 +1105,7 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
     } else if (needsSnap) {
         float padY  = ImGui::GetStyle().CellPadding.y;
         newScrollY  = float(curAbsRow) * rowH - visH * 0.5f + rowH * 0.5f + padY;
-        m_visualRow = float(curAbsRow);
+
         forceScroll = true;
     } else if (playing && m_followSong && m_scrollSuppressTimer == 0.f) {
         float padY      = ImGui::GetStyle().CellPadding.y;
@@ -1143,7 +1143,7 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
     }
 
     m_lastPattern  = curPat;
-    m_lastRow      = curRow;
+
     m_lastAbsRow   = curAbsRow;
     m_lastCurOrder = curOrder;
 

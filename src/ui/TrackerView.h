@@ -104,7 +104,7 @@ private:
     void drawStereoVU(ImDrawList* dl, float x, float y, float w, float h, float lvlL, float lvlR);
 
     void setEditMode(bool on);
-    void enterNote(uint8_t note);
+
     void advanceCursor();
     void clampCursor();
 
@@ -136,7 +136,7 @@ private:
     float    m_tableOriginX {0.0f};  // screen X of channel 0 content start, scroll=0
     float    m_colStep      {0.0f};  // screen pitch per channel column (content + padding)
     int32_t  m_lastPattern  {-1};
-    int32_t  m_lastRow      {-1};
+
     uint64_t m_muteState          {0};
     uint64_t m_preClickMuteState  {0};  // mute state before the last single-click press
 
@@ -147,7 +147,7 @@ private:
     int32_t    m_lastEditAbsRow   {0};
     int32_t    m_lastEditChannel  {0};
     EditCursor m_cur;
-    float      m_visualRow     {0.f};
+
     int32_t    m_baseOctave    {4};
     int        m_editStep      {1};
     bool       m_editMode      {false};
@@ -175,11 +175,11 @@ private:
     bool    m_showPluginRow {true};
     bool    m_showKbd       {false};
     bool    m_loopPattern        {false};
-    bool    m_playCursorActive   {false};
+
     bool    m_seekMode      {false};
     bool    m_continuousScroll   {false};
     bool    m_followSong         {true};
-    bool    m_followSongSaved    {true};   // saved when entering edit mode
+
     float   m_scrollSuppressTimer {0.f};
     int32_t m_lastAbsRow          {0};
     int32_t m_lastCurOrder        {-1};

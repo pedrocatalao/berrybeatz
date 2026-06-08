@@ -108,7 +108,7 @@ void TrackerView::render(float x, float y, float w, float h, float boxTopExt) {
              + (m_showVU        ? VU_H     : 0.f)
              + (m_showWave      ? WAVE_H   : 0.f)
              + (m_showPluginRow ? PLUGIN_H : 0.f);
-    constexpr float ORDER_GAP  = 6.f;
+    constexpr float ORDER_GAP  = 3.f;
     const bool      hasModule  = m_ctrl != nullptr;
     const float     orderSlotH = hasModule ? (ORDER_H + ORDER_GAP) : 0.f;
     m_patTop = y + m_toolbar1H + orderSlotH + m_chanH;
@@ -464,8 +464,8 @@ void TrackerView::drawPatternToolbar1(float /*x*/, float /*y*/, float /*w*/) {
         }},
     };
 
-    float groupsH = DrawControlGroups(29.f, 6.f, ImGui::GetContentRegionMax().x - 29.f, groups);
-    m_toolbar1H = 6.f + groupsH + 15.f;
+    float groupsH = DrawControlGroups(29.f, 0.f, ImGui::GetContentRegionMax().x - 29.f, groups);
+    m_toolbar1H = 6.f + groupsH + 10.f;
 
     popToolbarStyle();
     if (m_fontUI) ImGui::PopFont();

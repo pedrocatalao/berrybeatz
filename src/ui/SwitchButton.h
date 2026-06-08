@@ -121,18 +121,14 @@ inline bool SwitchButton(const char* id, const char* label,
             }, nullptr);
         }
 
-        // Segments — bottom-to-top, lit count = value
+        // Two-rect fill: lit block (bottom) + unlit block (top) — no inter-segment gaps
         int   clampedVal = value  < 0      ? 0
                          : value  > levels ? levels : value;
-        float gapH  = 0.0f;
-        float segH  = LED_H / levels;
-
-        for (int i = 0; i < levels; i++) {
-            float sy     = ledY + LED_H - (i + 1) * segH - i * gapH;
-            bool  lit    = i < clampedVal;
-            ImU32 segCol = lit ? ledCol : kClrLcdBg;
-            dl->AddRectFilled({ledX, sy}, {ledX + LED_W, sy + segH}, segCol, 1.0f);
-        }
+        float splitY = ledY + LED_H * (1.f - (float)clampedVal / (float)levels);
+        if (splitY > ledY)
+            dl->AddRectFilled({ledX, ledY},   {ledX + LED_W, splitY},        kClrLcdBg, 1.0f);
+        if (splitY < ledY + LED_H)
+            dl->AddRectFilled({ledX, splitY}, {ledX + LED_W, ledY + LED_H},  ledCol,    1.0f);
     }
 
     ImGui::PopID();

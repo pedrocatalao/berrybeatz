@@ -463,7 +463,7 @@ void TrackerView::drawPatternToolbar1(float /*x*/, float /*y*/, float /*w*/) {
         }},
     };
 
-    float groupsH = DrawControlGroups(15.f, 6.f, ImGui::GetContentRegionMax().x - 15.f, groups);
+    float groupsH = DrawControlGroups(29.f, 6.f, ImGui::GetContentRegionMax().x - 29.f, groups);
     m_toolbar1H = 6.f + groupsH + 15.f;
 
     popToolbarStyle();

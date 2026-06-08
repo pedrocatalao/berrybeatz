@@ -17,8 +17,8 @@ static constexpr float kCG_PadBot   =  6.f;  // border → content (bottom)
 static constexpr float kCG_ItemGapH =  6.f;  // gap between widgets on same row
 static constexpr float kCG_ItemGapV =  4.f;  // gap between widget rows
 static constexpr float kCG_CornerR  =  3.f;
-static constexpr ImU32 kCG_Border   = IM_COL32(62, 62, 95, 155);
-static constexpr ImU32 kCG_LabelCol = IM_COL32(108, 108, 162, 215);
+static constexpr ImU32 kCG_Border   = IM_COL32(32, 32, 50, 155);
+static constexpr ImU32 kCG_LabelCol = IM_COL32(52, 52, 74, 255);
 
 // ── CGroupWidget ──────────────────────────────────────────────────────────────
 // width  — declared widget width used for horizontal flow decisions.
@@ -154,16 +154,36 @@ inline float DrawControlGroups(float localX, float localY, float availW,
         float gapS = bMin.x + 6.f;
         float gapE = gapS + (labelW > 0.f ? labelW + 4.f : 0.f);
 
-        dl->AddLine({bMin.x + R, bMin.y}, {gapS,        bMin.y}, kCG_Border, 1.f);
-        dl->AddLine({gapE,       bMin.y}, {bMax.x - R,  bMin.y}, kCG_Border, 1.f);
-        dl->AddLine({bMin.x, bMin.y + R}, {bMin.x, bMax.y - R},  kCG_Border, 1.f);
-        dl->AddLine({bMax.x, bMin.y + R}, {bMax.x, bMax.y - R},  kCG_Border, 1.f);
-        dl->AddLine({bMin.x + R, bMax.y}, {bMax.x - R,  bMax.y}, kCG_Border, 1.f);
+        // Gradient border: full opacity at top-left, 10% at bottom-right
+        const float W = bMax.x - bMin.x;
+        const float H = bMax.y - bMin.y;
+        auto colAt2D = [&](float x, float y) -> ImU32 {
+            float tx = std::max(0.f, std::min(1.f, (x - bMin.x) / W));
+            float ty = std::max(0.f, std::min(1.f, (y - bMin.y) / H));
+            uint8_t a = (uint8_t)(155.f * (1.f - tx * 0.999f) * (1.f - ty * 0.999f));
+            return IM_COL32(62, 62, 95, a);
+        };
+        auto hLine = [&](float x0, float x1, float y) {
+            ImU32 c0 = colAt2D(x0, y), c1 = colAt2D(x1, y);
+            dl->AddRectFilledMultiColor({x0, y}, {x1, y + 1.f}, c0, c1, c1, c0);
+        };
+        auto vLine = [&](float x, float y0, float y1) {
+            ImU32 cT = colAt2D(x, y0), cB = colAt2D(x, y1);
+            dl->AddRectFilledMultiColor({x, y0}, {x + 1.f, y1}, cT, cT, cB, cB);
+        };
+        ImU32 cTL = colAt2D(bMin.x, bMin.y), cTR = colAt2D(bMax.x, bMin.y);
+        ImU32 cBL = colAt2D(bMin.x, bMax.y), cBR = colAt2D(bMax.x, bMax.y);
+
+        hLine(bMin.x + R, gapS,       bMin.y);
+        hLine(gapE,       bMax.x - R, bMin.y);
+        hLine(bMin.x + R, bMax.x - R, bMax.y);
+        vLine(bMin.x, bMin.y + R, bMax.y - R);
+        vLine(bMax.x, bMin.y + R, bMax.y - R);
         // Corners
-        dl->AddLine({bMin.x, bMin.y + R}, {bMin.x + R, bMin.y},  kCG_Border, 1.f);
-        dl->AddLine({bMax.x - R, bMin.y}, {bMax.x, bMin.y + R},  kCG_Border, 1.f);
-        dl->AddLine({bMin.x + R, bMax.y}, {bMin.x, bMax.y - R},  kCG_Border, 1.f);
-        dl->AddLine({bMax.x - R, bMax.y}, {bMax.x, bMax.y - R},  kCG_Border, 1.f);
+        dl->AddLine({bMin.x,     bMin.y + R}, {bMin.x + R, bMin.y  }, cTL, 1.f);
+        dl->AddLine({bMax.x - R, bMin.y    }, {bMax.x,     bMin.y + R}, cTR, 1.f);
+        dl->AddLine({bMin.x + R, bMax.y    }, {bMin.x,     bMax.y - R}, cBL, 1.f);
+        dl->AddLine({bMax.x - R, bMax.y    }, {bMax.x,     bMax.y - R}, cBR, 1.f);
 
         if (labelW > 0.f) {
             float ly = bMin.y - labelMid;

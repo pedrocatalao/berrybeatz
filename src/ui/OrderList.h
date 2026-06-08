@@ -66,9 +66,9 @@ inline void OrderList(const char*   id,
     float  bvR = outerBR.x - 1.f, bvB = outerBR.y - 1.f;
 
     // ── Outer body fill + sheen ───────────────────────────────────────────────
-    bgDL->AddRectFilled(outerTL, outerBR, IM_COL32(25, 25, 38, 255), R);
-    bgDL->AddRectFilled(outerTL, {outerBR.x, y + h * 0.5f},
-                        IM_COL32(255, 255, 255, 14), R);
+    bgDL->AddRectFilledMultiColor(outerTL, outerBR,
+        IM_COL32(33, 33, 48, 255), IM_COL32(33, 33, 48, 255),
+        IM_COL32(14, 14, 26, 255), IM_COL32(14, 14, 26, 255));
 
     // LCD housing shadow + fill (drawn once, explicitly, in background)
     bgDL->AddLine({lcdX + 0.5f,          lcdY + 0.5f},         {lcdX + lcdW - 0.5f, lcdY + 0.5f},         IM_COL32(0,0,0,100));

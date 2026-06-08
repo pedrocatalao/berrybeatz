@@ -741,15 +741,14 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
 
             // ── SwitchButton-style body ───────────────────────────────────
             constexpr float R = 1.5f;
-            ImU32 bodyCol = namePressed ? IM_COL32(50,50,70,255)
-                          : nameHov     ? IM_COL32(38,38,55,255)
-                                        : IM_COL32(25,25,38,255);
-            dl->AddRectFilled(p, {p.x + cw - 1, p.y + CHANNAME_H}, bodyCol,
-                              R, ImDrawFlags_RoundCornersTop);
-
-            if (!namePressed)
-                dl->AddRectFilled(p, {p.x + cw - 1, p.y + CHANNAME_H * 0.5f},
-                                  IM_COL32(255,255,255,14), R, ImDrawFlags_RoundCornersTop);
+            ImU32 nameTop = namePressed ? IM_COL32(58,58,78,255)
+                          : nameHov     ? IM_COL32(46,46,63,255)
+                                        : IM_COL32(33,33,48,255);
+            ImU32 nameBot = namePressed ? IM_COL32(36,36,54,255)
+                          : nameHov     ? IM_COL32(24,24,40,255)
+                                        : IM_COL32(14,14,26,255);
+            dl->AddRectFilledMultiColor(p, {p.x + cw - 1, p.y + CHANNAME_H},
+                                        nameTop, nameTop, nameBot, nameBot);
 
             float bvR = p.x + cw - 2.f;
             float bvB = p.y + CHANNAME_H - 1.f;
@@ -920,14 +919,13 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
                 ImVec2 fxTL = {p.x,          plugTop};
                 ImVec2 fxBR = {p.x + cw - 1, plugTop + PLUGIN_H};
 
-                ImU32 fxBody = fxPressed ? IM_COL32(50,50,70,255)
-                             : fxHov     ? IM_COL32(38,38,55,255)
-                                         : IM_COL32(25,25,38,255);
-                dl->AddRectFilled(fxTL, fxBR, fxBody, fxR, ImDrawFlags_RoundCornersBottom);
-
-                if (!fxPressed)
-                    dl->AddRectFilled(fxTL, {fxBR.x, plugTop + PLUGIN_H * 0.5f},
-                                      IM_COL32(255,255,255,14), 0.f);
+                ImU32 fxTop = fxPressed ? IM_COL32(58,58,78,255)
+                           : fxHov     ? IM_COL32(46,46,63,255)
+                                       : IM_COL32(33,33,48,255);
+                ImU32 fxBot = fxPressed ? IM_COL32(36,36,54,255)
+                           : fxHov     ? IM_COL32(24,24,40,255)
+                                       : IM_COL32(14,14,26,255);
+                dl->AddRectFilledMultiColor(fxTL, fxBR, fxTop, fxTop, fxBot, fxBot);
 
                 float fbvR = fxBR.x - 1.f;
                 float fbvB = plugTop + PLUGIN_H - 1.f;
@@ -1255,11 +1253,14 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
                 ImVec2 rMin = {cp.x, cp.y - padY};
                 ImVec2 rMax = {cp.x + m_cellW, cp.y - padY + m_rowH};
                 ImDrawList* wdl = ImGui::GetWindowDrawList();
-                wdl->AddRectFilled(rMin, rMax, rowBg);
                 if (isCur) {
-                    wdl->AddRectFilled(rMin, {rMax.x, rMin.y + m_rowH * 0.5f}, IM_COL32(255,255,255,18));
+                    ImU32 curTop = IM_COL32(60, 100, 165, 160);
+                    ImU32 curBot = IM_COL32(25,  60, 120, 140);
+                    wdl->AddRectFilledMultiColor(rMin, rMax, curTop, curTop, curBot, curBot);
                     wdl->AddLine({rMin.x, rMin.y + 0.5f}, {rMax.x, rMin.y + 0.5f}, IM_COL32(255,255,255,70));
                     wdl->AddLine({rMin.x, rMax.y - 0.5f}, {rMax.x, rMax.y - 0.5f}, IM_COL32(0,0,0,110));
+                } else {
+                    wdl->AddRectFilled(rMin, rMax, rowBg);
                 }
             }
 

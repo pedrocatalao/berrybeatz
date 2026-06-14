@@ -1128,7 +1128,7 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
     }
 
     if (forceScroll) {
-        newScrollY = roundf(newScrollY / rowH) * rowH;
+        newScrollY = roundf(newScrollY);
         newScrollY = std::max(0.f, std::min(newScrollY, float(totalRows) * rowH));
         ImGui::SetScrollY(newScrollY);
         m_scrollY = newScrollY;

@@ -210,4 +210,6 @@ private:
     ImDrawList*                         m_tableInnerDL{nullptr};
     float                               m_patFlashT{0.f};
     float                               m_flashRowY{-1.f};
+    float                               m_flashLeft{-1.f};
+    float                               m_flashRight{-1.f};
 };

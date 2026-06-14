@@ -544,7 +544,9 @@ void TrackerView::drawStereoVU(ImDrawList* dl, float x, float y, float w, float 
 void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float /*h*/) {
     // Decay phosphor ghosts
     {
-        m_flashRowY = -1.f;
+        m_flashRowY    = -1.f;
+        m_flashLeft    = -1.f;
+        m_flashRight   = -1.f;
         const float dt    = ImGui::GetIO().DeltaTime;
         const float decay = powf(0.04f, dt);  // decays to ~4% over 1 second
         for (auto& g : m_phosphorGhosts) g.alpha *= decay;
@@ -1288,6 +1290,8 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
                 ImDrawList* wdl = ImGui::GetWindowDrawList();
                 if (isCur) {
                     m_flashRowY = rMin.y;
+                    if (m_flashLeft  < 0.f) m_flashLeft  = rMin.x;
+                    m_flashRight = rMax.x;
                     ImU32 curTop = IM_COL32(60, 100, 165, 160);
                     ImU32 curBot = IM_COL32(25,  60, 120, 140);
                     wdl->AddRectFilledMultiColor(rMin, rMax, curTop, curTop, curBot, curBot);
@@ -1487,18 +1491,14 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
     if (m_fontMono) ImGui::PopFont();
     ImGui::EndTable();
 
-    if (m_patFlashT > 0.f && m_tableInnerDL) {
-        // Use captured cursor row Y; fall back to top of visible pattern area if
-        // the cursor row was off-screen this frame (e.g. scroll hasn't snapped yet)
-        float flashY = m_flashRowY >= 0.f ? m_flashRowY
-                                          : m_patAreaMin.y + m_chanH;
+    if (m_patFlashT > 0.f && m_tableInnerDL && m_flashRowY >= 0.f) {
         uint8_t a = (uint8_t)(m_patFlashT * 120.f);
         m_tableInnerDL->AddCallback([](const ImDrawList*, const ImDrawCmd*) {
             glBlendFunc(GL_SRC_ALPHA, GL_ONE);
         }, nullptr);
         m_tableInnerDL->AddRectFilled(
-            {m_patAreaMin.x, flashY},
-            {m_patAreaMax.x, flashY + m_rowH},
+            {m_flashLeft, m_flashRowY},
+            {m_flashRight, m_flashRowY + m_rowH},
             IM_COL32(80, 140, 255, a));
         m_tableInnerDL->AddCallback([](const ImDrawList*, const ImDrawCmd*) {
             glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);

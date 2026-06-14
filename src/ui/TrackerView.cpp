@@ -1420,7 +1420,8 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
                     int64_t pkey = (int64_t(absR) << 20) | (int64_t(ch) << 4) | int64_t(subCol);
                     ImVec2  cur  = {gx, cellY};
                     auto    pit  = m_glowLastPos.find(pkey);
-                    if (pit != m_glowLastPos.end() && fabsf(pit->second.y - cellY) > 0.5f) {
+                    if (pit != m_glowLastPos.end() &&
+                        (fabsf(pit->second.y - cellY) > 0.5f || fabsf(pit->second.x - gx) > 0.5f)) {
                         ImU32 bcol = IM_COL32((uint8_t)(c.x*255.f),(uint8_t)(c.y*255.f),(uint8_t)(c.z*255.f), 0);
                         PhosphorGhost g;
                         g.x       = pit->second.x;

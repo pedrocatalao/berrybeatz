@@ -198,11 +198,12 @@ void TrackerView::render(float x, float y, float w, float h, float boxTopExt) {
     ImGui::End();
     ImGui::PopStyleColor(4); // scrollbar colors — must outlive End()
 
-    // Phosphor ghost rendering — screen-space, on top of everything
-    if (!m_phosphorGhosts.empty() && g_glowPattern > 0.f) {
-        ImDrawList* fdl = ImGui::GetForegroundDrawList();
-        fdl->PushClipRect(m_patAreaMin, m_patAreaMax, true);
-        fdl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {
+    // Phosphor ghost rendering — appended to the table's inner draw list after all
+    // content is rendered, so ghosts appear over channel headers/WF/FX/scrollbars
+    // but remain behind popup modals (which are separate windows above the table)
+    if (!m_phosphorGhosts.empty() && g_glowPattern > 0.f && m_tableInnerDL) {
+        m_tableInnerDL->PushClipRect(m_patAreaMin, m_patAreaMax, true);
+        m_tableInnerDL->AddCallback([](const ImDrawList*, const ImDrawCmd*) {
             glBlendFunc(GL_SRC_ALPHA, GL_ONE);
         }, nullptr);
         for (auto& g : m_phosphorGhosts) {
@@ -210,17 +211,17 @@ void TrackerView::render(float x, float y, float w, float h, float boxTopExt) {
             uint8_t a2 = (uint8_t)(g.alpha * 28.f * g_glowPattern);
             ImU32 c1 = (g.baseCol & 0x00FFFFFFu) | (uint32_t(a1) << 24);
             ImU32 c2 = (g.baseCol & 0x00FFFFFFu) | (uint32_t(a2) << 24);
-            fdl->AddText(g.font, g.fsize, {g.x - 1, g.y - 1}, c1, g.text);
-            fdl->AddText(g.font, g.fsize, {g.x + 1, g.y - 1}, c1, g.text);
-            fdl->AddText(g.font, g.fsize, {g.x - 1, g.y + 1}, c1, g.text);
-            fdl->AddText(g.font, g.fsize, {g.x + 1, g.y + 1}, c1, g.text);
-            fdl->AddText(g.font, g.fsize, {g.x - 2, g.y - 2}, c2, g.text);
-            fdl->AddText(g.font, g.fsize, {g.x + 2, g.y + 2}, c2, g.text);
+            m_tableInnerDL->AddText(g.font, g.fsize, {g.x - 1, g.y - 1}, c1, g.text);
+            m_tableInnerDL->AddText(g.font, g.fsize, {g.x + 1, g.y - 1}, c1, g.text);
+            m_tableInnerDL->AddText(g.font, g.fsize, {g.x - 1, g.y + 1}, c1, g.text);
+            m_tableInnerDL->AddText(g.font, g.fsize, {g.x + 1, g.y + 1}, c1, g.text);
+            m_tableInnerDL->AddText(g.font, g.fsize, {g.x - 2, g.y - 2}, c2, g.text);
+            m_tableInnerDL->AddText(g.font, g.fsize, {g.x + 2, g.y + 2}, c2, g.text);
         }
-        fdl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {
+        m_tableInnerDL->AddCallback([](const ImDrawList*, const ImDrawCmd*) {
             glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         }, nullptr);
-        fdl->PopClipRect();
+        m_tableInnerDL->PopClipRect();
     }
 
 
@@ -712,7 +713,8 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
     ImGui::PushStyleColor(ImGuiCol_TableBorderLight,  IM_COL32(0, 0, 0, 0));
     ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2(0.f, ImGui::GetStyle().CellPadding.y));
     bool tableOpen = ImGui::BeginTable("##pat", totalCols, tFlags, avail);
-    if (!tableOpen) { ImGui::PopStyleVar(); ImGui::PopStyleColor(2); return; }
+    if (!tableOpen) { m_tableInnerDL = nullptr; ImGui::PopStyleVar(); ImGui::PopStyleColor(2); return; }
+    m_tableInnerDL = ImGui::GetWindowDrawList();
 
     // Seek mode: ImGui's UpdateMouseWheel() runs in NewFrame() and writes a wheel-scroll
     // into ScrollTarget before our code runs; BeginTable's internal Begin() applies it to

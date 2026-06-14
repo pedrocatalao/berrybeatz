@@ -207,4 +207,5 @@ private:
     std::unordered_map<int64_t, ImVec2> m_glowLastPos;
     ImVec2                              m_patAreaMin{};
     ImVec2                              m_patAreaMax{};
+    ImDrawList*                         m_tableInnerDL{nullptr};
 };

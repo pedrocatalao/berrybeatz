@@ -395,33 +395,32 @@ void App::render(int winW, int winH)
 
     // ── App background — base fill + edge vignette ───────────────────────────
     {
+        auto* bg = ImGui::GetBackgroundDrawList();
+
         // Base fill behind everything
-        ImGui::GetBackgroundDrawList()->AddRectFilled(
-            {0.f, 0.f}, {w, h}, IM_COL32(17, 17, 22, 255));
+        bg->AddRectFilled({0.f, 0.f}, {w, h}, IM_COL32(17, 17, 22, 255));
 
-        // Edge gradients drawn in front so they vignette all content uniformly
-        auto* fg = ImGui::GetForegroundDrawList();
-
+        // Edge gradients behind all content
         // Top edge — cool highlight matching button palette
-        fg->AddRectFilledMultiColor(
+        bg->AddRectFilledMultiColor(
             {0.f, 0.f}, {w, 28.f},
             IM_COL32(45, 45, 56, 160), IM_COL32(45, 45, 56, 160),
             IM_COL32( 0,  0,  0,   0), IM_COL32( 0,  0,  0,   0));
 
         // Bottom shadow
-        fg->AddRectFilledMultiColor(
+        bg->AddRectFilledMultiColor(
             {0.f, h - 22.f}, {w, h},
             IM_COL32(0, 0, 0,  0), IM_COL32(0, 0, 0,  0),
             IM_COL32(0, 0, 0, 80), IM_COL32(0, 0, 0, 80));
 
         // Left edge shadow  (UL, UR, LR, LL)
-        fg->AddRectFilledMultiColor(
+        bg->AddRectFilledMultiColor(
             {0.f, 0.f}, {22.f, h},
             IM_COL32(0, 0, 0, 65), IM_COL32(0, 0, 0,  0),
             IM_COL32(0, 0, 0,  0), IM_COL32(0, 0, 0, 65));
 
         // Right edge shadow  (UL, UR, LR, LL)
-        fg->AddRectFilledMultiColor(
+        bg->AddRectFilledMultiColor(
             {w - 22.f, 0.f}, {w, h},
             IM_COL32(0, 0, 0,  0), IM_COL32(0, 0, 0, 65),
             IM_COL32(0, 0, 0, 65), IM_COL32(0, 0, 0,  0));

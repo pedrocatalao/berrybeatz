@@ -16,7 +16,7 @@
 #include "ControlGroup.h"
 #include <algorithm>
 
-// ── OpenMPT "Blue (FT2)" colour scheme — sourced from Theme.h ─────────────────
+// ── Colour scheme — sourced from Theme.h ─────────────────
 static constexpr ImVec4 kBgNormal   = kCellBgNormal;
 static constexpr ImVec4 kTextNormal = kCellTextNormal;
 static constexpr ImVec4 kTextCurRow = kCellTextCurRow;

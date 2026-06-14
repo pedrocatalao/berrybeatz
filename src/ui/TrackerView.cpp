@@ -1130,12 +1130,12 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
     }
 
     if (forceScroll) {
-        newScrollY = roundf(newScrollY);
+        newScrollY = floorf(newScrollY / rowH) * rowH;
         newScrollY = std::max(0.f, std::min(newScrollY, float(totalRows) * rowH));
         ImGui::SetScrollY(newScrollY);
         m_scrollY = newScrollY;
     } else if (m_rowH > 0.f) {
-        float snapped = roundf(currentScrollY / m_rowH) * m_rowH;
+        float snapped = floorf(currentScrollY / m_rowH) * m_rowH;
         snapped = std::max(0.f, std::min(snapped, float(totalRows) * rowH));
         if (fabsf(snapped - currentScrollY) > 0.5f) {
             ImGui::SetScrollY(snapped);
@@ -1199,7 +1199,7 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
         float target    = float(curAbsRow) * rowH - visH * 0.5f + rowH * 0.5f + padY;
         float maxScroll = ImGui::GetScrollMaxY();
         if (target <= maxScroll) {
-            int32_t h = (int32_t)roundf((currentScrollY + visH * 0.5f - rowH * 0.5f - padY) / rowH);
+            int32_t h = (int32_t)ceilf((currentScrollY + visH * 0.5f - rowH * 0.5f - padY) / rowH);
             curAbsRow = std::clamp(h, 0, totalRows - 1);
         }
         // else walk-from-bottom: use real curAbsRow from audio

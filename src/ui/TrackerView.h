@@ -208,4 +208,6 @@ private:
     ImVec2                              m_patAreaMin{};
     ImVec2                              m_patAreaMax{};
     ImDrawList*                         m_tableInnerDL{nullptr};
+    float                               m_patFlashT{0.f};
+    float                               m_flashRowY{-1.f};
 };

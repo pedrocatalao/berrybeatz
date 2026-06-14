@@ -544,6 +544,7 @@ void TrackerView::drawStereoVU(ImDrawList* dl, float x, float y, float w, float 
 void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float /*h*/) {
     // Decay phosphor ghosts
     {
+        m_flashRowY = -1.f;
         const float dt    = ImGui::GetIO().DeltaTime;
         const float decay = powf(0.04f, dt);  // decays to ~4% over 1 second
         for (auto& g : m_phosphorGhosts) g.alpha *= decay;
@@ -551,6 +552,7 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
             std::remove_if(m_phosphorGhosts.begin(), m_phosphorGhosts.end(),
                 [](const PhosphorGhost& g){ return g.alpha < 0.02f; }),
             m_phosphorGhosts.end());
+        m_patFlashT = std::max(0.f, m_patFlashT - dt * 5.f);  // ~0.2s flash
     }
 
     if (!m_ctrl || m_state.num_channels.load() <= 0) {
@@ -1061,8 +1063,10 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
     bool  playing    = m_state.is_playing.load();
     bool  patChanged = (curPat != m_lastPattern);
     bool  rowRewound = (playing && curAbsRow < m_lastAbsRow - 2);
-    if (curOrder != m_lastCurOrder)
+    if (curOrder != m_lastCurOrder) {
         m_glowLastPos.clear();
+        m_patFlashT = 1.0f;
+    }
     bool  navSnap    = m_navSnapPending; m_navSnapPending = false;
     // In continuous mode pattern boundaries are seamless — only snap on actual
     // backward jumps (loop restart / seek), not on natural forward progression.
@@ -1283,6 +1287,7 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
                 ImVec2 rMax = {cp.x + m_cellW, cp.y - padY + m_rowH};
                 ImDrawList* wdl = ImGui::GetWindowDrawList();
                 if (isCur) {
+                    m_flashRowY = rMin.y;
                     ImU32 curTop = IM_COL32(60, 100, 165, 160);
                     ImU32 curBot = IM_COL32(25,  60, 120, 140);
                     wdl->AddRectFilledMultiColor(rMin, rMax, curTop, curTop, curBot, curBot);
@@ -1481,6 +1486,24 @@ void TrackerView::drawPatternPanel(float /*x*/, float /*y*/, float /*w*/, float 
     clipper.End();
     if (m_fontMono) ImGui::PopFont();
     ImGui::EndTable();
+
+    if (m_patFlashT > 0.f && m_tableInnerDL) {
+        // Use captured cursor row Y; fall back to top of visible pattern area if
+        // the cursor row was off-screen this frame (e.g. scroll hasn't snapped yet)
+        float flashY = m_flashRowY >= 0.f ? m_flashRowY
+                                          : m_patAreaMin.y + m_chanH;
+        uint8_t a = (uint8_t)(m_patFlashT * 120.f);
+        m_tableInnerDL->AddCallback([](const ImDrawList*, const ImDrawCmd*) {
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+        }, nullptr);
+        m_tableInnerDL->AddRectFilled(
+            {m_patAreaMin.x, flashY},
+            {m_patAreaMax.x, flashY + m_rowH},
+            IM_COL32(80, 140, 255, a));
+        m_tableInnerDL->AddCallback([](const ImDrawList*, const ImDrawCmd*) {
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        }, nullptr);
+    }
 
     ImGui::PopStyleVar();
     ImGui::PopStyleColor(2);
